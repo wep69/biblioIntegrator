@@ -1,0 +1,32 @@
+---
+title: "Descriptive bibliometrics and impact"
+author: "biblioIntegrator team"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Descriptive bibliometrics and impact}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(biblioIntegrator)
+```
+
+# Purpose
+
+Descriptive indicators are useful summaries, but their interpretation depends on coverage and citation window. Normalized scores compare within explicit strata.
+
+# Workflow
+
+```{r}
+x <- as_biblio_project(example_biblio())
+describe_biblio(x)
+biblio_metrics(x)
+normalized_citations(x)
+citation_velocity(x, current_year = 2026)
+```
+
+# Interpretation
+
+Results should be interpreted in relation to database coverage, time window, entity normalization and analytical thresholds. Provenance should be retained whenever data are merged, deduplicated or enriched.

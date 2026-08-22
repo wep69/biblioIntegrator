@@ -1,0 +1,34 @@
+---
+title: "Comparative inference"
+author: "biblioIntegrator team"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Comparative inference}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(biblioIntegrator)
+```
+
+# Purpose
+
+The native engine handles exclusive or overlapping groups. For overlaps it permutes complete membership rows, preserving the overlap pattern.
+
+# Workflow
+
+```{r}
+x <- as_biblio_project(example_biblio())
+g <- ifelse(x$works$year < 2022, "early", "recent")
+z <- compare_groups(x, g, permutations = 99, bootstrap = 49, seed = 10)
+z
+head(association_residuals(z))
+group_ca(z)
+sensitivity_analysis(x, g, thresholds = 1:2, permutations = 49, seed = 10)
+```
+
+# Interpretation
+
+Results should be interpreted in relation to database coverage, time window, entity normalization and analytical thresholds. Provenance should be retained whenever data are merged, deduplicated or enriched.

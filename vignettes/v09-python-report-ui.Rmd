@@ -1,0 +1,37 @@
+---
+title: "Biblium, reporting and interactive use"
+author: "biblioIntegrator team"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Biblium, reporting and interactive use}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(biblioIntegrator)
+```
+
+# Purpose
+
+Biblium is optional. Core comparative inference remains available in R. When Biblium 2.16 is configured, the package can execute the public BiblioGroup permutation interface and validate results against the native engine.
+
+# Workflow
+
+```{r}
+x <- as_biblio_project(example_biblio())
+python_backend_status()
+plan <- form_plan(analyses = c("health", "descriptive", "network", "text"))
+res <- run_plan(plan, x)
+names(res)
+f <- tempfile(fileext = ".md")
+biblio_report(x, f)
+file.exists(f)
+```
+
+For an explicitly configured Python environment, use `enable_python_backend()` and then `validate_biblium()` to compare the native and Biblium engines. The interactive entry point is `biblio_app()`.
+
+# Interpretation
+
+Results should be interpreted in relation to database coverage, time window, entity normalization and analytical thresholds. Provenance should be retained whenever data are merged, deduplicated or enriched.

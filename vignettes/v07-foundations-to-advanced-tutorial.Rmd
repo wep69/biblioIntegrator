@@ -1,0 +1,54 @@
+---
+title: "Foundations-to-advanced tutorial"
+author: "biblioIntegrator team"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Foundations-to-advanced tutorial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(biblioIntegrator)
+```
+
+# Purpose
+
+This tutorial links data architecture, audit, descriptive analysis, formal group comparison, networks, sensitivity, scalable storage and reporting in one agronomic workflow.
+
+# Workflow
+
+```{r}
+library(biblioIntegrator)
+raw <- example_biblio()
+x <- as_biblio_project(raw, source = "agronomy tutorial")
+# 1. Diagnose the corpus
+biblio_health(x)
+# 2. Describe production and impact
+describe_biblio(x)
+biblio_metrics(x)
+# 3. Compare periods with inferential support
+period <- ifelse(x$works$year <= 2021, "earlier", "recent")
+cmp <- compare_groups(x, period, permutations = 199, bootstrap = 99, seed = 42)
+cmp
+head(association_residuals(cmp), 10)
+# 4. Study the collaboration structure
+g <- bibliographic_network(x, "coauthor")
+head(network_centrality(g))
+network_communities(g)
+network_stability(x, B = 30, seed = 42)
+# 5. Examine topical change
+trend_topics(x)
+head(tfidf_terms(x))
+# 6. Check threshold sensitivity
+sensitivity_analysis(x, period, 1:2, permutations = 99, seed = 42)
+# 7. Generate an auditable report
+f <- tempfile(fileext = ".md")
+biblio_report(x, f)
+readLines(f, n = 12)
+```
+
+# Interpretation
+
+Results should be interpreted in relation to database coverage, time window, entity normalization and analytical thresholds. Provenance should be retained whenever data are merged, deduplicated or enriched.

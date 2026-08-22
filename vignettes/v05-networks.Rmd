@@ -1,0 +1,36 @@
+---
+title: "Networks and stability"
+author: "biblioIntegrator team"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Networks and stability}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(biblioIntegrator)
+```
+
+# Purpose
+
+Network construction is distinct from network interpretation. The native engine is always available; biblionetwork can accelerate coauthorship construction.
+
+# Workflow
+
+```{r}
+x <- as_biblio_project(example_biblio())
+g <- bibliographic_network(x, "coauthor")
+network_centrality(g)
+network_communities(g)
+network_stability(x, B = 20, seed = 4)
+if (requireNamespace("biblionetwork", quietly = TRUE)) {
+  gb <- bibliographic_network(x, "coauthor", engine = "biblionetwork")
+  attr(gb, "engine")
+}
+```
+
+# Interpretation
+
+Results should be interpreted in relation to database coverage, time window, entity normalization and analytical thresholds. Provenance should be retained whenever data are merged, deduplicated or enriched.

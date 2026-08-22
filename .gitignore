@@ -1,0 +1,41 @@
+# R / RStudio
+.Rproj.user
+.Rhistory
+.Rdata
+.httr-oauth
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.tar.gz
+*.zip
+*.Rcheck/
+doc/
+docs/
+Meta/
+inst/doc/
+
+# pkgdown
+docs/
+_site/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+logs/
+
+# Backups
+*_backup/
+*_original_snapshot_backup/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

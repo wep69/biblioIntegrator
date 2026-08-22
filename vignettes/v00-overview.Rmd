@@ -1,0 +1,33 @@
+---
+title: "Overview and design"
+author: "biblioIntegrator team"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Overview and design}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(biblioIntegrator)
+```
+
+# Purpose
+
+The package uses a harmonized relational project as the common analytical object. This avoids treating one database export schema as the universal data model.
+
+# Workflow
+
+```{r}
+library(biblioIntegrator)
+x <- as_biblio_project(example_biblio())
+x
+biblio_health(x)
+describe_biblio(x)
+audit_biblio(x)
+```
+
+# Interpretation
+
+Results should be interpreted in relation to database coverage, time window, entity normalization and analytical thresholds. Provenance should be retained whenever data are merged, deduplicated or enriched.

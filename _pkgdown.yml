@@ -1,0 +1,121 @@
+url: https://wep69.github.io/biblioIntegrator/
+
+template:
+  bootstrap: 5
+  bootswatch: cosmo
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    github:
+      icon: fa-github
+      href: https://github.com/wep69/biblioIntegrator
+
+reference:
+  - title: "Core: Project & Health"
+    desc: "Create, inspect and audit bibliographic projects."
+    contents:
+      - as_biblio_project
+      - biblio_health
+      - audit_biblio
+      - example_biblio
+      - biblio_import
+
+  - title: "Descriptive Analysis"
+    desc: "Describe, compute metrics and export bibliometric data."
+    contents:
+      - describe_biblio
+      - biblio_metrics
+      - term_frequency
+      - tfidf_terms
+      - trend_topics
+      - export_biblio
+      - export_vosviewer
+      - to_bibliometrix
+
+  - title: "Temporal & Citation"
+    desc: "Growth, velocity, trajectory, RPYS and disruption."
+    contents:
+      - temporal_growth
+      - citation_velocity
+      - citation_trajectory
+      - rpys
+      - normalized_citations
+      - disruption_index
+
+  - title: "Comparative Inference"
+    desc: "Group formation, comparison and sensitivity."
+    contents:
+      - form_groups
+      - compare_groups
+      - compare_sources
+      - group_ca
+      - group_mca
+      - association_residuals
+      - sensitivity_analysis
+      - validate_biblium
+      - biblium_compare_groups
+
+  - title: "Networks"
+    desc: "Build, analyse and store bibliographic networks."
+    contents:
+      - bibliographic_network
+      - network_centrality
+      - network_communities
+      - network_stability
+
+  - title: "Storage & Query"
+    desc: "Persist and query with Arrow and DuckDB."
+    contents:
+      - biblio_store
+      - biblio_load
+      - biblio_query
+
+  - title: "Online APIs"
+    desc: "Fetch from OpenAlex and OpenCitations."
+    contents:
+      - fetch_openalex
+      - fetch_opencitations
+
+  - title: "Python & Biblium"
+    desc: "Optional Python backend and Biblium bridge."
+    contents:
+      - enable_python_backend
+      - python_backend_status
+      - biblium_backend_status
+      - install_biblium_backend
+      - to_biblium
+
+  - title: "Workflow & Plans"
+    desc: "Analysis plans, reports and Shiny app."
+    contents:
+      - form_plan
+      - validate_plan
+      - run_plan
+      - biblio_report
+      - biblio_app
+
+  - title: "Deduplication"
+    desc: "Identify and remove duplicate records."
+    contents:
+      - deduplicate_biblio
+
+articles:
+  - title: "Getting Started"
+    navbar: ~
+    contents:
+      - v00-overview
+
+  - title: "Tutorials"
+    contents:
+      - v01-import-harmonize
+      - v02-quality-dedup
+      - v03-descriptive-impact
+      - v04-comparative-inference
+      - v05-networks
+      - v06-temporal-text
+      - v07-foundations-to-advanced-tutorial
+      - v08-scalable-backends
+      - v09-python-report-ui

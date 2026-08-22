@@ -1,0 +1,39 @@
+---
+title: "Scalable storage and backends"
+author: "biblioIntegrator team"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Scalable storage and backends}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(biblioIntegrator)
+```
+
+# Purpose
+
+Arrow and DuckDB are optional storage engines. They keep the core package lightweight while enabling larger-than-memory workflows and SQL queries.
+
+# Workflow
+
+```{r}
+backend_status()
+x <- as_biblio_project(example_biblio())
+if (requireNamespace("arrow", quietly = TRUE)) {
+  p <- tempfile()
+  biblio_store(x, p, "arrow")
+  nrow(biblio_load(p, "arrow")$works)
+}
+if (requireNamespace("duckdb", quietly = TRUE) && requireNamespace("DBI", quietly = TRUE)) {
+  p <- tempfile(fileext = ".duckdb")
+  biblio_store(x, p, "duckdb")
+  biblio_query(p, "SELECT year, COUNT(*) AS n FROM works GROUP BY year ORDER BY year")
+}
+```
+
+# Interpretation
+
+Results should be interpreted in relation to database coverage, time window, entity normalization and analytical thresholds. Provenance should be retained whenever data are merged, deduplicated or enriched.

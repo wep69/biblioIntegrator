@@ -1,0 +1,34 @@
+---
+title: "Import and harmonization"
+author: "biblioIntegrator team"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Import and harmonization}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(biblioIntegrator)
+```
+
+# Purpose
+
+Import is separated from harmonization. CSV, TSV and JSON have native paths, while other common bibliographic formats can use bibliometrix when installed.
+
+# Workflow
+
+```{r}
+d <- example_biblio()
+x <- as_biblio_project(d, source = "teaching corpus")
+head(x$works)
+head(x$authorships)
+head(x$keywords)
+to_bibliometrix(x)
+to_biblium(x)
+```
+
+# Interpretation
+
+Results should be interpreted in relation to database coverage, time window, entity normalization and analytical thresholds. Provenance should be retained whenever data are merged, deduplicated or enriched.

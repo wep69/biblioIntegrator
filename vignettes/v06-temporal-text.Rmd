@@ -1,0 +1,33 @@
+---
+title: "Temporal and text analysis"
+author: "biblioIntegrator team"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Temporal and text analysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(biblioIntegrator)
+```
+
+# Purpose
+
+Time and text modules provide transparent summaries without requiring Python. They can be used before more complex semantic models.
+
+# Workflow
+
+```{r}
+x <- as_biblio_project(example_biblio())
+temporal_growth(x)
+trend_topics(x)
+head(term_frequency(x), 10)
+head(tfidf_terms(x), 10)
+rpys(c(rep(2000, 6), 1995:2005))
+```
+
+# Interpretation
+
+Results should be interpreted in relation to database coverage, time window, entity normalization and analytical thresholds. Provenance should be retained whenever data are merged, deduplicated or enriched.

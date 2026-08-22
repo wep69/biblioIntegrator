@@ -1,0 +1,33 @@
+---
+title: "Quality control and deduplication"
+author: "biblioIntegrator team"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Quality control and deduplication}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(biblioIntegrator)
+```
+
+# Purpose
+
+Quality checks should precede maps and rankings. Deduplication records what was removed and adds an operation to provenance.
+
+# Workflow
+
+```{r}
+d <- rbind(example_biblio(), example_biblio()[1, ])
+x <- as_biblio_project(d)
+biblio_health(x)
+y <- deduplicate_biblio(x)
+attr(y, "dedup_log")
+audit_biblio(y)
+```
+
+# Interpretation
+
+Results should be interpreted in relation to database coverage, time window, entity normalization and analytical thresholds. Provenance should be retained whenever data are merged, deduplicated or enriched.

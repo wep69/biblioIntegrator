@@ -1,0 +1,33 @@
+# GitHub Actions
+^\.github$
+
+# pkgdown
+^_pkgdown\.yml$
+^docs$
+^_pkgdown\.yaml$
+
+# Development files
+^.*\.Rproj$
+^\.Rproj\.user$
+
+# Validation docs
+^biblioIntegrator_LOCAL_VALIDATION.*\.md$
+^biblioIntegrator_cheatsheet\.pdf$
+
+# Build artifacts
+^BUILD[^/]*\.(log|err|txt)$
+^.*\.tar\.gz$
+
+# Python environment
+^\.venv$
+
+# IDE
+^\.vscode$
+^\.idea$
+
+# OS files
+^\.DS_Store$
+^Thumbs\.db$
+
+# README with badges (keep README.md but not extras)
+^README\.html$

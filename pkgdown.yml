@@ -1,0 +1,18 @@
+pandoc: 3.8.3
+pkgdown: 2.2.1
+pkgdown_sha: ~
+articles:
+  v00-overview: v00-overview.html
+  v01-import-harmonize: v01-import-harmonize.html
+  v02-quality-dedup: v02-quality-dedup.html
+  v03-descriptive-impact: v03-descriptive-impact.html
+  v04-comparative-inference: v04-comparative-inference.html
+  v05-networks: v05-networks.html
+  v06-temporal-text: v06-temporal-text.html
+  v07-foundations-to-advanced-tutorial: v07-foundations-to-advanced-tutorial.html
+  v08-scalable-backends: v08-scalable-backends.html
+  v09-python-report-ui: v09-python-report-ui.html
+last_built: 2026-08-22T23:10Z
+urls:
+  reference: https://wep69.github.io/biblioIntegrator/reference
+  article: https://wep69.github.io/biblioIntegrator/articles

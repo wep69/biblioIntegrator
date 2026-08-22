@@ -85,8 +85,15 @@ reference:
       - enable_python_backend
       - python_backend_status
       - biblium_backend_status
+      - backend_status
       - install_biblium_backend
       - to_biblium
+
+  - title: "Internal"
+    desc: "Internal methods (not typically called directly)."
+    contents:
+      - print.biblio_group_comparison
+      - print.biblio_project
 
   - title: "Workflow & Plans"
     desc: "Analysis plans, reports and Shiny app."

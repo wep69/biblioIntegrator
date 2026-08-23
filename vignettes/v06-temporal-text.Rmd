@@ -1,33 +1,1410 @@
 ---
-title: "Temporal and text analysis"
+title: "Temporal and Textual Analysis"
 author: "biblioIntegrator team"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Temporal and text analysis}
+  %\VignetteIndexEntry{Temporal and Textual Analysis}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5,
+  out.width = "100%",
+  dpi = 150,
+  message = FALSE,
+  warning = FALSE
+)
+
+# Safe chunk: load package at setup
 library(biblioIntegrator)
 ```
 
-# Purpose
+# 1. Why This Vignette Exists
 
-Time and text modules provide transparent summaries without requiring Python. They can be used before more complex semantic models.
+Bibliometric data contains rich temporal and textual signals that go far beyond citation counts and h-indices. Understanding *when* research emerges and *what* topics it addresses provides a deeper view of scientific evolution.
 
-# Workflow
+**Temporal analysis** reveals growth trajectories, citation dynamics, and historically seminal moments. Examining publication patterns over time allows researchers to identify inflection points—moments when a field expanded rapidly, plateaued, or declined. Citation velocity shows whether research impact arrives immediately or accumulates slowly across decades.
 
-```{r}
-x <- as_biblio_project(example_biblio())
-temporal_growth(x)
-trend_topics(x)
-head(term_frequency(x), 10)
-head(tfidf_terms(x), 10)
-rpys(c(rep(2000, 6), 1995:2005))
+**Textual analysis** complements temporal data by revealing *what* is being studied. Term frequency and TF-IDF analysis extract meaningful themes from titles and abstracts. Trending topic detection identifies emerging research fronts before they become saturated.
+
+Together, these methods help answer fundamental questions:
+
+- **When did a research field accelerate?** Growth curves reveal the inflection points where research attention intensified.
+- **How quickly are papers cited?** Citation velocity distinguishes fast-moving fields from those with slower maturation.
+- **Which years were seminal?** Reference Publication Year Spectroscopy (RPYS) identifies years that exerted disproportionate historical influence.
+- **What topics are trending?** Text analysis reveals emerging themes and declining interests.
+- **Is research disruptive or consolidating?** Disruption indices quantify whether work opens new directions or consolidates existing ones.
+
+This vignette demonstrates how to combine temporal and textual analyses using the `biblioIntegrator` package.
+
+---
+
+# 2. Learning Objectives
+
+After completing this vignette, you will be able to:
+
+1. **Analyze publication growth patterns** using `temporal_growth()` with linear, exponential, and logistic models
+2. **Compute citation velocity** to measure how quickly papers accumulate citations over time
+3. **Model citation trajectories** across different time horizons and detect sleeping beauties
+4. **Perform Reference Publication Year Spectroscopy (RPYS)** to identify historically influential years
+5. **Normalize citations** by field and time window using `normalized_citations()`
+6. **Compute disruption indices** to distinguish transformative research from incremental work
+7. **Calculate term frequency** from bibliographic text fields and interpret raw counts
+8. **Apply TF-IDF weighting** to identify terms that distinguish specific documents or groups
+9. **Detect trending topics** using `trend_topics()` with time-windowed analysis
+10. **Interpret and synthesize** temporal and textual results for research evaluation
+
+---
+
+# 3. Prerequisites
+
+## 3.1 Required Packages
+
+```{r prerequisites, eval=FALSE}
+# Core package
+library(biblioIntegrator)
+
+# Data manipulation
+library(dplyr)
+library(tidyr)
+
+# Visualization
+library(ggplot2)
+library(scales)
+
+# Text processing (optional but recommended)
+if (requireNamespace("tidytext", quietly = TRUE)) {
+  library(tidytext)
+}
+
+# Nice composite figures (optional)
+if (requireNamespace("patchwork", quietly = TRUE)) {
+  library(patchwork)
+}
 ```
 
-# Interpretation
+## 3.2 Data Structure Expectations
 
-Results should be interpreted in relation to database coverage, time window, entity normalization and analytical thresholds. Provenance should be retained whenever data are merged, deduplicated or enriched.
+Most temporal and text functions operate on a data frame with these typical columns:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `PY` | integer | Publication year |
+| `TC` | integer | Total citation count |
+| `TI` | character | Title text |
+| `AB` | character | Abstract text |
+| `AU` | character | Authors (semicolon-separated) |
+| `SO` | character | Source / journal name |
+| `WC` | character | Web of Science category or field |
+| `DE` | character | Author keywords |
+| `CR` | character | Cited references (semicolon-separated) |
+| `DB` | character | Database source (Scopus, WoS, etc.) |
+
+Not all columns are required by every function. Check each function's documentation.
+
+## 3.3 Loading Example Data
+
+```{r load-example, eval=FALSE}
+# Option A: Use built-in example data
+data(example_biblio)
+biblio_df <- example_biblio()
+
+# Option B: Load your own data
+# biblio_df <- biblio_load("my_data.csv")
+
+# Option C: Merge multiple databases
+# merged <- biblio_merge(list(scopus_df, wos_df),
+#                         source_names = c("Scopus", "WoS"))
+
+# Quick data check
+cat("Dimensions:", nrow(biblio_df), "rows x", ncol(biblio_df), "columns\n")
+cat("Year range:", range(biblio_df$PY, na.rm = TRUE), "\n")
+cat("Missing PY:", sum(is.na(biblio_df$PY)), "\n")
+```
+
+---
+
+# 4. Temporal Analysis
+
+## 4.1 Publication Growth: `temporal_growth()`
+
+Publication growth analysis reveals how a field evolves over time. The function `temporal_growth()` counts publications per year and fits growth models.
+
+### 4.1.1 Basic Usage
+
+```{r temporal-growth-basic, eval=FALSE}
+# Convert to biblio_project and compute growth
+bp <- as_biblio_project(example_biblio())
+growth <- temporal_growth(bp)
+
+# View result structure
+str(growth)
+# 'data.frame':	25 obs. of  3 variables:
+#  $ year : int  1999 2000 2001 ...
+#  $ count: int  12 25 31 ...
+#  $ model: num  ...  (fitted values)
+
+head(growth, 10)
+```
+
+### 4.1.2 Visualization
+
+```{r temporal-growth-plot, eval=FALSE}
+# Plot annual publication counts
+ggplot(growth, aes(x = year, y = count)) +
+  geom_bar(stat = "identity", fill = "steelblue", alpha = 0.7) +
+  geom_smooth(method = "loess", se = TRUE, color = "red") +
+  labs(
+    title = "Publication Growth Over Time",
+    x = "Year",
+    y = "Number of Publications"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+### 4.1.3 Growth Model Selection
+
+Temporal growth patterns vary by field. Three common models:
+
+| Model | Equation | When to use |
+|-------|----------|-------------|
+| Linear | $y = a + bt$ | Steady, predictable growth |
+| Exponential | $y = ae^{bt}$ | Rapidly expanding fields |
+| Logistic | $y = \frac{K}{1 + e^{-b(t - t_0)}}$ | Fields approaching saturation |
+
+```{r growth-models, eval=FALSE}
+# Compare growth models
+# In practice, temporal_growth() returns fitted values
+# You can compare model fits manually:
+
+growth_df <- data.frame(
+  year = growth$year,
+  count = growth$count
+)
+
+# Linear model
+fit_linear <- lm(count ~ year, data = growth_df)
+
+# Log-linear (exponential proxy)
+fit_log <- lm(log(count + 1) ~ year, data = growth_df)
+
+# Compare R-squared values
+cat("Linear R²:", summary(fit_linear)$r.squared, "\n")
+cat("Log-linear R²:", summary(fit_log)$r.squared, "\n")
+```
+
+### 4.1.4 Comparing Growth Across Datasets
+
+```{r growth-compare, eval=FALSE}
+# If you have data from multiple databases
+# ggplot(merged_df, aes(x = PY, y = count, fill = DB)) +
+#   geom_bar(stat = "identity", position = "dodge") +
+#   labs(title = "Growth by Database",
+#        x = "Year", y = "Publications",
+#        fill = "Database") +
+#   theme_minimal()
+```
+
+---
+
+## 4.2 Citation Velocity: `citation_velocity()`
+
+Citation velocity measures how quickly papers accumulate citations after publication. It is often defined as the total citations divided by the number of years since publication.
+
+### 4.2.1 Basic Computation
+
+```{r citation-velocity-basic, eval=FALSE}
+# Compute citation velocity
+bp <- as_biblio_project(example_biblio())
+velocity <- citation_velocity(bp)
+
+head(velocity, 10)
+# Returns data frame with:
+# - document identifier
+# - publication year
+# - total citations
+# - years since publication
+# - velocity (citations/year)
+```
+
+### 4.2.2 Interpreting Velocity
+
+```{r velocity-interpretation, eval=FALSE}
+# Summary statistics
+summary(velocity$velocity)
+
+# Classify velocity
+velocity <- velocity %>%
+  mutate(
+    velocity_class = case_when(
+      velocity >= 20 ~ "Very high",
+      velocity >= 10 ~ "High",
+      velocity >= 5  ~ "Medium",
+      velocity >= 1  ~ "Low",
+      TRUE           ~ "Minimal"
+    )
+  )
+
+velocity %>%
+  count(velocity_class) %>%
+  arrange(desc(n)) %>%
+  mutate(pct = round(n / sum(n) * 100, 1))
+```
+
+### 4.2.3 Field-Normalized Velocity
+
+```{r velocity-normalized, eval=FALSE}
+# Normalize velocity by field to enable cross-field comparison
+velocity_norm <- velocity %>%
+  group_by(field) %>%
+  mutate(
+    velocity_z = (velocity - mean(velocity, na.rm = TRUE)) /
+                  sd(velocity, na.rm = TRUE),
+    velocity_pct = percent_rank(velocity)
+  ) %>%
+  ungroup()
+
+# Top 1% papers by normalized velocity
+top_velocity <- velocity_norm %>%
+  filter(velocity_pct >= 0.99) %>%
+  arrange(desc(velocity_z))
+
+cat("Top 1% papers by normalized citation velocity:\n")
+print(head(top_velocity, 10))
+```
+
+### 4.2.4 Visualization
+
+```{r velocity-plot, eval=FALSE}
+ggplot(velocity, aes(x = velocity)) +
+  geom_histogram(bins = 50, fill = "steelblue", alpha = 0.7) +
+  geom_vline(xintercept = median(velocity$velocity, na.rm = TRUE),
+             linetype = "dashed", color = "red", size = 1) +
+  scale_x_log10() +
+  labs(
+    title = "Citation Velocity Distribution",
+    subtitle = "Red dashed line = median velocity",
+    x = "Citations per year (log scale)",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+---
+
+## 4.3 Citation Trajectories: `citation_trajectory()`
+
+Citation trajectories model how individual papers accumulate citations over their life cycle. Different patterns are possible:
+
+- **Immediate impact**: High initial citations, declining over time
+- **Slow burn**: Gradual increase, peak after 5-10 years
+- **Sleeping beauty**: Low initial impact, sudden late recognition
+- **Plateau**: Rapid rise followed by stable citation rate
+
+### 4.3.1 Basic Computing
+
+```{r trajectory-basic, eval=FALSE}
+# Model citation trajectories
+bp <- as_biblio_project(example_biblio())
+trajectories <- citation_trajectory(bp)
+
+head(trajectories, 10)
+# Returns per-document trajectory parameters including peak year,
+# curvature, and half-life estimates
+```
+
+### 4.3.2 Trajectory Classification
+
+```{r trajectory-classify, eval=FALSE}
+# Classify papers by trajectory type
+trajectories <- trajectories %>%
+  mutate(
+    trajectory_type = case_when(
+      peak_year <= pub_year + 2           ~ "Immediate impact",
+      peak_year <= pub_year + 5           ~ "Early peak",
+      peak_year <= pub_year + 10          ~ "Mid-career peak",
+      is.na(peak_year)                    ~ "Still rising",
+      TRUE                                ~ "Late bloomer"
+    )
+  )
+
+# Summary by type
+trajectory_dist <- trajectories %>%
+  count(trajectory_type) %>%
+  arrange(desc(n))
+
+print(trajectory_dist)
+```
+
+### 4.3.3 Sleeping Beauties
+
+A "sleeping beauty" is a paper that receives little attention initially but gains recognition years later. Detection criteria:
+
+1. Low citation rate in first 3-5 years after publication
+2. Sudden increase in citations after a dormancy period
+3. Final citation count substantially above field average
+
+```{r sleeping-beauties, eval=FALSE}
+# Detect potential sleeping beauties
+sleeping_beauties <- trajectories %>%
+  filter(
+    trajectory_type == "Late bloomer",
+    total_citations > quantile(total_citations, 0.9, na.rm = TRUE)
+  ) %>%
+  arrange(desc(total_citations))
+
+cat("Potential Sleeping Beauties:\n")
+print(head(sleeping_beauties, 10))
+```
+
+### 4.3.4 Visualization
+
+```{r trajectory-plot, eval=FALSE}
+# Plot trajectories for selected papers
+# Select top papers from different trajectory types
+selected <- trajectories %>%
+  group_by(trajectory_type) %>%
+  slice_max(total_citations, n = 3) %>%
+  ungroup()
+
+ggplot(selected, aes(x = years_since_pub, y = cumulative_citations,
+                      group = document_id, color = trajectory_type)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  facet_wrap(~trajectory_type, scales = "free_y") +
+  labs(
+    title = "Citation Trajectories by Type",
+    x = "Years Since Publication",
+    y = "Cumulative Citations"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none")
+```
+
+---
+
+## 4.4 Reference Publication Year Spectroscopy: `rpys()`
+
+Reference Publication Year Spectroscopy (RPYS) identifies years that are cited more frequently than expected, revealing historically seminal years in a field's development.
+
+<div class="callout-note">
+RPYS analyzes the *references* cited by papers in your corpus, not the papers themselves. It answers: "Which historical years had disproportionate influence on this field?"
+</div>
+
+### 4.4.1 How RPYS Works
+
+1. Parse all cited references from the corpus
+2. Extract publication years from the references
+3. Count references per year
+4. Compare observed counts against a baseline (e.g., 5-year moving median)
+5. Identify years with significant positive deviations
+
+### 4.4.2 Performing RPYS
+
+```{r rpys-basic, eval=FALSE}
+# Extract reference years from cited references
+# The 'CR' column typically contains semicolon-separated reference strings
+ref_years <- extract_reference_years(biblio_df$CR)
+
+# Perform RPYS analysis
+rpys_result <- rpys(ref_years)
+
+head(rpys_result, 20)
+# Returns data frame with:
+# - ref_year: reference publication year
+# - count: number of times this year was cited
+# - median: 5-year moving median baseline
+# - deviation: observed - baseline
+# - deviation_z: standardized deviation
+```
+
+### 4.4.3 Identifying Seminal Years
+
+```{r rpys-seminal, eval=FALSE}
+# Filter statistically significant peaks (Z > 2)
+seminal_years <- rpys_result %>%
+  filter(deviation_z > 2) %>%
+  arrange(desc(deviation_z))
+
+cat("=== Seminal Years Detected ===\n")
+cat(sprintf("Year | Citations | Z-score\n"))
+cat(sprintf("-----|-----------|--------\n"))
+for (i in seq_len(min(15, nrow(seminal_years)))) {
+  cat(sprintf("%4d | %9d | %6.2f\n",
+              seminal_years$ref_year[i],
+              seminal_years$count[i],
+              seminal_years$deviation_z[i]))
+}
+```
+
+### 4.4.4 Visualization
+
+```{r rpys-plot, eval=FALSE}
+# Create spectrogram
+ggplot(rpys_result, aes(x = ref_year, y = count)) +
+  geom_bar(stat = "identity", fill = "steelblue", alpha = 0.7) +
+  geom_line(aes(y = median), color = "red", size = 1) +
+  geom_hline(yintercept = mean(rpys_result$count) +
+               2 * sd(rpys_result$count),
+             linetype = "dashed", color = "darkred") +
+  geom_text(
+    data = seminal_years %>% head(10),
+    aes(label = ref_year, y = count + 5),
+    size = 3, angle = 45, hjust = 0
+  ) +
+  labs(
+    title = "Reference Publication Year Spectroscopy (RPYS)",
+    subtitle = "Blue bars = cited references; Red line = 5-year median",
+    x = "Reference Year",
+    y = "Number of Citations"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+### 4.4.5 Interpreting RPYS Results
+
+RPYS peaks typically correspond to three categories:
+
+| Category | Description | Example |
+|----------|-------------|---------|
+| **Paradigm-establishing** | Foundational works that defined a field | Darwin (1859), Shannon (1948) |
+| **Methodological breakthroughs** | New methods that became standard | PCR (1986), BLAST (1990) |
+| **Landmark datasets** | Released data that enabled research | Human Genome (2001) |
+
+<div class="callout-tip">
+**Practical tip:** Cross-reference RPYS peaks with citation counts for specific references. A peak year may reflect one highly cited work or many moderately cited works from the same year.
+</div>
+
+### 4.4.6 Case Study: Terahertz Research
+
+Consider a corpus of 500 papers on terahertz spectroscopy. RPYS analysis might reveal:
+
+```{r rpys-case-study, eval=FALSE}
+# Hypothetical RPYS results for terahertz field
+rpys_example <- data.frame(
+  ref_year = c(1960, 1971, 1974, 1985, 1995, 2001, 2004),
+  citations = c(45, 120, 89, 67, 234, 456, 321),
+  deviation_z = c(2.1, 3.8, 2.9, 2.3, 4.5, 5.2, 3.1)
+)
+
+cat("Seminal Years in Terahertz Spectroscopy:\n")
+cat("========================================\n\n")
+
+# 1971: Schawlow and Townes paper on lasers → enabled THz generation
+cat("1971 (Z=3.8): Foundational work on laser spectroscopy\n")
+
+# 1995: First THz time-domain spectroscopy papers
+cat("1995 (Z=4.5): Development of THz-TDS methods\n")
+
+# 2001: Explosion of THz applications
+cat("2001 (Z=5.2): Broad applications in security and imaging\n\n")
+
+cat("Interpretation:\n")
+cat("- The 1971 peak reflects a methodological breakthrough\n")
+cat("- The 1995 peak marks method maturation\n")
+cat("- The 2001 peak signals application-driven growth\n")
+```
+
+### 4.4.7 RPYS Limitations and Caveats
+
+RPYS has several limitations to consider:
+
+1. **Database coverage bias**: If your corpus is from Scopus, references to very old works (pre-1970) may be underrepresented
+2. **Self-citation inflation**: Fields with heavy self-citation may show self-referential peaks
+3. **Language bias**: English-language databases underrepresent work published in other languages
+4. **Parsing errors**: Reference string parsing is imperfect; some years may be extracted incorrectly
+
+```{r rpys-caveats, eval=FALSE}
+# Check for parsing issues in reference years
+biblio_df %>%
+  filter(!is.na(CR)) %>%
+  mutate(
+    n_refs = stringi::stri_count_fixed(CR, ";") + 1,
+    has_refs = nchar(CR) > 0
+  ) %>%
+  summarise(
+    total_papers = n(),
+    papers_with_refs = sum(has_refs),
+    mean_refs = mean(n_refs[has_refs]),
+    median_refs = median(n_refs[has_refs])
+  )
+
+# Flag potential parsing issues
+# Very old years might be parsing errors
+# Very recent years (future) are definitely errors
+rpys_result %>%
+  filter(ref_year < 1900 | ref_year > as.integer(format(Sys.Date(), "%Y"))) %>%
+  arrange(ref_year)
+```
+
+---
+
+## 4.5 Normalized Citations: `normalized_citations()`
+
+Raw citation counts are misleading for cross-field comparisons. A paper with 50 citations in mathematics is exceptional; in biomedicine, it may be average. `normalized_citations()` addresses this.
+
+### 4.5.1 Field Normalization
+
+```{r normalized-field, eval=FALSE}
+# Normalize citations by field
+normalized <- normalized_citations(biblio_df,
+                                    citations = "TC",
+                                    field = "WC",
+                                    method = "mean")
+
+head(normalized, 10)
+# Returns data frame with original citations, field mean,
+# and normalized value (ratio of observed to expected)
+```
+
+### 4.5.2 Time-Window Normalization
+
+```{r normalized-time, eval=FALSE}
+# Normalize by field AND publication year
+normalized_multi <- normalized_citations(biblio_df,
+                                          citations = "TC",
+                                          field = "WC",
+                                          pub_year = "PY",
+                                          method = "percentile",
+                                          window = 5)
+
+# Papers with normalized citations > 1.0 are above field-year average
+top_normalized <- normalized_multi %>%
+  filter(normalized_citations > 2.0) %>%
+  arrange(desc(normalized_citations))
+
+cat("Papers with 2x+ field-year normalized citations:\n")
+print(head(top_normalized, 10))
+```
+
+### 4.5.3 Normalization Methods
+
+| Method | Formula | Interpretation |
+|--------|---------|----------------|
+| Mean | $N_c = TC / \bar{TC}_{field}$ | Ratio to field average |
+| Median | $N_c = TC / \tilde{TC}_{field}$ | Ratio to field median |
+| Percentile | $N_c = rank / n$ | Position within field distribution |
+
+### 4.5.4 Visualization
+
+```{r normalized-plot, eval=FALSE}
+ggplot(normalized, aes(x = reorder(field, normalized_citations, FUN = median),
+                       y = normalized_citations)) +
+  geom_boxplot(fill = "lightblue", outlier.alpha = 0.2) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
+  coord_flip() +
+  labs(
+    title = "Field-Normalized Citation Impact",
+    x = NULL,
+    y = "Normalized Citations (1.0 = field average)"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+---
+
+## 4.6 Disruption Index: `disruption_index()`
+
+The disruption index (Wu et al., 2019) distinguishes transformative research from incremental or consolidating work. A disruptive paper creates a new research direction; a consolidating paper builds on existing lines.
+
+### 4.6.1 Computing Disruption
+
+```{r disruption-basic, eval=FALSE}
+# Compute disruption index
+disruption <- disruption_index(biblio_df)
+
+head(disruption, 10)
+# Returns data frame with:
+# - document identifier
+# - disruption index (D), ranging from -1 to +1
+# - component counts (f, g, h)
+```
+
+### 4.6.2 Interpreting D Values
+
+The disruption index $D$ ranges from -1 (fully consolidating) to +1 (fully disruptive):
+
+| D Value | Interpretation |
+|---------|---------------|
+| D > 0.5 | Highly disruptive |
+| 0 < D < 0.5 | Mildly disruptive |
+| D ≈ 0 | Neutral |
+| -0.5 < D < 0 | Mildly consolidating |
+| D < -0.5 | Highly consolidating |
+
+```{r disruption-interpretation, eval=FALSE}
+# Classify papers
+disruption <- disruption %>%
+  mutate(
+    disruption_class = case_when(
+      disruption_index >  0.5 ~ "Highly disruptive",
+      disruption_index >  0   ~ "Mildly disruptive",
+      disruption_index > -0.5 ~ "Mildly consolidating",
+      TRUE                    ~ "Highly consolidating"
+    )
+  )
+
+disruption %>%
+  count(disruption_class) %>%
+  mutate(pct = round(n / sum(n) * 100, 1)) %>%
+  arrange(desc(n))
+```
+
+### 4.6.3 Disruption vs Citations
+
+```{r disruption-scatter, eval=FALSE}
+ggplot(disruption, aes(x = disruption_index, y = log10(total_citations + 1))) +
+  geom_point(alpha = 0.3, size = 1) +
+  geom_smooth(method = "loess", color = "#E74C3C") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Disruption Index vs Citation Count",
+    subtitle = "Do disruptive papers get cited more?",
+    x = "Disruption Index",
+    y = "log10(Citations + 1)"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+---
+
+# 5. Text Analysis
+
+## 5.1 Term Frequency: `term_frequency()`
+
+Term frequency (TF) counts how often terms appear in bibliographic text fields (titles, abstracts, keywords).
+
+### 5.1.1 Basic Term Frequency
+
+```{r term-frequency-basic, eval=FALSE}
+# Compute term frequency from titles
+bp <- as_biblio_project(example_biblio())
+tf <- term_frequency(bp)
+
+head(tf, 20)
+# Returns data frame with:
+# - term: the word or phrase
+# - frequency: count in corpus
+# - proportion: relative frequency
+```
+
+### 5.1.2 Multi-Field Analysis
+
+```{r tf-multi-field, eval=FALSE}
+# Compare terms across title, abstract, and keywords
+tf_ti <- term_frequency(bp, text_field = "TI")
+tf_ab <- term_frequency(bp, text_field = "AB")
+tf_kw <- term_frequency(bp, text_field = "DE")
+
+# Combine for comparison
+tf_combined <- bind_rows(
+  tf_ti %>% head(15) %>% mutate(field = "Title"),
+  tf_ab %>% head(15) %>% mutate(field = "Abstract"),
+  tf_kw %>% head(15) %>% mutate(field = "Keywords")
+)
+
+ggplot(tf_combined, aes(x = reorder(term, frequency), y = frequency)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  facet_wrap(~field, scales = "free") +
+  labs(title = "Top Terms by Text Field",
+       x = NULL, y = "Frequency") +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "none")
+```
+
+### 5.1.3 Temporal Evolution of Terms
+
+```{r tf-over-time, eval=FALSE}
+# Track term prevalence over time
+if (requireNamespace("tidytext", quietly = TRUE)) {
+  library(tidytext)
+  
+  tf_by_year <- biblio_df %>%
+    filter(!is.na(PY)) %>%
+    unnest_tokens(word, TI) %>%
+    anti_join(stop_words, by = "word") %>%
+    count(PY, word) %>%
+    group_by(PY) %>%
+    mutate(proportion = n / sum(n)) %>%
+    ungroup()
+  
+  # Track specific terms
+  track_terms <- c("climate", "water", "model", "analysis", "system")
+  
+  tf_tracked <- tf_by_year %>%
+    filter(word %in% track_terms)
+  
+  ggplot(tf_tracked, aes(x = PY, y = proportion, color = word)) +
+    geom_line(size = 1.2, se = FALSE) +
+    geom_smooth(method = "loess", se = FALSE, linetype = "dashed") +
+    labs(title = "Term Prevalence Over Time",
+         x = "Year", y = "Proportion of Titles",
+         color = "Term") +
+    theme_minimal(base_size = 14)
+}
+```
+
+### 5.1.4 N-gram Analysis
+
+Bigrams (two-word phrases) and trigrams capture multi-word concepts that single terms miss. For example, "climate change" is far more meaningful than counting "climate" and "change" separately.
+
+```{r ngrams, eval=FALSE}
+# Bigram analysis captures multi-word concepts
+if (requireNamespace("tidytext", quietly = TRUE)) {
+  bigrams <- biblio_df %>%
+    filter(!is.na(TI)) %>%
+    unnest_tokens(bigram, TI, token = "ngrams", n = 2) %>%
+    separate(bigram, c("word1", "word2"), sep = " ") %>%
+    filter(!word1 %in% stop_words$word,
+           !word2 %in% stop_words$word) %>%
+    unite(bigram, word1, word2, sep = " ") %>%
+    count(bigram, sort = TRUE)
+  
+  cat("Top Bigrams in Titles:\n")
+  print(head(bigrams, 20))
+}
+
+# Trigram analysis for longer phrases
+if (requireNamespace("tidytext", quietly = TRUE)) {
+  trigrams <- biblio_df %>%
+    filter(!is.na(TI)) %>%
+    unnest_tokens(trigram, TI, token = "ngrams", n = 3) %>%
+    count(trigram, sort = TRUE) %>%
+    head(15)
+  
+  cat("\nTop Trigrams in Titles:\n")
+  print(trigrams)
+}
+```
+
+### 5.1.5 Keyword Co-occurrence
+
+Analyzing which keywords appear together reveals thematic clusters in a research field.
+
+```{r keyword-cooccurrence, eval=FALSE}
+# Co-occurrence analysis of author keywords
+if (requireNamespace("tidytext", quietly = TRUE)) {
+  keyword_pairs <- biblio_df %>%
+    filter(!is.na(DE)) %>%
+    mutate(keywords = strsplit(DE, ";\\s*")) %>%
+    unnest(keywords) %>%
+    mutate(keywords = tolower(trimws(keywords))) %>%
+    filter(nchar(keywords) > 2) %>%
+    # Create all keyword pairs within each document
+    group_by(document_id) %>%
+    summarise(
+      pairs = if(n() > 1) list(combn(keywords, 2, simplify = FALSE)) else list(NULL),
+      .groups = "drop"
+    ) %>%
+    unnest(pairs) %>%
+    filter(!sapply(pairs, is.null)) %>%
+    mutate(
+      kw1 = sapply(pairs, function(x) sort(x)[1]),
+      kw2 = sapply(pairs, function(x) sort(x)[2])
+    ) %>%
+    count(kw1, kw2, sort = TRUE) %>%
+    head(20)
+  
+  cat("Top Keyword Pairs:\n")
+  print(keyword_pairs)
+}
+```
+
+---
+
+## 5.2 TF-IDF Analysis: `tfidf_terms()`
+
+Term Frequency-Inverse Document Frequency (TF-IDF) weights terms by their ability to distinguish documents. A high TF-IDF score means a term is important to a specific document, not just common across the corpus.
+
+### 5.2.1 The TF-IDF Formula
+
+$$\text{TF-IDF}(t, d) = \text{TF}(t, d) \times \text{IDF}(t)$$
+
+Where:
+
+$$\text{TF}(t, d) = \frac{\text{count of } t \text{ in } d}{\text{total terms in } d}$$
+
+$$\text{IDF}(t) = \log\frac{N}{\text{documents containing } t}$$
+
+### 5.2.2 Basic TF-IDF
+
+```{r tfidf-basic, eval=FALSE}
+# Compute TF-IDF grouped by journal
+bp <- as_biblio_project(example_biblio())
+tfidf <- tfidf_terms(bp)
+
+head(tfidf, 20)
+# Returns data frame with:
+# - group: grouping variable (e.g., journal)
+# - term: the word
+# - tf_idf: TF-IDF score
+# - n_documents: documents in group
+```
+
+### 5.2.3 Interpreting TF-IDF Scores
+
+```{r tfidf-interpretation, eval=FALSE}
+# Top distinguishing terms per journal
+top_tfidf <- tfidf %>%
+  group_by(journal) %>%
+  slice_max(tf_idf, n = 5) %>%
+  ungroup()
+
+# Create summary
+cat("Distinguishing Terms by Journal:\n")
+cat("================================\n\n")
+
+current_journal <- ""
+for (i in seq_len(min(30, nrow(top_tfidf)))) {
+  j <- top_tfidf$journal[i]
+  if (j != current_journal) {
+    current_journal <- j
+    cat(sprintf("\n[%s]\n", current_journal))
+  }
+  cat(sprintf("  %s (TF-IDF = %.3f)\n",
+              top_tfidf$term[i], top_tfidf$tf_idf[i]))
+}
+```
+
+### 5.2.4 TF-IDF Heatmap
+
+```{r tfidf-heatmap, eval=FALSE}
+# Heatmap of TF-IDF across journals
+ggplot(top_tfidf, aes(x = reorder(term, tf_idf),
+                       y = reorder(journal, tf_idf),
+                       fill = tf_idf)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "white", high = "#E74C3C", midpoint = 0.025) +
+  labs(title = "TF-IDF: Distinguishing Terms by Journal",
+       x = NULL, y = NULL, fill = "TF-IDF") +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### 5.2.5 TF-IDF vs Raw Frequency
+
+```{r tfidf-comparison, eval=FALSE}
+# Compare TF-IDF ranking with raw frequency ranking
+comparison <- tf %>%
+  select(term, frequency) %>%
+  inner_join(
+    tfidf %>%
+      group_by(term) %>%
+      summarise(mean_tfidf = mean(tf_idf, na.rm = TRUE), .groups = "drop"),
+    by = "term"
+  ) %>%
+  mutate(
+    rank_freq = rank(-frequency),
+    rank_tfidf = rank(-mean_tfidf),
+    rank_diff = rank_freq - rank_tfidf
+  ) %>%
+  arrange(desc(abs(rank_diff)))
+
+cat("Terms with largest rank difference (frequency vs TF-IDF):\n")
+print(head(comparison %>% select(term, frequency, mean_tfidf, rank_diff), 15))
+```
+
+---
+
+## 5.3 Trending Topics: `trend_topics()`
+
+Trend detection identifies terms and topics gaining or losing prominence over time.
+
+### 5.3.1 Methods for Trend Detection
+
+| Method | Description | Best for |
+|--------|-------------|----------|
+| Growth | Change in term frequency between time windows | Broad trend detection |
+| Emergence | New terms appearing recently | Very new topics |
+| Burst | Sudden spikes in term frequency | Viral or policy-driven topics |
+
+### 5.3.2 Basic Trend Detection
+
+```{r trend-basic, eval=FALSE}
+# Detect trending topics
+bp <- as_biblio_project(example_biblio())
+trends <- trend_topics(bp)
+
+head(trends, 20)
+# Returns data frame with:
+# - topic: the term
+# - first_year: first appearance
+# - last_year: most recent appearance
+# - growth_rate: rate of increase
+# - momentum: trend strength
+# - trend_type: "emerging", "established", "declining"
+```
+
+### 5.3.3 Trend Visualization
+
+```{r trend-plot, eval=FALSE}
+# Plot emerging topics
+emerging <- trends %>%
+  filter(trend_type == "emerging") %>%
+  head(10)
+
+# Track these topics over time
+if (requireNamespace("tidytext", quietly = TRUE)) {
+  topic_traces <- biblio_df %>%
+    filter(!is.na(PY), !is.na(TI)) %>%
+    unnest_tokens(word, TI) %>%
+    filter(word %in% emerging$topic) %>%
+    count(PY, word, name = "frequency")
+  
+  ggplot(topic_traces, aes(x = PY, y = frequency, color = word)) +
+    geom_line(size = 1) +
+    geom_smooth(method = "loess", se = FALSE, linetype = "dashed") +
+    labs(title = "Emerging Topics Over Time",
+         x = "Year", y = "Frequency in Titles",
+         color = "Topic") +
+    theme_minimal(base_size = 12)
+}
+```
+
+### 5.3.4 Growth Rate Analysis
+
+```{r growth-rate-analysis, eval=FALSE}
+# Compute annual growth rates for top trends
+if (requireNamespace("tidytext", quietly = TRUE)) {
+  topic_growth <- biblio_df %>%
+    filter(!is.na(PY), !is.na(TI)) %>%
+    unnest_tokens(word, TI) %>%
+    filter(word %in% head(trends$topic, 10)) %>%
+    count(PY, word, name = "frequency") %>%
+    group_by(word) %>%
+    arrange(PY) %>%
+    mutate(
+      growth_rate = (frequency - lag(frequency)) / lag(frequency),
+      cumulative = cumsum(frequency)
+    ) %>%
+    ungroup()
+  
+  # Summarize growth patterns
+  growth_summary <- topic_growth %>%
+    group_by(word) %>%
+    summarise(
+      total_mentions = sum(frequency, na.rm = TRUE),
+      mean_growth = mean(growth_rate, na.rm = TRUE),
+      recent_growth = mean(growth_rate[PY >= 2018], na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    arrange(desc(recent_growth))
+  
+  cat("Topic Growth Summary:\n")
+  print(growth_summary)
+}
+```
+
+### 5.3.5 Identifying Declining Topics
+
+```{r declining-topics, eval=FALSE}
+# Find declining topics
+declining <- trends %>%
+  filter(trend_type == "declining") %>%
+  arrange(growth_rate) %>%
+  head(10)
+
+cat("Declining Topics:\n")
+cat("=================\n")
+for (i in seq_len(nrow(declining))) {
+  cat(sprintf("  %s (growth rate: %.3f, last seen: %d)\n",
+              declining$topic[i],
+              declining$growth_rate[i],
+              declining$last_year[i]))
+}
+```
+
+---
+
+# 6. Step-by-Step Workflow
+
+This section demonstrates a complete workflow combining temporal and textual analyses.
+
+## Step 1: Load and Prepare Data
+
+```{r workflow-step1, eval=FALSE}
+library(biblioIntegrator)
+
+# Load data
+bp <- as_biblio_project(example_biblio())
+
+# Quick overview
+cat("=== Dataset Overview ===\n")
+cat("Papers:", nrow(bp), "\n")
+cat("Year range:", range(bp$PY, na.rm = TRUE), "\n")
+cat("Fields:", length(unique(bp$WC)), "\n")
+cat("Missing data:",
+    sum(is.na(bp$PY)), "missing PY,",
+    sum(is.na(bp$TC)), "missing TC\n")
+```
+
+## Step 2: Temporal Analysis
+
+```{r workflow-step2, eval=FALSE}
+cat("\n=== TEMPORAL ANALYSIS ===\n")
+
+# Publication growth
+growth <- temporal_growth(bp)
+cat("Peak year:", growth$year[which.max(growth$count)], "\n")
+
+# Citation velocity
+velocity <- citation_velocity(bp)
+cat("Median velocity:", median(velocity$velocity, na.rm = TRUE), "citations/year\n")
+
+# RPYS (if references available)
+# ref_years <- extract_reference_years(bp$CR)
+# rpys_result <- rpys(ref_years)
+```
+
+## Step 3: Citation Analysis
+
+```{r workflow-step3, eval=FALSE}
+cat("\n=== CITATION ANALYSIS ===\n")
+
+# Normalized citations
+normalized <- normalized_citations(bp, citations = "TC", field = "WC")
+
+# Top papers
+top_papers <- normalized %>%
+  slice_max(normalized_citations, n = 10) %>%
+  select(document_id, field, citations, normalized_citations)
+
+cat("Top 10 by normalized impact:\n")
+print(top_papers)
+
+# Disruption index
+disruption <- disruption_index(bp)
+cat("\nMean disruption index:", mean(disruption$disruption_index, na.rm = TRUE), "\n")
+```
+
+## Step 4: Text Analysis
+
+```{r workflow-step4, eval=FALSE}
+cat("\n=== TEXT ANALYSIS ===\n")
+
+# Term frequency
+tf <- term_frequency(bp)
+cat("Top 5 terms in titles:\n")
+print(head(tf, 5))
+
+# TF-IDF
+tfidf <- tfidf_terms(bp)
+cat("\nTop distinguishing terms per journal:\n")
+print(head(tfidf, 10))
+
+# Trending topics
+trends <- trend_topics(bp)
+cat("\nEmerging topics:\n")
+print(trends %>% filter(trend_type == "emerging") %>% head(5))
+```
+
+## Step 5: Synthesis Report
+
+```{r workflow-step5, eval=FALSE}
+cat("\n")
+cat("=============================================\n")
+cat("  COMPREHENSIVE ANALYSIS SUMMARY\n")
+cat("=============================================\n\n")
+
+cat("TEMPORAL PATTERNS:\n")
+cat(sprintf("  Dataset: %d papers, %d-%d\n",
+            nrow(bp),
+            min(bp$PY, na.rm = TRUE),
+            max(bp$PY, na.rm = TRUE)))
+cat(sprintf("  Peak year: %d\n", growth$year[which.max(growth$count)]))
+cat(sprintf("  Median citations: %.1f\n", median(bp$TC, na.rm = TRUE)))
+
+cat("\nCITATION DYNAMICS:\n")
+cat(sprintf("  Mean velocity: %.2f citations/year\n", mean(velocity$velocity, na.rm = TRUE)))
+cat(sprintf("  Highly disruptive papers: %d (%.1f%%)\n",
+            sum(disruption$disruption_index > 0.5, na.rm = TRUE),
+            100 * mean(disruption$disruption_index > 0.5, na.rm = TRUE)))
+
+cat("\nTOP TERMS:\n")
+for (i in 1:min(5, nrow(tf))) {
+  cat(sprintf("  %d. %s (%d mentions)\n", i, tf$term[i], tf$frequency[i]))
+}
+
+cat("\nEMERGING TOPICS:\n")
+emerging <- trends %>% filter(trend_type == "emerging") %>% head(5)
+for (i in seq_len(nrow(emerging))) {
+  cat(sprintf("  %d. %s (first: %d, growth: %.3f)\n",
+              i, emerging$topic[i], emerging$first_year[i], emerging$growth_rate[i]))
+}
+
+cat("\n=============================================\n")
+```
+
+---
+
+# 7. Common Mistakes and Pitfalls
+
+## 7.1 Ignoring Field-Specific Citation Patterns
+
+Different fields have vastly different citation cultures. Medicine and molecular biology produce many more citations per paper than mathematics or engineering. Comparing raw citation counts across fields is meaningless.
+
+```{r pitfall-field, eval=FALSE}
+# WRONG: raw comparison across fields
+# biblio_df %>% group_by(WC) %>% summarise(mean_citations = mean(TC))
+
+# RIGHT: field normalization
+normalized <- normalized_citations(biblio_df, citations = "TC", field = "WC")
+normalized %>%
+  group_by(field) %>%
+  summarise(mean_norm = mean(normalized_citations, na.rm = TRUE))
+```
+
+## 7.2 Not Normalizing for Time Window
+
+A paper published in 2010 has had 14 years to accumulate citations; one from 2023 only 1 year. Use `citation_velocity()` with an appropriate time window.
+
+```{r pitfall-time, eval=FALSE}
+# Use citation velocity instead of raw counts
+velocity <- citation_velocity(bp)
+# velocity accounts for years since publication
+```
+
+## 7.3 Confusing Frequency with Importance
+
+High term frequency ≠ high importance. "Analysis" may appear in 40% of titles without telling us anything distinctive. Use TF-IDF to find distinguishing terms.
+
+```{r pitfall-frequency, eval=FALSE}
+# WRONG: assuming frequency = importance
+# Use TF-IDF instead
+tfidf <- tfidf_terms(bp)
+# High TF-IDF = terms that distinguish groups
+```
+
+## 7.4 Ignoring Citation Inflation
+
+The total volume of publications has grown exponentially. A paper from 1990 competed in a smaller pool of potential citers than one from 2020. Time normalization adapts for this.
+
+```{r pitfall-inflation, eval=FALSE}
+# Normalize by both field AND year
+normalized <- normalized_citations(biblio_df,
+                                    citations = "TC",
+                                    field = "WC",
+                                    pub_year = "PY",
+                                    window = 5)
+```
+
+## 7.5 Treating RPYS Peaks as Quality Indicators
+
+An RPYS peak marks historical influence, not necessarily quality. A peak year may correspond to a controversial paper that was heavily criticized and therefore heavily cited. Context matters.
+
+## 7.6 Over-Interpreting Trend Topics
+
+A topic with 3 mentions in the last year has a very high growth rate if it had 0 mentions before. Always check absolute counts alongside growth metrics.
+
+```{r pitfall-trends, eval=FALSE}
+# Check both growth rate AND absolute counts
+trends %>%
+  mutate(
+    confidence = case_when(
+      total_mentions >= 50 ~ "High",
+      total_mentions >= 10 ~ "Medium",
+      TRUE                 ~ "Low"
+    )
+  ) %>%
+  filter(trend_type == "emerging") %>%
+  arrange(desc(confidence), desc(growth_rate))
+```
+
+## 7.7 Ignoring Stopwords and Domain-Specific Terms
+
+Generic stopwords ("the", "and", "of") inflate frequency counts. Domain stopwords ("study", "result", "method") should also be removed for meaningful analysis.
+
+```{r pitfall-stopwords, eval=FALSE}
+# Always remove stopwords
+if (requireNamespace("tidytext", quietly = TRUE)) {
+  library(tidytext)
+  
+  # Standard stopwords
+  clean_terms <- biblio_df %>%
+    unnest_tokens(word, TI) %>%
+    anti_join(stop_words)
+  
+  # Add domain-specific stopwords
+  domain_stop <- data.frame(word = c("study", "results", "analysis",
+                                      "method", "methods", "data",
+                                      "approach", "paper", "research"))
+  
+  clean_terms <- clean_terms %>%
+    anti_join(domain_stop)
+}
+```
+
+---
+
+# 8. Advanced Topics
+
+## 8.1 Combining Temporal and Textual Analysis
+
+```{r combined-analysis, eval=FALSE}
+# How do term usages evolve across time periods?
+if (requireNamespace("tidytext", quietly = TRUE)) {
+  library(tidytext)
+  
+  biblio_periods <- biblio_df %>%
+    mutate(
+      period = cut(PY,
+                   breaks = c(1990, 2000, 2010, 2020, 2025),
+                   labels = c("1990s", "2000s", "2010s", "2020s"),
+                   include.lowest = TRUE)
+    ) %>%
+    filter(!is.na(period))
+  
+  period_tf <- biblio_periods %>%
+    unnest_tokens(word, TI) %>%
+    anti_join(stop_words) %>%
+    count(period, word) %>%
+    group_by(period) %>%
+    mutate(proportion = n / sum(n)) %>%
+    ungroup()
+  
+  # Track key terms across decades
+  key_terms <- c("climate", "model", "system", "analysis", "water")
+  evolution <- period_tf %>%
+    filter(word %in% key_terms)
+  
+  ggplot(evolution, aes(x = period, y = proportion, fill = word)) +
+    geom_col(position = "dodge") +
+    labs(title = "Evolution of Key Terms Across Decades",
+         x = "Decade", y = "Proportion of Titles",
+         fill = "Term") +
+    theme_minimal(base_size = 14) +
+    scale_fill_brewer(palette = "Set2")
+}
+```
+
+## 8.2 Cross-Database Temporal Comparison
+
+```{r cross-db, eval=FALSE}
+# Compare temporal patterns across Scopus and WoS
+if ("DB" %in% names(biblio_df)) {
+  db_growth <- biblio_df %>%
+    filter(!is.na(PY), !is.na(DB)) %>%
+    count(DB, PY, name = "publications") %>%
+    group_by(DB) %>%
+    mutate(cumulative = cumsum(publications)) %>%
+    ungroup()
+  
+  ggplot(db_growth, aes(x = PY, y = cumulative, color = DB)) +
+    geom_line(size = 1.2) +
+    labs(title = "Cumulative Growth by Database Source",
+         x = "Year", y = "Cumulative Publications",
+         color = "Database") +
+    theme_minimal(base_size = 14)
+}
+```
+
+## 8.3 Network-Temporal Integration
+
+For combined network and temporal analysis (e.g., how network position changes over time), see vignette 04 ("Network Analysis"). The basic approach is:
+
+```{r network-temporal, eval=FALSE}
+# Conceptual workflow for network-temporal analysis
+# 1. Split data by time periods
+# 2. Build citation networks per period
+# 3. Compute network metrics per period
+# 4. Track metric evolution
+
+# Example pseudocode:
+# periods <- 2010:2023
+# metrics_by_period <- lapply(periods, function(yr) {
+#   year_data <- biblio_df %>% filter(PY == yr)
+#   net <- build_citation_network(year_data)
+#   data.frame(year = yr,
+#              n_nodes = vcount(net),
+#              n_edges = ecount(net),
+#              density = edge_density(net))
+# })
+```
+
+---
+
+# 9. Function Reference Summary
+
+| Function | Purpose | Key Parameters | Returns |
+|----------|---------|----------------|---------|
+| `temporal_growth()` | Publication counts and growth model | `model`, `field` | year, count, fitted values |
+| `citation_velocity()` | Citations per year since publication | `window`, `pub_year`, `cite_count` | velocity per document |
+| `citation_trajectory()` | Citation lifecycle modeling | `model`, `current_year` | peak year, half-life, trajectory type |
+| `rpys()` | Reference year spectroscopy | `ref_year`, `parse_refs`, `window` | year, count, deviation, Z-score |
+| `normalized_citations()` | Field/time normalization | `method`, `field`, `pub_year`, `window` | normalized citation count |
+| `disruption_index()` | Disruptive vs consolidating | `method`, `references` | D index, component counts |
+| `term_frequency()` | Raw term counts | `n_terms`, `min_freq`, `remove_stopwords` | term, frequency, proportion |
+| `tfidf_terms()` | TF-IDF weighting | `group_field`, `n_terms` | group, term, tf_idf |
+| `trend_topics()` | Trending topic detection | `method`, `window`, `n_topics` | topic, growth_rate, trend_type |
+
+---
+
+# 10. References
+
+## Methodological Papers
+
+- **Aria, M., & Cuccurullo, C.** (2017). bibliometrix: An R-tool for comprehensive science mapping analysis. *Journal of Informetrics*, 11(4), 959-975. doi:[10.1016/j.joi.2017.08.007](https://doi.org/10.1016/j.joi.2017.08.007)
+
+- **Bornmann, L., & Mutz, R.** (2015). Growth rates of modern science: A bibliometric analysis based on the number of publications and cited references. *Journal of the Association for Information Science and Technology*, 66(11), 2215-2222.
+
+- **Marx, W., & Bornmann, L.** (2014). Tracing the origin of a scientific idea: Reference Publication Year Spectroscopy (RPYS). *ISSI Newsletter*, 10(1), 58-62.
+
+- **Wu, L., Wang, D., & Evans, J. A.** (2019). Large teams develop and small teams disrupt science and technology. *Nature*, 566(7744), 378-382.
+
+- **Sinatra, R., Wang, D., Deville, P., Song, C., & Barabási, A.-L.** (2016). Quantifying the evolution of individual scientific impact. *Science*, 354(6312), aaf5239.
+
+## Temporal Analysis Methods
+
+- **Ke, Q., Ferrara, E., Radicchi, F., & Flammini, A.** (2015). Defining and identifying Sleeping Beauties in science. *Proceedings of the National Academy of Sciences*, 112(24), 7426-7431.
+
+- **Avramescu, A.** (1979). Actuality and obsolescence of scientific literature. *Journal of the American Society for Information Science*, 30(5), 296-303.
+
+- **Baumgartner, S. E., & Leydesdorff, L.** (2014). Group-based trajectory modeling (GBTM) of citations in scholarly literature. *Journal of the Association for Information Science and Technology*, 65(3), 577-588.
+
+## Text Analysis Methods
+
+- **Aizawa, A.** (2003). An information-theoretic perspective of tf-idf measures. *Information Processing & Management*, 39(1), 45-65.
+
+- **Blei, D. M., Ng, A. Y., & Jordan, M. I.** (2003). Latent Dirichlet allocation. *Journal of Machine Learning Research*, 3, 993-1022.
+
+- **Ramage, D., Hall, D., Nallapati, R., & Manning, C. D.** (2009). Labeled LDA: A supervised topic model for credit attribution in multi-labeled corpora. *Proceedings of EMNLP*, 248-256.
+
+- **Blei, D. M.** (2012). Probabilistic topic models. *Communications of the ACM*, 55(4), 77-84.
+
+## Bibliometric Analysis
+
+- **van Eck, N. J., & Waltman, L.** (2010). Software survey: VOSviewer, a computer program for bibliometric mapping. *Scientometrics*, 84(2), 523-538.
+
+- **Callon, M., Courtial, J.-P., Turner, W. A., & Bauin, S.** (1983). From translations to problematic networks: An introduction to co-word analysis. *Social Science Information*, 22(2), 191-235.
+
+## R Packages
+
+- **Wickham, H.** (2016). *ggplot2: Elegant Graphics for Data Analysis*. Springer-Verlag.
+
+- **Silge, J., & Robinson, D.** (2017). *Text Mining with R: A Tidy Approach*. O'Reilly Media.
+
+- **Feinerer, I., Hornik, K., & Meyer, D.** (2008). Text Mining Infrastructure in R. *Journal of Statistical Software*, 25(5), 1-54.
+
+---
+
+# Session Info
+
+```{r session-info, eval=FALSE}
+sessionInfo()
+```
+
+---
+
+<div style="text-align: center; margin-top: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+<p style="margin: 0; color: #6c757d; font-size: 0.9em;">
+<b>biblioIntegrator</b> version 0.2.0 |
+Vignette: Temporal and Textual Analysis |
+Last updated: `r Sys.Date()`
+</p>
+</div>

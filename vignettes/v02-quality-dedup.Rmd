@@ -1,33 +1,1612 @@
 ---
-title: "Quality control and deduplication"
+title: "Data Quality and Deduplication"
 author: "biblioIntegrator team"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Quality control and deduplication}
+  %\VignetteIndexEntry{Data Quality and Deduplication}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5,
+  out.width = "100%",
+  dpi = 150
+)
 library(biblioIntegrator)
 ```
 
-# Purpose
+# Why This Vignette Exists {#sec-intro}
 
-Quality checks should precede maps and rankings. Deduplication records what was removed and adds an operation to provenance.
+Data quality is the foundation of valid bibliometric analysis. No amount of sophisticated statistical modeling, network visualization, or comparative inference can compensate for a corpus contaminated by duplicate records, missing metadata, or inconsistent identifiers. This vignette provides a comprehensive guide to diagnosing, auditing, and cleaning bibliographic data using the `biblioIntegrator` package.
 
-# Workflow
+## The Problem of Data Quality
 
-```{r}
-d <- rbind(example_biblio(), example_biblio()[1, ])
-x <- as_biblio_project(d)
-biblio_health(x)
-y <- deduplicate_biblio(x)
-attr(y, "dedup_log")
-audit_biblio(y)
+Bibliographic databases—including Web of Science, Scopus, PubMed, and OpenAlex—each have their own data structures, naming conventions, and quality standards. When researchers export data from multiple sources or over extended time periods, several problems emerge:
+
+1. **Duplicate records**: The same publication may appear multiple times due to database updates, corrections, or cross-database indexing
+2. **Missing metadata**: Critical fields such as titles, publication years, DOIs, or author names may be incomplete
+3. **Inconsistent identifiers**: DOIs may be formatted differently (with or without URL prefixes), author names may vary across records
+4. **Orphan records**: Author-keyword-work linkages may reference non-existent records after filtering
+
+These issues directly impact every downstream analysis:
+
+- **Descriptive statistics**: Duplicate records inflate publication counts, distort annual trends, and misrepresent author productivity
+- **Citation metrics**: Duplicate entries split citation counts, leading to underestimation of true impact
+- **Network analysis**: Duplicate nodes create artificial connections, fragment communities, and distort centrality measures
+- **Comparative inference**: Unbalanced duplicates across groups introduce systematic bias into hypothesis tests
+- **Temporal analysis**: Duplicates with different years create phantom trends
+
+## When to Check Quality
+
+Quality checks should precede **any** analytical step. The recommended workflow is:
+
+```
+Import → Harmonize → **Quality Check** → Deduplicate → Analyze
 ```
 
-# Interpretation
+This vignette assumes you have already imported and harmonized your data using the functions described in `vignette("v01-import-harmonize")`. If you are working with a raw data frame, convert it first:
 
-Results should be interpreted in relation to database coverage, time window, entity normalization and analytical thresholds. Provenance should be retained whenever data are merged, deduplicated or enriched.
+```{r eval=FALSE}
+library(biblioIntegrator)
+x <- as_biblio_project(my_data, source = "my_export")
+```
+
+## What You Will Not Find Here
+
+This vignette does not cover:
+
+- Data import from specific databases (see `vignette("v01-import-harmonize")`)
+- Network construction or community detection (see `vignette("v05-networks")`)
+- Comparative statistical inference (see `vignette("v04-comparative-inference")`)
+- Scalable backends for large corpora (see `vignette("v08-scalable-backends")`)
+
+These topics build on the clean, deduplicated corpus you will prepare here.
+
+
+# Learning Objectives {#sec-objectives}
+
+After working through this vignette, you will be able to:
+
+1. **Diagnose corpus health** using `biblio_health()` and interpret each diagnostic check
+2. **Identify missing metadata** including titles, years, DOIs, and author information
+3. **Detect duplicate records** using DOI matching, title+year combinations, and fuzzy string matching
+4. **Understand deduplication strategies** and their tradeoffs between precision and recall
+5. **Apply deduplication** systematically using `deduplicate_biblio()` with different methods
+6. **Audit data integrity** with `audit_biblio()` to verify provenance tracking
+7. **Identify orphan records** and referential integrity issues in harmonized data
+8. **Evaluate deduplication quality** by comparing results across methods
+9. **Document data transformations** through provenance logs for reproducibility
+10. **Avoid common pitfalls** in bibliometric data cleaning workflows
+
+## Prerequisites
+
+This vignette assumes basic familiarity with:
+
+- R data frames and basic data manipulation
+- The `biblio_project` object class (see `vignette("v00-overview")`)
+- The concept of bibliometric indicators (see `vignette("v03-descriptive-impact")`)
+
+No external packages beyond `biblioIntegrator` are required for the core examples. Optional fuzzy matching demonstrations require the `stringdist` package, which is not a dependency of `biblioIntegrator` but can be installed separately.
+
+```{r prerequisites}
+# Core package
+library(biblioIntegrator)
+
+# Optional: for fuzzy matching examples
+has_stringdist <- requireNamespace("stringdist", quietly = TRUE)
+```
+
+
+# The Health Diagnostic {#sec-health}
+
+The `biblio_health()` function provides a systematic overview of data quality issues in a `biblio_project`. It performs six standardized checks and returns a data frame summarizing the number of records affected by each issue.
+
+## Running biblio_health()
+
+Let us start with the example corpus included in the package:
+
+```{r health-basic}
+# Load example data
+raw <- example_biblio()
+
+# Create a biblio_project
+x <- as_biblio_project(raw, source = "example corpus")
+
+# Run health diagnostics
+health_report <- biblio_health(x)
+print(health_report)
+```
+
+The output is a data frame with two columns:
+
+- **check**: The name of the quality check
+- **n**: The number of records flagged by that check
+
+## Understanding the Output Structure
+
+The health report includes six standardized checks. Let us examine what each one detects:
+
+```{r health-structure}
+# Display the health report in a readable format
+cat("Quality Health Report\n")
+cat("====================\n\n")
+for (i in seq_len(nrow(health_report))) {
+  cat(sprintf("%-25s %d records\n", 
+              health_report$check[i], 
+              health_report$n[i]))
+}
+```
+
+The six checks are:
+
+| Check | Description |
+|-------|-------------|
+| `missing_title` | Records with empty or whitespace-only titles |
+| `missing_year` | Records with `NA` publication year |
+| `missing_doi` | Records with empty DOI field |
+| `duplicate_doi` | Records sharing the same DOI (excluding empty DOIs) |
+| `duplicate_title_year` | Records with identical title+year combinations |
+| `negative_citations` | Records with negative citation counts |
+
+## Interpreting Each Check
+
+### Missing Titles
+
+Missing titles are problematic because titles are used as identifiers in deduplication and are essential for human verification of results:
+
+```{r health-missing-title}
+# Check for missing titles
+missing_title_count <- health_report$n[health_report$check == "missing_title"]
+cat("Records with missing titles:", missing_title_count, "\n")
+
+# If non-zero, identify the affected records
+if (missing_title_count > 0) {
+  problem_records <- x$works[!nzchar(trimws(x$works$title)), ]
+  print(problem_records[, c("work_id", "year", "doi")])
+}
+```
+
+**Impact**: Records without titles cannot be reliably deduplicated by title matching and should be flagged for manual review.
+
+### Missing Years
+
+Missing publication years affect temporal analysis, citation velocity calculations, and period-based comparisons:
+
+```{r health-missing-year}
+# Check for missing years
+missing_year_count <- health_report$n[health_report$check == "missing_year"]
+cat("Records with missing years:", missing_year_count, "\n")
+
+# If non-zero, show the problematic records
+if (missing_year_count > 0) {
+  problem_records <- x$works[is.na(x$works$year), ]
+  print(problem_records[, c("work_id", "title", "doi")])
+}
+```
+
+**Impact**: Functions like `describe_biblio()`, `trend_topics()`, and `temporal_growth()` will exclude or misclassify records with missing years.
+
+### Missing DOIs
+
+DOIs (Digital Object Identifiers) are the most reliable unique identifier for scholarly publications:
+
+```{r health-missing-doi}
+# Check for missing DOIs
+missing_doi_count <- health_report$n[health_report$check == "missing_doi"]
+cat("Records with missing DOIs:", missing_doi_count, "\n")
+
+# Calculate percentage
+cat(sprintf("%.1f%% of records lack DOIs\n", 
+            100 * missing_doi_count / nrow(x$works)))
+```
+
+**Impact**: Without DOIs, deduplication must rely on less reliable title+year matching, increasing the risk of false positives (merging distinct records) or false negatives (missing actual duplicates).
+
+### Duplicate DOIs
+
+Duplicate DOIs are a strong indicator of true duplicates, since DOIs are designed to be unique identifiers:
+
+```{r health-dup-doi}
+# Check for duplicate DOIs
+dup_doi_count <- health_report$n[health_report$check == "duplicate_doi"]
+cat("Records with duplicate DOIs:", dup_doi_count, "\n")
+
+# If non-zero, identify the duplicated DOIs
+if (dup_doi_count > 0) {
+  doi_table <- table(x$works$doi[nzchar(x$works$doi)])
+  repeated_dois <- names(doi_table[doi_table > 1])
+  cat("\nDuplicated DOIs:\n")
+  for (doi in head(repeated_dois, 5)) {
+    cat(sprintf("  %s: %d copies\n", doi, sum(x$works$doi == doi)))
+  }
+}
+```
+
+**Deduplication strategy**: When DOIs match, we can be highly confident these are true duplicates. The DOI-based matching has near-zero false positive rate.
+
+### Duplicate Title+Year
+
+Title+year matching catches duplicates that may have different or missing DOIs:
+
+```{r health-dup-title-year}
+# Check for duplicate title+year combinations
+dup_ty_count <- health_report$n[health_report$check == "duplicate_title_year"]
+cat("Records with duplicate title+year:", dup_ty_count, "\n")
+
+# Show examples if any exist
+if (dup_ty_count > 0) {
+  title_year <- paste(tolower(x$works$title), x$works$year)
+  ty_table <- table(title_year)
+  repeated_ty <- names(ty_table[ty_table > 1])
+  cat("\nDuplicated title+year combinations:\n")
+  for (ty in head(repeated_ty, 3)) {
+    cat(sprintf("  '%s'\n", ty))
+  }
+}
+```
+
+**Precision concern**: Some legitimate publications share the same title and year (e.g., preprints and final versions, or corrected/retracted articles). Manual review is recommended for title+year matches without DOI confirmation.
+
+### Negative Citations
+
+Negative citation counts are data errors that should be corrected or excluded:
+
+```{r health-negative-citations}
+# Check for negative citations
+neg_cite_count <- health_report$n[health_report$check == "negative_citations"]
+cat("Records with negative citations:", neg_cite_count, "\n")
+```
+
+**Impact**: Negative citations will distort `biblio_metrics()`, `normalized_citations()`, and `citation_velocity()` calculations.
+
+## Filtering the Health Report
+
+For large corpora, you may want to focus on actual problems rather than checks that passed:
+
+```{r health-filter}
+# Show only checks that detected issues
+problems <- subset(health_report, n > 0)
+cat("Active quality issues:\n")
+print(problems)
+
+# If no issues found
+if (nrow(problems) == 0) {
+  cat("No quality issues detected. Corpus is clean.\n")
+}
+```
+
+## Visualizing Health Status
+
+For a quick overview, you can visualize the health report:
+
+```{r health-plot, eval=FALSE}
+# Basic barplot of issues (only if issues exist)
+problems <- subset(health_report, n > 0)
+if (nrow(problems) > 0) {
+  barplot(problems$n, 
+          names.arg = problems$check,
+          main = "Data Quality Issues",
+          xlab = "Check Type",
+          ylab = "Number of Records",
+          col = ifelse(problems$n > 0, "coral", "lightgreen"),
+          las = 2)
+}
+```
+
+
+# Introducing Quality Issues {#sec-introduce-issues}
+
+To demonstrate the deduplication workflow, we will systematically introduce quality issues into the example corpus. This approach allows us to verify that our cleaning procedures work correctly.
+
+## Creating a Contaminated Corpus
+
+```{r introduce-issues}
+# Start with clean example data
+clean_data <- example_bibloo()
+
+# Create duplicates by repeating records
+# 1. Exact DOI duplicate
+dup1 <- clean_data[1, ]  # First record
+
+# 2. Same title+year but different DOI (simulates cross-database duplicate)
+dup2 <- clean_data[3, ]
+dup2$doi <- "10.9999/alternate.doi.3"
+
+# 3. Similar but not identical title (will test fuzzy matching)
+dup3 <- clean_data[5, ]
+dup3$title <- "Cover Crop Effects on Soil Aggregation"  # Slightly different
+dup3$doi <- ""  # No DOI
+
+# Combine into contaminated corpus
+contaminated_data <- rbind(clean_data, dup1, dup2, dup3)
+
+# Also introduce some missing data
+contaminated_data$title[2] <- ""  # Missing title
+contaminated_data$year[4] <- NA   # Missing year
+contaminated_data$doi[6] <- ""    # Missing DOI
+contaminated_data$citations[8] <- -5  # Negative citation
+
+cat("Original records:", nrow(clean_data), "\n")
+cat("Contaminated records:", nrow(contaminated_data), "\n")
+cat("Added records:", nrow(contaminated_data) - nrow(clean_data), "\n")
+```
+
+## Converting to biblio_project
+
+```{r convert-contaminated}
+# Convert contaminated data to biblio_project
+x_dirty <- as_biblio_project(contaminated_data, source = "contaminated example")
+
+# Run health check on contaminated data
+health_dirty <- biblio_health(x_dirty)
+cat("\nHealth report for contaminated corpus:\n")
+print(health_dirty)
+```
+
+You should see elevated counts for several checks, reflecting the issues we introduced.
+
+## Examining the Contaminated Data
+
+```{r examine-contaminated}
+# Show the problematic records
+cat("Records with issues:\n\n")
+
+# Missing title
+if (any(!nzchar(trimws(x_dirty$works$title)))) {
+  cat("Missing titles:\n")
+  print(x_dirty$works[!nzchar(trimws(x_dirty$works$title)), 
+                      c("work_id", "title", "year", "doi")])
+}
+
+# Missing year
+if (any(is.na(x_dirty$works$year))) {
+  cat("\nMissing years:\n")
+  print(x_dirty$works[is.na(x_dirty$works$year), 
+                      c("work_id", "title", "year", "doi")])
+}
+
+# Negative citations
+if (any(x_dirty$works$cited_by_count < 0, na.rm = TRUE)) {
+  cat("\nNegative citations:\n")
+  print(x_dirty$works[x_dirty$works$cited_by_count < 0, 
+                      c("work_id", "title", "year", "cited_by_count")])
+}
+```
+
+
+# Deduplication Strategies {#sec-strategies}
+
+Deduplication is the process of identifying and removing duplicate records from a dataset. In bibliometric analysis, this is critical because duplicates inflate counts and distort analyses. The `biblioIntegrator` package implements a hierarchical deduplication strategy that balances precision (correctly identifying true duplicates) and recall (finding all actual duplicates).
+
+## The Matching Hierarchy
+
+The `deduplicate_biblio()` function implements a two-stage matching hierarchy:
+
+```
+Stage 1: DOI Matching (High Precision)
+    ↓ No DOI match
+Stage 2: Title+Year Matching (Moderate Precision)
+    ↓ Results combined
+Final: Deduplicated Corpus
+```
+
+### Stage 1: DOI Matching
+
+DOI matching is the most reliable deduplication method because DOIs are designed to be globally unique identifiers for scholarly publications.
+
+**Advantages:**
+- Near-zero false positive rate
+- Fast computation
+- Handles abbreviations and URL prefixes automatically
+
+**Limitations:**
+- Only works when DOIs are present and correctly formatted
+- Some older publications lack DOIs
+- Preprints and final versions may have different DOIs
+
+```{r strategy-doi}
+# Demonstrate DOI normalization
+example_dois <- c(
+  "10.1000/agri.1",
+  "https://doi.org/10.1000/agri.2",
+  "doi:10.1000/ag.3",
+  "10.1000/agri.4",
+  NA,
+  ""
+)
+
+# Show how biblioIntegrator normalizes DOIs
+cat("DOI normalization examples:\n")
+cat("Raw → Normalized\n")
+cat("--- → ----------\n")
+for (doi in example_dois) {
+  normalized <- .bi_norm_doi(doi)  # Internal function, shown for illustration
+  cat(sprintf("%s → %s\n", 
+              ifelse(is.na(doi), "NA", paste0("'", doi, "'")),
+              paste0("'", normalized, "'")))
+}
+```
+
+### Stage 2: Title+Year Matching
+
+When DOIs are missing or do not match, the algorithm falls back to title+year matching.
+
+**Process:**
+1. Normalize titles: convert to lowercase, remove non-alphanumeric characters
+2. Combine with year: create key as `normalized_title:year`
+3. Match on these combined keys
+
+**Advantages:**
+- Works for publications without DOIs
+- Catches duplicates across databases with different DOI assignments
+
+**Limitations:**
+- Higher false positive rate than DOI matching
+- Sensitive to title variations (subtitles, abbreviations, typos)
+- Legitimate duplicate titles exist (e.g., corrected papers, errata)
+
+```{r strategy-title-year}
+# Demonstrate title normalization
+example_titles <- c(
+  "Silicon and salinity tolerance in rice",
+  "Silicon and Salinity Tolerance in Rice",
+  "Silicon  &  salinity  tolerance  in  rice!",
+  "Silicon and salinity tolerance in rice: A review"
+)
+
+# Show normalization process
+cat("Title normalization examples:\n")
+for (title in example_titles) {
+  # Replicate normalization from deduplicate_biblio()
+  normalized <- gsub("[^[:alnum:]]", "", tolower(title))
+  cat(sprintf("'%s'\n  → '%s'\n", title, normalized))
+}
+```
+
+## Precision vs. Recall Tradeoff
+
+The choice of deduplication strategy involves balancing two competing objectives:
+
+| Strategy | Precision | Recall | Best For |
+|----------|-----------|--------|----------|
+| DOI only | Very High | Low | Clean data with good DOI coverage |
+| Title+Year only | Moderate | High | Data with poor DOI coverage |
+| DOI then Title+Year | High | High | General use (default) |
+| Fuzzy matching | Lower | Very High | Aggressive cleaning, manual review |
+
+**Precision** = (True Duplicates Found) / (All Pairs Flagged as Duplicates)
+
+**Recall** = (True Duplicates Found) / (All Actual Duplicates)
+
+The default `doi_title_year` method prioritizes precision while maintaining reasonable recall by using DOI matching first, then falling back to title+year only for records without DOI matches.
+
+## Alternative: Fuzzy String Matching
+
+For more aggressive duplicate detection, fuzzy string matching can identify records with similar (but not identical) titles. This is **not** built into `deduplicate_biblio()` because:
+
+1. It requires the optional `stringdist` package
+2. It has a higher false positive rate
+3. It requires careful threshold tuning
+4. Results typically need manual verification
+
+However, we demonstrate how to implement it for advanced users:
+
+```{r strategy-fuzzy, eval=has_stringdist}
+if (has_stringdist) {
+  # Example fuzzy matching (not part of deduplicate_biblio)
+  library(stringdist)
+  
+  # Create a small example
+  titles <- c(
+    "Cover crops and soil aggregation",
+    "Cover Crop Effects on Soil Aggregation",
+    "Machine learning for crop yield",
+    "Remote sensing of soybean nitrogen"
+  )
+  
+  # Calculate pairwise string distances
+  dist_matrix <- stringdistmatrix(titles, titles, method = "jw")
+  
+  # Find potential duplicates (distance < 0.15)
+  threshold <- 0.15
+  cat("Potential fuzzy duplicates (Jaro-Winkler < ", threshold, "):\n")
+  for (i in 1:(length(titles) - 1)) {
+    for (j in (i + 1):length(titles)) {
+      if (dist_matrix[i, j] < threshold) {
+        cat(sprintf("  [%.3f] '%s' ≈ '%s'\n", 
+                    dist_matrix[i, j], titles[i], titles[j]))
+      }
+    }
+  }
+}
+```
+
+**Recommendation**: Use the default `doi_title_year` method for most analyses. Only consider fuzzy matching if you have evidence of widespread title variations and are prepared to manually verify results.
+
+
+# Step-by-Step Deduplication Workflow {#sec-workflow}
+
+Now that we understand the strategies, let us apply them systematically to clean our contaminated corpus.
+
+## Step 1: Initial Health Assessment
+
+Always start with a health check to understand the scope of quality issues:
+
+```{r workflow-step1}
+# Load contaminated data (from Section 4)
+raw <- example_bibloo()
+
+# Create duplicates
+dup1 <- raw[1, ]  # Exact DOI duplicate
+dup2 <- raw[3, ]  # Same title+year, different DOI
+dup2$doi <- "10.9999/alternate.3"
+dup3 <- raw[5, ]  # Similar title, no DOI
+dup3$title <- "Cover Crop Effects on Soil Aggregation"
+dup3$doi <- ""
+
+contaminated <- rbind(raw, dup1, dup2, dup3)
+
+# Introduce missing data
+contaminated$title[2] <- ""
+contaminated$year[4] <- NA
+contaminated$doi[6] <- ""
+contaminated$citations[8] <- -5
+
+# Create biblio_project
+x_dirty <- as_biblio_project(contaminated, source = "contaminated")
+
+# Step 1: Assess quality
+cat("=== STEP 1: Initial Health Assessment ===\n\n")
+health_before <- biblio_health(x_dirty)
+print(health_before)
+
+cat("\nSummary:\n")
+cat(sprintf("  Total records: %d\n", nrow(x_dirty$works)))
+cat(sprintf("  Records with issues: %d\n", 
+            sum(health_before$n[health_before$check != "negative_citations"])))
+```
+
+## Step 2: Apply Deduplication
+
+```{r workflow-step2}
+# Step 2: Deduplicate using default method
+cat("\n=== STEP 2: Deduplication ===\n\n")
+
+x_clean <- deduplicate_biblio(x_dirty)
+
+cat("Deduplication results:\n")
+cat(sprintf("  Records before: %d\n", nrow(x_dirty$works)))
+cat(sprintf("  Records after:  %d\n", nrow(x_clean$works)))
+cat(sprintf("  Records removed: %d\n", nrow(x_dirty$works) - nrow(x_clean$works)))
+```
+
+## Step 3: Examine the Deduplication Log
+
+The deduplication log records which records were removed and why:
+
+```{r workflow-step3}
+# Step 3: Review deduplication log
+cat("\n=== STEP 3: Deduplication Log ===\n\n")
+
+dedup_log <- attr(x_clean, "dedup_log")
+cat("Removed records:\n")
+print(dedup_log)
+
+cat("\nInterpretation:\n")
+cat("- Records are removed when they match an earlier record by DOI or title+year\n")
+cat("- The first occurrence is always kept\n")
+cat("- The log preserves removed records for verification\n")
+```
+
+## Step 4: Verify Post-Deduplication Health
+
+```{r workflow-step4}
+# Step 4: Check health after deduplication
+cat("\n=== STEP 4: Post-Deduplication Health ===\n\n")
+
+health_after <- biblio_health(x_clean)
+print(health_after)
+
+cat("\nComparison:\n")
+cat(sprintf("  Duplicate DOIs removed: %d\n", 
+            health_before$n[health_before$check == "duplicate_doi"] - 
+            health_after$n[health_after$check == "duplicate_doi"]))
+cat(sprintf("  Duplicate title+year removed: %d\n",
+            health_before$n[health_before$check == "duplicate_title_year"] - 
+            health_after$n[health_after$check == "duplicate_title_year"]))
+```
+
+## Step 5: Audit the Provenance
+
+The provenance log records all transformations applied to the corpus:
+
+```{r workflow-step5}
+# Step 5: Audit provenance
+cat("\n=== STEP 5: Provenance Audit ===\n\n")
+
+audit_log <- audit_biblio(x_clean)
+cat("Provenance log:\n")
+print(audit_log)
+
+cat("\nProvenance entries:\n")
+cat(sprintf("  as_biblio_project: %d entries\n", 
+            sum(audit_log$operation == "as_biblio_project")))
+cat(sprintf("  deduplicate_biblio: %d entries\n",
+            sum(audit_log$operation == "deduplicate_biblio")))
+```
+
+## Step 6: Compare Records Before and After
+
+```{r workflow-step6}
+# Step 6: Verify record counts
+cat("\n=== STEP 6: Record Comparison ===\n\n")
+
+cat("Works table:\n")
+cat(sprintf("  Before: %d records\n", nrow(x_dirty$works)))
+cat(sprintf("  After:  %d records\n", nrow(x_clean$works)))
+cat(sprintf("  Change: %d records removed\n", 
+            nrow(x_dirty$works) - nrow(x_clean$works)))
+
+cat("\nAuthorships table:\n")
+cat(sprintf("  Before: %d links\n", nrow(x_dirty$authorships)))
+cat(sprintf("  After:  %d links\n", nrow(x_clean$authorships)))
+
+cat("\nKeywords table:\n")
+cat(sprintf("  Before: %d links\n", nrow(x_dirty$keywords)))
+cat(sprintf("  After:  %d links\n", nrow(x_clean$keywords)))
+```
+
+## Step 7: Test Different Methods
+
+Although the package currently implements only the `doi_title_year` method, understanding the matching logic helps interpret results:
+
+```{r workflow-step7}
+# Step 7: Demonstrate matching logic
+cat("\n=== STEP 7: Matching Logic ===\n\n")
+
+# Show how keys are constructed
+works <- x_dirty$works
+keys <- ifelse(
+  nzchar(works$doi),
+  paste0("doi:", works$doi),
+  paste0("ty:", tolower(gsub("[^[:alnum:]]", "", works$title)), ":", works$year)
+)
+
+cat("Matching keys for first 6 records:\n")
+for (i in 1:min(6, nrow(works))) {
+  cat(sprintf("  [%d] %s\n", i, substr(keys[i], 1, 60)))
+}
+
+# Identify duplicates by key
+dup_keys <- keys[duplicated(keys)]
+if (length(dup_keys) > 0) {
+  cat("\nDuplicate keys found:\n")
+  for (k in unique(dup_keys)) {
+    count <- sum(keys == k)
+    cat(sprintf("  '%s' appears %d times\n", substr(k, 1, 50), count))
+  }
+}
+```
+
+
+# Handling Specific Quality Issues {#sec-specific-issues}
+
+Beyond deduplication, several quality issues require attention. This section addresses each systematically.
+
+## Missing Titles
+
+Missing titles prevent reliable deduplication and make records difficult to verify:
+
+```{r missing-titles}
+# Identify records with missing titles
+x <- as_biblio_project(example_bibloo())
+x$works$title[3] <- ""  # Simulate missing title
+
+missing_title_idx <- which(!nzchar(trimws(x$works$title)))
+
+if (length(missing_title_idx) > 0) {
+  cat("Records with missing titles:\n")
+  print(x$works[missing_title_idx, c("work_id", "year", "doi", "source")])
+  
+  cat("\nOptions:\n")
+  cat("1. Look up titles using DOI (if available)\n")
+  cat("2. Look up titles using metadata APIs (OpenAlex, CrossRef)\n")
+  cat("3. Exclude records with missing titles\n")
+  cat("4. Flag for manual review\n")
+}
+```
+
+## Missing Years
+
+Missing years affect temporal analyses:
+
+```{r missing-years}
+# Identify records with missing years
+x$works$year[5] <- NA  # Simulate missing year
+
+missing_year_idx <- which(is.na(x$works$year))
+
+if (length(missing_year_idx) > 0) {
+  cat("Records with missing years:\n")
+  print(x$works[missing_year_idx, c("work_id", "title", "doi", "source")])
+  
+  cat("\nOptions:\n")
+  cat("1. Look up year using DOI (if available)\n")
+  cat("2. Infer year from citation patterns\n")
+  cat("3. Assign to 'unknown' period and exclude from temporal analysis\n")
+  cat("4. Manual correction\n")
+}
+```
+
+## Missing DOIs
+
+Records without DOIs require alternative identification strategies:
+
+```{r missing-dois}
+# Calculate DOI coverage
+doi_coverage <- sum(nzchar(x$works$doi)) / nrow(x$works)
+cat(sprintf("DOI coverage: %.1f%%\n", 100 * doi_coverage))
+
+if (doi_coverage < 0.9) {
+  cat("\nWarning: Low DOI coverage may affect deduplication quality.\n")
+  cat("Consider:\n")
+  cat("1. Re-exporting with DOI fields included\n")
+  cat("2. Using title+year matching (default)\n")
+  cat("3. Manual DOI lookup for high-impact records\n")
+}
+```
+
+## Inconsistent DOIs
+
+DOI format inconsistencies can prevent matching:
+
+```{r inconsistent-dois}
+# Demonstrate DOI normalization
+example_dois <- c(
+  "10.1000/AGRI.1",
+  "10.1000/agri.1",
+  "https://doi.org/10.1000/agri.1",
+  "http://dx.doi.org/10.1000/agri.1",
+  "doi:10.1000/agri.1",
+  "DOI:10.1000/agri.1"
+)
+
+# Show normalization
+cat("DOI normalization examples:\n")
+for (doi in example_dois) {
+  normalized <- .bi_norm_doi(doi)
+  cat(sprintf("  %-45s → %s\n", doi, normalized))
+}
+```
+
+The `biblioIntegrator` package automatically normalizes DOIs during import, but if you are merging data from multiple sources, verify that normalization was applied consistently.
+
+## Negative Citation Counts
+
+Negative citations are data errors that should be corrected:
+
+```{r negative-citations}
+# Identify negative citations
+x$works$cited_by_count[2] <- -10  # Simulate error
+
+negative_idx <- which(x$works$cited_by_count < 0)
+
+if (length(negative_idx) > 0) {
+  cat("Records with negative citations:\n")
+  print(x$works[negative_idx, c("work_id", "title", "year", "cited_by_count")])
+  
+  # Options for handling
+  cat("\nOptions:\n")
+  cat("1. Set to 0 (conservative)\n")
+  cat("2. Set to NA and exclude from citation analysis\n")
+  cat("3. Look up correct value and correct\n")
+  
+  # Example correction
+  x$works$cited_by_count[negative_idx] <- 0
+  cat("\nCorrected by setting to 0.\n")
+}
+```
+
+
+# The Audit Function {#sec-audit}
+
+The `audit_biblio()` function provides access to the provenance log, which records all transformations applied to a `biblio_project`. This is essential for reproducibility and transparency in bibliometric analysis.
+
+## Understanding Provenance
+
+Every `biblio_project` maintains a provenance log that records:
+
+1. **Timestamp**: When the operation was performed
+2. **Operation**: The name of the function called
+3. **Details**: Key parameters and outcomes
+
+```{r audit-basic}
+# Create a project and apply transformations
+x <- as_biblio_project(example_bibloo(), source = "audit demo")
+
+# Apply deduplication
+x <- deduplicate_biblio(x)
+
+# Access provenance
+audit_log <- audit_biblio(x)
+cat("Provenance log:\n")
+print(audit_log)
+```
+
+## Interpreting Provenance Entries
+
+Each row in the provenance log represents one transformation:
+
+```{r audit-interpret}
+# Interpret each entry
+cat("Provenance interpretation:\n\n")
+
+for (i in seq_len(nrow(audit_log))) {
+  entry <- audit_log[i, ]
+  cat(sprintf("Entry %d [%s]\n", i, entry$timestamp))
+  cat(sprintf("  Operation: %s\n", entry$operation))
+  cat(sprintf("  Details: %s\n", entry$details))
+  cat("\n")
+}
+```
+
+## Checking Referential Integrity
+
+After deduplication, verify that all linkages are consistent:
+
+```{r audit-referential}
+# Check referential integrity
+cat("Referential integrity check:\n\n")
+
+# All work_ids in authorships should exist in works
+orphan_authorships <- !x$authorships$work_id %in% x$works$work_id
+cat(sprintf("Orphan authorship links: %d\n", sum(orphan_authorships)))
+
+# All work_ids in keywords should exist in works
+orphan_keywords <- !x$keywords$work_id %in% x$works$work_id
+cat(sprintf("Orphan keyword links: %d\n", sum(orphan_keywords)))
+
+# All author_ids in authorships should exist in authors
+orphan_authors <- !x$authorships$author_id %in% x$authors$author_id
+cat(sprintf("Orphan author references: %d\n", sum(orphan_authors)))
+```
+
+**Note**: The `deduplicate_biblio()` function automatically removes associated authorship and keyword links when a work is removed. Orphan records should be zero after proper deduplication.
+
+## Identifying Orphan Records
+
+Orphan records are linkages that reference non-existent entities:
+
+```{r audit-orphans}
+# Demonstrate orphan detection
+cat("\nOrphan detection:\n\n")
+
+# Create a scenario with orphans for illustration
+x_demo <- as_biblio_project(example_bibloo())
+
+# Manually create orphan (not recommended in practice)
+orphan_link <- data.frame(
+  work_id = "nonexistent_work_123",
+  author_id = "A00000001",
+  stringsAsFactors = FALSE
+)
+x_demo$authorships <- rbind(x_demo$authorships, orphan_link)
+
+# Detect orphans
+orphan_check <- !x_demo$authorships$work_id %in% x_demo$works$work_id
+if (any(orphan_check)) {
+  cat("Found orphan authorship links:\n")
+  print(x_demo$authorships[orphan_check, ])
+  
+  # Clean up
+  x_demo$authorships <- x_demo$authorships[!orphan_check, ]
+  cat("\nOrphans removed.\n")
+}
+```
+
+## Provenance for Reproducibility
+
+The audit trail enables reproducible analysis:
+
+```{r audit-reproducibility}
+# Example: Complete audit trail for a cleaning workflow
+x <- as_biblio_project(example_bibloo(), source = "reproducibility demo")
+x <- deduplicate_biblio(x)
+
+# Export the audit trail
+audit_df <- audit_biblio(x)
+
+# Save for documentation (example)
+temp_file <- tempfile(fileext = ".csv")
+write.csv(audit_df, temp_file, row.names = FALSE)
+
+cat("Audit trail saved to:", temp_file, "\n")
+cat("\nAudit trail contents:\n")
+print(audit_df)
+
+# Verify all steps are recorded
+cat("\nVerification:\n")
+cat(sprintf("Total operations recorded: %d\n", nrow(audit_df)))
+cat(sprintf("Operations: %s\n", paste(audit_df$operation, collapse = " → ")))
+```
+
+
+# Comparing Deduplication Results {#sec-comparing}
+
+Understanding how different deduplication approaches affect results is essential for methodological transparency.
+
+## Setting Up Comparisons
+
+```{r comparison-setup}
+# Create a dataset with known duplicates
+raw <- example_bibloo()
+
+# Add exact duplicates
+dup_exact <- raw[c(1, 3, 5), ]
+
+# Add title+year duplicates (different DOI)
+dup_ty <- raw[c(2, 4), ]
+dup_ty$doi <- c("10.9999/alt.2", "10.9999/alt.4")
+
+# Add similar titles (fuzzy matches)
+dup_fuzzy <- raw[c(6, 8), ]
+dup_fuzzy$title <- c(
+  "Machine Learning Applications for Crop Yield Prediction",
+  "Soil Microbiome Dynamics Under Crop Rotation Systems"
+)
+
+# Combine all
+full_data <- rbind(raw, dup_exact, dup_ty, dup_fuzzy)
+
+cat("Original records:", nrow(raw), "\n")
+cat("Total records:", nrow(full_data), "\n")
+cat("Expected duplicates:", nrow(full_data) - nrow(raw), "\n")
+```
+
+## Applying Default Deduplication
+
+```{r comparison-default}
+# Apply default deduplication
+x_original <- as_biblio_project(full_data, source = "comparison")
+x_dedup <- deduplicate_biblio(x_original)
+
+# Analyze results
+cat("\nDefault deduplication (doi_title_year):\n")
+cat(sprintf("  Input records: %d\n", nrow(x_original$works)))
+cat(sprintf("  Output records: %d\n", nrow(x_dedup$works)))
+cat(sprintf("  Removed: %d (%.1f%%)\n", 
+            nrow(x_original$works) - nrow(x_dedup$works),
+            100 * (nrow(x_original$works) - nrow(x_dedup$works)) / nrow(x_original$works)))
+
+# Show what was removed
+dedup_log <- attr(x_dedup, "dedup_log")
+cat("\nRemoved records:\n")
+print(dedup_log)
+```
+
+## Analyzing Matching Behavior
+
+```{r comparison-analysis}
+# Understand why records were removed
+cat("\nMatching analysis:\n\n")
+
+# Reconstruct matching keys
+works <- x_original$works
+keys <- ifelse(
+  nzchar(works$doi),
+  paste0("doi:", works$doi),
+  paste0("ty:", tolower(gsub("[^[:alnum:]]", "", works$title)), ":", works$year)
+)
+
+# Count duplicates by key
+key_table <- table(keys)
+dup_keys <- key_table[key_table > 1]
+
+cat("Duplicate key groups:\n")
+for (i in seq_along(dup_keys)) {
+  key_name <- names(dup_keys)[i]
+  count <- dup_keys[i]
+  cat(sprintf("  %s: %d records\n", 
+              substr(key_name, 1, 60), count))
+}
+
+# Categorize by matching strategy
+doi_matches <- sum(grepl("^doi:", keys[duplicated(keys)]))
+ty_matches <- sum(grepl("^ty:", keys[duplicated(keys)]))
+
+cat(sprintf("\nDOI matches: %d\n", doi_matches))
+cat(sprintf("Title+year matches: %d\n", ty_matches))
+```
+
+## Effect on Downstream Analysis
+
+Different deduplication approaches can significantly impact results:
+
+```{r comparison-impact}
+# Compare corpus statistics before and after
+cat("Impact comparison:\n\n")
+
+# Original vs deduplicated
+metrics_orig <- nrow(x_original$works)
+metrics_dedup <- nrow(x_dedup$works)
+
+cat("Record counts:\n")
+cat(sprintf("  Original:            %d works\n", metrics_orig))
+cat(sprintf("  After deduplication: %d works\n", metrics_dedup))
+cat(sprintf("  Reduction:           %.1f%%\n", 
+            100 * (metrics_orig - metrics_dedup) / metrics_orig))
+
+# Author counts
+authors_orig <- nrow(x_original$authors)
+authors_dedup <- nrow(x_dedup$authors)
+cat(sprintf("\nAuthors:\n"))
+cat(sprintf("  Original:            %d unique authors\n", authors_orig))
+cat(sprintf("  After deduplication: %d unique authors\n", authors_dedup))
+
+# Citation totals
+citations_orig <- sum(x_original$works$cited_by_count, na.rm = TRUE)
+citations_dedup <- sum(x_dedup$works$cited_by_count, na.rm = TRUE)
+cat(sprintf("\nTotal citations:\n"))
+cat(sprintf("  Original:            %d\n", citations_orig))
+cat(sprintf("  After deduplication: %d\n", citations_dedup))
+```
+
+
+# Common Mistakes {#sec-mistakes}
+
+This section documents frequent errors in bibliometric data cleaning and how to avoid them.
+
+## Mistake 1: Deduplicating Before Harmonization
+
+**Problem**: Applying deduplication to raw, unharmonized data.
+
+**Why it's wrong**: Different databases use different field names, formats, and conventions. Deduplication before harmonization will miss duplicates that look different in raw form.
+
+**Solution**: Always harmonize first using `as_biblio_project()`.
+
+```{r mistake-harmonize}
+# WRONG: Deduplicating raw data
+cat("WRONG approach:\n")
+cat("  raw_data <- read.csv('scopus_export.csv')\n")
+cat("  clean_data <- deduplicate_biblio(raw_data)  # Error!\n\n")
+
+# CORRECT: Harmonize first, then deduplicate
+cat("CORRECT approach:\n")
+cat("  raw_data <- read.csv('scopus_export.csv')\n")
+cat("  x <- as_biblio_project(raw_data, source = 'scopus')\n")
+cat("  x_clean <- deduplicate_biblio(x)\n")
+
+# Demonstrate
+cat("\nPractical example:\n")
+raw <- example_bibloo()
+x <- as_biblio_project(raw, source = "example")
+x_clean <- deduplicate_biblio(x)
+cat(sprintf("  Harmonized: %d records\n", nrow(x$works)))
+cat(sprintf("  Deduplicated: %d records\n", nrow(x_clean$works)))
+```
+
+## Mistake 2: Using Only One Deduplication Method
+
+**Problem**: Relying solely on DOI matching or only on title matching.
+
+**Why it's wrong**: Each method has different strengths:
+
+- DOI matching misses duplicates without DOIs
+- Title matching misses duplicates with title variations
+- Neither catches all duplicates alone
+
+**Solution**: Use the hierarchical `doi_title_year` method (default).
+
+```{r mistake-methods}
+# Show why multiple methods are needed
+cat("Method comparison:\n\n")
+
+# Create test data with different duplicate types
+test_data <- example_bibloo()
+dup_doi <- test_data[1, ]  # Will match by DOI
+dup_title <- test_data[2, ]  # Will match by title+year
+dup_title$doi <- ""  # No DOI, must use title+year
+
+combined <- rbind(test_data, dup_doi, dup_title)
+x_test <- as_biblio_project(combined, source = "method test")
+
+# Show matching keys
+works <- x_test$works
+keys <- ifelse(
+  nzchar(works$doi),
+  paste0("doi:", works$doi),
+  paste0("ty:", tolower(gsub("[^[:alnum:]]", "", works$title)), ":", works$year)
+)
+
+cat("Matching keys:\n")
+for (i in 1:min(5, nrow(works))) {
+  cat(sprintf("  Record %d: %s\n", i, substr(keys[i], 1, 50)))
+}
+
+cat("\nThe doi_title_year method handles both cases automatically.\n")
+```
+
+## Mistake 3: Ignoring False Positives in Fuzzy Matching
+
+**Problem**: Applying aggressive fuzzy matching without manual verification.
+
+**Why it's wrong**: Legitimate publications can have similar titles:
+
+- Review articles on the same topic
+- Sequel papers ("Part I", "Part II")
+- Different papers with common keywords
+
+**Solution**: If using fuzzy matching (outside the package), always verify a sample.
+
+```{r mistake-fuzzy}
+# Example of legitimate similar titles
+similar_titles <- c(
+  "Silicon and salinity tolerance in rice",
+  "Silicon and salinity tolerance in rice: A review",
+  "Silicon and salinity tolerance in rice: Response mechanisms"
+)
+
+cat("Legitimate similar titles:\n")
+for (t in similar_titles) {
+  cat(sprintf("  '%s'\n", t))
+}
+
+cat("\nThese are DIFFERENT publications despite similar titles.\n")
+cat("Fuzzy matching could incorrectly merge them.\n\n")
+cat("Best practice:\n")
+cat("  1. Use default doi_title_year method for automatic cleaning\n")
+cat("  2. If adding fuzzy matching, require manual review\n")
+cat("  3. Check a random sample of 5-10% of fuzzy matches\n")
+```
+
+## Mistake 4: Not Recording Deduplication in Provenance
+
+**Problem**: Applying deduplication without documenting what was changed.
+
+**Why it's wrong**: Without provenance, analyses cannot be reproduced or audited.
+
+**Solution**: Always check `audit_biblio()` after deduplication.
+
+```{r mistake-provenance}
+# Demonstrate proper provenance tracking
+x <- as_biblio_project(example_bibloo(), source = "provenance demo")
+x <- deduplicate_biblio(x)
+
+# Check provenance
+audit_log <- audit_biblio(x)
+
+cat("Provenance after deduplication:\n")
+print(audit_log)
+
+cat("\nThis log records:\n")
+cat("  - When deduplication was performed\n")
+cat("  - How many records were removed\n")
+cat("  - The method used\n")
+
+# Verify provenance has deduplication recorded
+has_dedup <- any(audit_log$operation == "deduplicate_biblio")
+cat(sprintf("\nDeduplication recorded: %s\n", has_dedup))
+```
+
+## Mistake 5: Deduplicating Without Checking First
+
+**Problem**: Applying deduplication without understanding what will be removed.
+
+**Why it's wrong**: You might remove legitimate records or miss important duplicates.
+
+**Solution**: Always run `biblio_health()` first and examine the issues.
+
+```{r mistake-check-first}
+# Correct workflow
+cat("Correct deduplication workflow:\n\n")
+cat("1. Run biblio_health() to identify issues\n")
+cat("2. Examine specific problems (missing data, duplicates)\n")
+cat("3. Decide on strategy (fix vs. exclude)\n")
+cat("4. Apply deduplication\n")
+cat("5. Verify results with biblio_health() again\n")
+cat("6. Check audit_biblio() for documentation\n")
+
+# Demonstrate
+x <- as_biblio_project(example_bibloo(), source = "workflow demo")
+
+cat("\n=== Step 1: Health check ===\n")
+health <- biblio_health(x)
+print(health)
+
+cat("\n=== Step 2: Examine issues ===\n")
+problems <- subset(health, n > 0)
+if (nrow(problems) > 0) {
+  cat("Issues found:\n")
+  print(problems)
+} else {
+  cat("No issues found.\n")
+}
+
+cat("\n=== Step 4: Deduplicate ===\n")
+x_clean <- deduplicate_biblio(x)
+
+cat("\n=== Step 5: Verify ===\n")
+health_after <- biblio_health(x_clean)
+print(health_after)
+
+cat("\n=== Step 6: Audit ===\n")
+audit <- audit_biblio(x_clean)
+cat(sprintf("Operations recorded: %d\n", nrow(audit)))
+```
+
+
+# Advanced Topics {#sec-advanced}
+
+This section covers advanced techniques for users with specific needs.
+
+## Custom Deduplication Keys
+
+While `deduplicate_biblio()` uses a fixed key strategy, you can implement custom approaches:
+
+```{r advanced-custom-keys}
+# Create custom deduplication keys
+x <- as_biblio_project(example_bibloo(), source = "custom keys demo")
+works <- x$works
+
+# Strategy 1: Author + Year + First Words of Title
+custom_key_1 <- paste(
+  substr(tolower(works$title), 1, 30),  # First 30 chars of title
+  works$year,
+  sep = "|"
+)
+
+# Strategy 2: DOI (normalized) or Title Hash + Year
+custom_key_2 <- ifelse(
+  nzchar(works$doi),
+  works$doi,
+  paste(
+    substr(gsub("[^a-z]", "", tolower(works$title)), 1, 20),
+    works$year,
+    sep = "|"
+  )
+)
+
+cat("Custom key examples:\n")
+for (i in 1:min(3, nrow(works))) {
+  cat(sprintf("Record %d:\n", i))
+  cat(sprintf("  Strategy 1: %s\n", substr(custom_key_1[i], 1, 50)))
+  cat(sprintf("  Strategy 2: %s\n", substr(custom_key_2[i], 1, 50)))
+}
+```
+
+## Handling Large Corpora
+
+For very large corpora, deduplication can be computationally expensive:
+
+```{r advanced-large, eval=FALSE}
+# Strategies for large corpora (pseudocode)
+cat("Large corpus strategies:\n\n")
+cat("1. Index on DOI first (O(n) lookup)\n")
+cat("2. Use hash tables for title matching\n")
+cat("3. Parallelize fuzzy matching (if needed)\n")
+cat("4. Process in batches by year range\n")
+cat("5. Use the Arrow backend for memory efficiency\n")
+
+# Demonstrate batch processing concept
+cat("\nBatch processing example (conceptual):\n")
+cat("  years <- sort(unique(works$year))\n")
+cat("  results <- lapply(years, function(y) {\n")
+cat("    batch <- works[works$year == y, ]\n")
+cat("    deduplicate_batch(batch)\n")
+cat("  })\n")
+cat("  final <- do.call(rbind, results)\n")
+```
+
+## Integrating with External Tools
+
+The deduplication log can be exported for external verification:
+
+```{r advanced-export}
+# Export deduplication log for external review
+x <- as_biblio_project(example_bibloo(), source = "export demo")
+x <- deduplicate_biblio(x)
+
+# Get the log
+dedup_log <- attr(x, "dedup_log")
+
+if (nrow(dedup_log) > 0) {
+  # Export to CSV for manual review
+  temp_file <- tempfile(fileext = ".csv")
+  write.csv(dedup_log, temp_file, row.names = FALSE)
+  
+  cat("Deduplication log exported to:", temp_file, "\n")
+  cat("\nLog contents:\n")
+  print(dedup_log)
+  
+  cat("\nThis log can be:\n")
+  cat("  1. Reviewed in Excel/Calc\n")
+  cat("  2. Compared with external deduplication tools\n")
+  cat("  3. Included in supplementary materials\n")
+  cat("  4. Used for inter-rater reliability checks\n")
+} else {
+  cat("No duplicates found - log is empty.\n")
+}
+```
+
+## Quality Metrics
+
+Calculate quality metrics to assess corpus health:
+
+```{r advanced-metrics}
+# Calculate quality metrics
+x <- as_biblio_project(example_bibloo(), source = "metrics demo")
+
+# Metadata completeness
+total_records <- nrow(x$works)
+metrics <- data.frame(
+  metric = c(
+    "Title completeness",
+    "Year completeness", 
+    "DOI completeness",
+    "Author completeness",
+    "Keyword completeness"
+  ),
+  count = c(
+    sum(nzchar(trimws(x$works$title))),
+    sum(!is.na(x$works$year)),
+    sum(nzchar(x$works$doi)),
+    nrow(x$authorships[x$authorships$work_id %in% x$works$work_id, ]),
+    nrow(x$keywords[x$keywords$work_id %in% x$works$work_id, ])
+  ),
+  stringsAsFactors = FALSE
+)
+
+# Calculate percentages
+metrics$percent <- 100 * metrics$count / total_records
+
+cat("Metadata completeness:\n")
+print(metrics)
+cat(sprintf("\nOverall completeness: %.1f%%\n", mean(metrics$percent)))
+```
+
+
+# Worked Example with Realistic Data {#sec-worked}
+
+This section provides a complete, realistic workflow using the example corpus with simulated quality issues.
+
+## Scenario Description
+
+We simulate a common scenario: merging data from two database exports (Web of Science and Scopus) for a bibliometric study of agronomy research.
+
+```{r worked-scenario}
+# Simulate merging two database exports
+cat("Scenario: Merging WoS and Scopus exports\n\n")
+
+# Load base data
+base_data <- example_bibloo()
+
+# Simulate WoS export (first 8 records, some duplicates)
+wos_data <- base_data[1:8, ]
+wos_data$source <- "Web of Science"
+
+# Simulate Scopus export (records 5-12, with duplicates)
+scopus_data <- base_data[5:12, ]
+scopus_data$source <- "Scopus"
+
+# Add realistic quality issues
+# 1. Slightly different DOI format in Scopus
+scopus_data$doi <- paste0("https://doi.org/", scopus_data$doi)
+
+# 2. Missing DOIs for older records in Scopus
+scopus_data$doi[1:2] <- ""
+
+# 3. Title variation in one record
+scopus_data$title[3] <- toupper(scopus_data$title[3])
+
+# 4. Missing year in one record
+scopus_data$year[4] <- NA
+
+# 5. Duplicate entry in Scopus
+scopus_data <- rbind(scopus_data, scopus_data[1, ])
+
+# Merge exports
+merged_data <- rbind(wos_data, scopus_data)
+cat("Records after merge:\n")
+cat(sprintf("  WoS: %d records\n", nrow(wos_data)))
+cat(sprintf("  Scopus: %d records\n", nrow(scopus_data)))
+cat(sprintf("  Total: %d records\n", nrow(merged_data)))
+cat(sprintf("  Expected unique: ~12 records\n"))
+```
+
+## Step 1: Harmonize the Merged Data
+
+```{r worked-harmonize}
+# Step 1: Harmonize
+cat("\n=== Step 1: Harmonization ===\n\n")
+
+x_merged <- as_biblio_project(merged_data, source = "WoS+Scopus merge")
+cat("Harmonization results:\n")
+cat(sprintf("  Works: %d records\n", nrow(x_merged$works)))
+cat(sprintf("  Authors: %d unique\n", nrow(x_merged$authors)))
+cat(sprintf("  Keywords: %d links\n", nrow(x_merged$keywords)))
+```
+
+## Step 2: Initial Health Assessment
+
+```{r worked-health1}
+# Step 2: Health assessment
+cat("\n=== Step 2: Health Assessment ===\n\n")
+
+health_initial <- biblio_health(x_merged)
+print(health_initial)
+
+# Identify critical issues
+critical <- subset(health_initial, n > 0 & check %in% 
+                     c("duplicate_doi", "duplicate_title_year"))
+if (nrow(critical) > 0) {
+  cat("\nCritical issues requiring action:\n")
+  print(critical)
+}
+```
+
+## Step 3: Deduplication
+
+```{r worked-dedup}
+# Step 3: Deduplication
+cat("\n=== Step 3: Deduplication ===\n\n")
+
+x_clean <- deduplicate_biblio(x_merged)
+
+cat("Deduplication results:\n")
+cat(sprintf("  Input records: %d\n", nrow(x_merged$works)))
+cat(sprintf("  Output records: %d\n", nrow(x_clean$works)))
+cat(sprintf("  Records removed: %d\n", 
+            nrow(x_merged$works) - nrow(x_clean$works)))
+cat(sprintf("  Reduction: %.1f%%\n", 
+            100 * (nrow(x_merged$works) - nrow(x_clean$works)) / nrow(x_merged$works)))
+
+# Show what was removed
+dedup_log <- attr(x_clean, "dedup_log")
+if (nrow(dedup_log) > 0) {
+  cat("\nRemoved records:\n")
+  print(dedup_log)
+}
+```
+
+## Step 4: Post-Deduplication Verification
+
+```{r worked-verify}
+# Step 4: Verification
+cat("\n=== Step 4: Verification ===\n\n")
+
+# Health check after deduplication
+health_final <- biblio_health(x_clean)
+cat("Post-deduplication health:\n")
+print(health_final)
+
+# Verify no duplicates remain
+remaining_dups <- health_final$n[health_final$check == "duplicate_doi"] +
+                  health_final$n[health_final$check == "duplicate_title_year"]
+cat(sprintf("\nRemaining duplicates: %d\n", remaining_dups))
+cat(sprintf("Status: %s\n", ifelse(remaining_dups == 0, "CLEAN", "NEEDS ATTENTION")))
+
+# Check referential integrity
+orphan_auth <- !x_clean$authorships$work_id %in% x_clean$works$work_id
+orphan_kw <- !x_clean$keywords$work_id %in% x_clean$works$work_id
+cat(sprintf("\nReferential integrity:\n"))
+cat(sprintf("  Orphan authorships: %d\n", sum(orphan_auth)))
+cat(sprintf("  Orphan keywords: %d\n", sum(orphan_kw)))
+```
+
+## Step 5: Provenance Documentation
+
+```{r worked-provenance}
+# Step 5: Documentation
+cat("\n=== Step 5: Provenance Documentation ===\n\n")
+
+audit_log <- audit_biblio(x_clean)
+cat("Complete audit trail:\n")
+print(audit_log)
+
+cat("\nSummary of transformations:\n")
+for (op in unique(audit_log$operation)) {
+  count <- sum(audit_log$operation == op)
+  cat(sprintf("  %s: %d operation(s)\n", op, count))
+}
+```
+
+## Step 6: Prepare for Analysis
+
+```{r worked-prepare}
+# Step 6: Ready for analysis
+cat("\n=== Step 6: Corpus Ready for Analysis ===\n\n")
+
+cat("Final corpus statistics:\n")
+cat(sprintf("  Works: %d\n", nrow(x_clean$works)))
+cat(sprintf("  Year range: %d-%d\n", 
+            min(x_clean$works$year, na.rm = TRUE),
+            max(x_clean$works$year, na.rm = TRUE)))
+cat(sprintf("  Sources: %d journals\n", length(unique(x_clean$works$source))))
+cat(sprintf("  Total citations: %d\n", 
+            sum(x_clean$works$cited_by_count, na.rm = TRUE)))
+
+cat("\nThe corpus is now ready for:\n")
+cat("  - Descriptive analysis (describe_biblio)\n")
+cat("  - Impact metrics (biblio_metrics)\n")
+cat("  - Network analysis (bibliographic_network)\n")
+cat("  - Comparative inference (compare_groups)\n")
+cat("  - Temporal analysis (trend_topics)\n")
+
+
+# References {#sec-references}
+
+## Key Literature
+
+The following references provide background on bibliometric data quality and deduplication:
+
+1. **Aria, M., & Cuccurullo, C. (2017)**. bibliometrix: An R-tool for comprehensive science mapping analysis. *Journal of Informetrics*, 11(4), 959-975. doi: [10.1016/j.joi.2017.08.007](https://doi.org/10.1016/j.joi.2017.08.007)
+
+   - Introduces the bibliometrix package and discusses data quality in science mapping
+   - Provides the foundation for many bibliometric workflows in R
+
+2. **Mongeon, P., & Paul-Hus, A. (2016)**. The journal coverage of Web of Science and Scopus: A comparative analysis. *Scientometrics*, 106(1), 213-228. doi: [10.1007/s11192-015-1765-5](https://doi.org/10.1007/s11192-015-1765-5)
+
+   - Compares database coverage and discusses implications for bibliometric validity
+
+3. **Visser, M., Van Eck, N. J., & Waltman, L. (2021)**. Large-scale comparison of bibliographic data sources: Scopus, Web of Science, Dimensions, Crossref, and Microsoft Academic. *Quantitative Science Studies*, 2(1), 20-41. doi: [10.1162/qss_a_00112](https://doi.org/10.1162/qss_a_00112)
+
+   - Latest comprehensive comparison of major bibliographic databases
+
+## Package Documentation
+
+- **Package overview**: `vignette("v00-overview")`
+- **Import and harmonization**: `vignette("v01-import-harmonize")`
+- **Descriptive and impact analysis**: `vignette("v03-descriptive-impact")`
+- **Comparative inference**: `vignette("v04-comparative-inference")`
+- **Network analysis**: `vignette("v05-networks")`
+
+## Function References
+
+- `as_biblio_project()`: `?as_biblio_project`
+- `biblio_health()`: `?biblio_health`
+- `deduplicate_biblio()`: `?deduplicate_biblio`
+- `audit_biblio()`: `?audit_biblio`
+- `biblio_import()`: `?biblio_import`
+
+## External Resources
+
+- **DOI Foundation**: https://www.doi.org/
+- **CrossRef**: https://www.crossref.org/
+- **OpenAlex**: https://openalex.org/
+
+## Reproducibility
+
+To reproduce the examples in this vignette:
+
+```{r reproducibility, eval=FALSE}
+# Install biblioIntegrator
+# install.packages("biblioIntegrator")
+
+# Load the package
+library(biblioIntegrator)
+
+# Set seed for reproducibility (if using random processes)
+set.seed(42)
+
+# Run examples as shown in each section
+```
+
+For the most up-to-date version of this vignette, visit the package documentation:
+```{r eval=FALSE}
+browseVignettes("biblioIntegrator")
+```
+
+## Session Info
+
+```{r session-info}
+sessionInfo()
+```
+
+---
+
+*Vignette generated with `biblioIntegrator` version `r packageVersion("biblioIntegrator")`.*

@@ -825,8 +825,7 @@ model stays in your R session.
 
 ## 8.2 `to_biblium()` — Biblium compatibility
 
-**Biblium** is a Python-based bibliometric analysis tool (Pereira et al.,
-2026). Its canonical column names differ from bibliometrix.
+**Biblium** is a Python-based bibliometric analysis tool (Umek, 2026). Its canonical column names differ from bibliometrix.
 
 ```{r ex_to_biblium}
 bu <- to_biblium(x)
@@ -1528,8 +1527,9 @@ sessionInfo()
   comprehensive science mapping analysis. *Journal of Informetrics*,
   11(4), 959–975. doi:10.1016/j.joi.2017.08.007
 
-- Pereira, W.E. et al. (2026). Biblium: a Python package for
-  bibliometric analysis. *Scientometrics*. doi:10.1007/s11192-026-05636-8
+- Umek, L. (2026). Biblium: a Python library for
+  comparative bibliometric analysis. *Scientometrics*, 131(5),
+  3359–3377. doi:10.1007/s11192-026-05636-8
 
 - Priem, J., Piwowar, H., & Orr, R. (2022). OpenAlex: A fully-open
   index of scholarly works, authors, venues, institutions and concepts.

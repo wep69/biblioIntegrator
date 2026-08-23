@@ -32,14 +32,14 @@ Todas as referências abaixo foram verificadas em pelo menos duas fontes indepen
 ## Pacotes Python
 
 ### Biblium
-- **Autores:** Walter Esfrain Pereira et al.
+- **Autores:** Umek, L.
 - **Artigo:** "Biblium: a Python library for comparative bibliometric analysis"
-- **Journal:** Scientometrics
+- **Journal:** Scientometrics, 131(5), 3359-3377
 - **DOI:** 10.1007/s11192-026-05636-8
 - **Ano:** 2026
 - **PyPI:** https://pypi.org/project/biblium
 - **Versão:** 2.16.0
-- **Verificado em:** PyPI + Springer + Research Square
+- **Verificado em:** Springer + ACM + RePEc + Research Square
 
 ## APIs e Serviços
 

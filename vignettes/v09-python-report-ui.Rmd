@@ -1836,10 +1836,11 @@ cat("\nPlan results:", paste(names(plan_res), collapse = ", "),
 
 - Pereira, W.E., Pereira Martinez, M.H. (2026).
   *biblioIntegrator: Harmonized, Comparative and Network-Based
-  Bibliometric Analysis*. R package version 0.2.0.
+  Bibliometric Analysis*. R package version 0.3.0.
 
-- Pereira, W.E. et al. (2026). Biblium: a Python library for
-  comparative bibliometric analysis. *Scientometrics*.
+- Umek, L. (2026). Biblium: a Python library for
+  comparative bibliometric analysis. *Scientometrics*, 131(5),
+  3359–3377.
   doi:[10.1007/s11192-026-05636-8](https://doi.org/10.1007/s11192-026-05636-8)
 
 ## Key Methodological References
@@ -1854,7 +1855,7 @@ cat("\nPlan results:", paste(names(plan_res), collapse = ", "),
 - Biblium on PyPI —
   <https://pypi.org/project/biblium/>
 - biblioIntegrator GitHub —
-  <https://github.com/wep/>
+  <https://github.com/wep69/biblioIntegrator>
 - reticulate documentation —
   <https://rstudio.github.io/reticulate/>
 - Shiny tutorial —

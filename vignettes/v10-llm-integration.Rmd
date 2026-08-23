@@ -2717,8 +2717,9 @@ export, or `saveRDS()` for full R object preservation.
   comprehensive science mapping analysis. *Journal of Informetrics*, 11(4),
   959--975. doi:10.1016/j.joi.2017.08.007
 
-- **Pereira, W.E., et al.** (2026). Biblium: A modern bibliometric analysis
-  toolkit. *Scientometrics*, forthcoming. doi:10.1007/s11192-026-05636-8
+- **Umek, L.** (2026). Biblium: a Python library for comparative
+  bibliometric analysis. *Scientometrics*, 131(5), 3359–3377.
+  doi:10.1007/s11192-026-05636-8
 
 ## LLM and AI Documentation
 

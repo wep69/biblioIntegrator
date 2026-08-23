@@ -1,7 +1,7 @@
 Package: biblioIntegrator
 Type: Package
 Title: Harmonized, Comparative and Network-Based Bibliometric Analysis
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: c(
     person("Walter Esfrain", "Pereira", email = "walterufpb@yahoo.com.br", role = c("aut", "cre", "cph"), comment = c(ORCID = "0000-0003-1085-0191")),
     person("Magali Haidee", "Pereira Martinez", role = "aut", comment = c(ORCID = "0009-0009-5419-959X"))
@@ -11,6 +11,9 @@ Description: Provides a reproducible R-first workflow for importing, harmonizing
     comparative inference for user-defined groups, network analysis, temporal and
     text summaries, provenance tracking, open scholarly APIs, and optional backends
     for 'bibliometrix', 'biblionetwork', Apache Arrow, DuckDB and Python 'Biblium'.
+    Optional LLM integration enables semantic search, topic discovery, intelligent
+    summarization, research gap analysis, query expansion, and thematic classification
+    via 'Ollama', 'Google Gemini', 'OpenAI', 'Anthropic', or 'Hugging Face'.
     Optional engines are detected at run time and are never required for core use.
 License: MIT + file LICENSE
 Encoding: UTF-8
@@ -18,8 +21,9 @@ Roxygen: list(markdown = TRUE)
 Depends: R (>= 4.2.0)
 Imports: httr2, igraph, jsonlite, stats, utils
 Suggests: arrow, bibliometrix, biblionetwork, ca, DBI, duckdb, DT,
-        FactoMineR, knitr, openalexR, plotly, reticulate, rmarkdown,
-        shiny, testthat (>= 3.0.0), visNetwork
+        ellmer (>= 0.1.0), FactoMineR, knitr, openalexR, plotly,
+        reticulate, rmarkdown, shiny, stringdist, testthat (>= 3.0.0),
+        tibble, visNetwork
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.1.0

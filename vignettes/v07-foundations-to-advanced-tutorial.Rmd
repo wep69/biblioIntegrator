@@ -607,12 +607,12 @@ Understanding *what* the corpus is about requires examining keywords and
 abstract terms.
 
 ```{r term-freq, eval=FALSE}
-tf <- term_frequency(proj, field = "keywords", top_n = 20)
+tf <- term_frequency(proj, field = "title")
 print(tf)
 ```
 
 ```{r term-freq-run}
-tf <- term_frequency(proj, field = "keywords", top_n = 10)
+tf <- term_frequency(proj, field = "title")
 print(tf)
 ```
 
@@ -626,13 +626,13 @@ TF-IDF re-weights terms by their discriminating power—terms that appear
 in many documents get a lower score:
 
 ```{r tfidf, eval=FALSE}
-ti <- tfidf_terms(proj, field = "keywords", top_n = 20)
+ti <- tfidf_terms(proj, field = "title")
 print(ti)
 ```
 
 ```{r tfidf-run}
 ti <- tryCatch(
-  tfidf_terms(proj, field = "keywords", top_n = 10),
+  tfidf_terms(proj, field = "title"),
   error = function(e) NULL
 )
 if (!is.null(ti)) {
@@ -651,13 +651,13 @@ that are frequent in the corpus but rare elsewhere.
 recent years:
 
 ```{r trend-topics, eval=FALSE}
-tt <- trend_topics(proj, field = "keywords", window = 3, top_n = 10)
+tt <- trend_topics(proj, field = "keywords", window = 3)
 print(tt)
 ```
 
 ```{r trend-topics-run}
 tt <- tryCatch(
-  trend_topics(proj, field = "keywords", window = 3, top_n = 10),
+  trend_topics(proj, field = "keywords", window = 3),
   error = function(e) NULL
 )
 if (!is.null(tt)) {
@@ -734,9 +734,10 @@ table(proj$works$group)
 ```{r form-groups-vector-run}
 proj2 <- as_biblio_project(example_biblio(), source = "temp")
 g <- ifelse(proj2$works$year < 2022, "earlier", "recent")
-proj2 <- form_groups(proj2, g)
+g_matrix <- form_groups(proj2, g)
 cat("Groups:\n")
-print(table(proj2$works$group))
+print(table(g))
+cat("\nMembership matrix dimensions:", dim(g_matrix), "\n")
 ```
 
 ### Accepted grouping inputs
@@ -1695,12 +1696,12 @@ cat("\nIndicadores:\n")
 print(mets)
 
 # --- 6. Termos e tendências ----------------------------------
-tf <- term_frequency(proj, field = "keywords", top_n = 10)
+tf <- term_frequency(proj, field = "title")
 cat("\nTop 10 palavras-chave:\n")
 print(tf)
 
 tt <- tryCatch(
-  trend_topics(proj, field = "keywords", window = 3, top_n = 10),
+  trend_topics(proj, field = "keywords", window = 3),
   error = function(e) NULL
 )
 if (!is.null(tt)) {
@@ -1768,7 +1769,7 @@ print(desc)
 mets <- biblio_metrics(proj)
 cat("\nMetrics:\n")
 print(mets)
-tf <- term_frequency(proj, field = "keywords", top_n = 10)
+tf <- term_frequency(proj, field = "title")
 cat("\nTop keywords:\n")
 print(tf)
 g <- bibliographic_network(proj, type = "coauthor")
@@ -1860,12 +1861,12 @@ breaking core functionality when absent.
 
 ---
 
-# 22. Appendix D: Expanded import workflows {#sec-appendix-d}
+# 21. Appendix D: Expanded import workflows {#sec-appendix-d}
 
 This appendix provides additional import scenarios that go beyond the
 basic pipeline shown in Section 5.
 
-## 22.1 Importing multiple Scopus CSV files
+## 21.1 Importing multiple Scopus CSV files
 
 When your Scopus search returns more than the download limit (typically
 2000 or 5000 records), you export multiple CSV files.  `biblio_import()`
@@ -1895,7 +1896,7 @@ print(table(proj$provenance$operation))
 The `seed` parameter ensures deterministic work_id assignment, which is
 important when you need reproducible identifiers across runs.
 
-## 22.2 Importing mixed-format data
+## 21.2 Importing mixed-format data
 
 biblioIntegrator can merge data from different database formats in a
 single import call:
@@ -1919,7 +1920,7 @@ Scopus, Web of Science, or another platform.  This column persists
 through deduplication: a merged record retains both database labels
 in its provenance trail.
 
-## 22.3 Working with OpenAlex JSON data
+## 21.3 Working with OpenAlex JSON data
 
 If you have downloaded OpenAlex data as JSON files, `biblio_import()` can
 parse them:
@@ -1936,7 +1937,7 @@ cat("Obras do OpenAlex:", nrow(proj$works), "\n")
 cat("Autores únicos:", nrow(proj$authors), "\n")
 ```
 
-## 22.4 Combining API fetch with local files
+## 21.4 Combining API fetch with local files
 
 A common mixed-source workflow fetches recent papers from OpenAlex
 while importing historical records from downloaded files:
@@ -1964,7 +1965,7 @@ if (requireNamespace("openalexR", quietly = TRUE)) {
 }
 ```
 
-## 22.5 Importing from Dimensions and PubMed
+## 21.5 Importing from Dimensions and PubMed
 
 biblioIntegrator's import engine auto-detects column mapping for
 multiple database formats.  When the automatic mapping is insufficient,
@@ -1988,12 +1989,12 @@ cat(paste(names(proj$works), collapse = ", "), "\n")
 
 ---
 
-# 23. Appendix E: Detailed descriptive analysis walkthrough {#sec-appendix-e}
+# 22. Appendix E: Detailed descriptive analysis walkthrough {#sec-appendix-e}
 
 This appendix walks through a more detailed descriptive analysis,
 showing how to interpret each output metric.
 
-## 23.1 Interpreting `describe_biblio()` output
+## 22.1 Interpreting `describe_biblio()` output
 
 ```{r describe-detail, eval=FALSE}
 desc <- describe_biblio(proj)
@@ -2031,7 +2032,7 @@ When comparing corpora or groups, control for document type
 differences using `form_groups()` or by restricting the analysis to a
 single type.
 
-## 23.2 Interpreting `biblio_metrics()` output
+## 22.2 Interpreting `biblio_metrics()` output
 
 ```{r metrics-detail, eval=FALSE}
 mets <- biblio_metrics(proj)
@@ -2068,9 +2069,9 @@ authors on average.  In agronomy, collaborative indices between 3 and
 
 ---
 
-# 24. Appendix F: In-depth group comparison examples {#sec-appendix-f}
+# 23. Appendix F: In-depth group comparison examples {#sec-appendix-f}
 
-## 24.1 Forming groups by time period
+## 23.1 Forming groups by time period
 
 The most common grouping in bibliometric studies is by time period.  This
 reveals whether the field's focus, productivity, or citation patterns
@@ -2098,7 +2099,7 @@ Three periods provide a middle ground that allows non-linear temporal
 trends to emerge.  However, each period must have sufficient sample
 sizes for stable permutation inference.
 
-## 24.2 Forming groups by document type
+## 23.2 Forming groups by document type
 
 ```{r group-by-doctype, eval=FALSE}
 proj <- form_groups(
@@ -2110,7 +2111,7 @@ proj <- form_groups(
 table(proj$works$group)
 ```
 
-## 24.3 Forming groups by source journal
+## 23.3 Forming groups by source journal
 
 ```{r group-by-source, eval=FALSE}
 # Formar grupos de fontes (journals) com frequência mínima
@@ -2125,7 +2126,7 @@ proj <- form_groups(
 table(proj$works$group)
 ```
 
-## 24.4 Running a full group comparison pipeline
+## 23.4 Running a full group comparison pipeline
 
 ```{r full-group-pipeline, eval=FALSE}
 # Pipeline completo de comparação de grupos
@@ -2170,13 +2171,11 @@ print(sens)
 
 ```{r full-group-pipeline-run}
 proj_g <- as_biblio_project(example_biblio(), source = "comparison demo")
-proj_g <- form_groups(
-  proj_g,
-  period = c(earlier = 2000:2021, recent = 2022:2030)
-)
+g <- ifelse(proj_g$works$year < 2022, "earlier", "recent")
+g_matrix <- form_groups(proj_g, g)
 cg <- compare_groups(
   proj_g,
-  period       = c(earlier = 2000:2021, recent = 2022:2030),
+  g_matrix,
   permutations = 999,
   bootstrap    = 99,
   seed         = 42
@@ -2190,7 +2189,7 @@ cat("\nCorrespondence analysis:\n")
 print(gca_result)
 sens <- sensitivity_analysis(
   proj_g,
-  proj_g$works$group,
+  g,
   thresholds   = 1:2,
   permutations = 99,
   seed         = 42
@@ -2203,9 +2202,9 @@ print(sens)
 
 ---
 
-# 25. Appendix G: Network analysis in depth {#sec-appendix-g}
+# 24. Appendix G: Network analysis in depth {#sec-appendix-g}
 
-## 25.1 Understanding edge weights
+## 24.1 Understanding edge weights
 
 In a co-authorship network, the edge weight between two authors is the
 number of works they co-authored.  In a co-citation network, the edge
@@ -2229,7 +2228,7 @@ This normalization corrects for the fact that popular nodes (frequently
 cited references, frequently co-occurring keywords) naturally have
 higher raw counts.
 
-## 25.2 Interpreting community structure
+## 24.2 Interpreting community structure
 
 Community detection partitions the network into groups of nodes that
 are more densely connected to each other than to the rest of the
@@ -2263,7 +2262,7 @@ comms <- network_communities(g)
 cat("Modularity:", attr(comms, "quality"), "\n")
 ```
 
-## 25.3 Centrality profiles
+## 24.3 Centrality profiles
 
 Rather than interpreting each centrality metric in isolation, construct
 a **centrality profile** for each node:
@@ -2281,7 +2280,7 @@ cent$eigen_share    <- cent$eigenvector  / sum(cent$eigenvector)
 head(cent[order(-cent$between_share), ], 10)
 ```
 
-## 25.4 Working with multiple network types
+## 24.4 Working with multiple network types
 
 `biblioIntegrator` supports five network types.  Here is a comparative
 example:
@@ -2308,24 +2307,24 @@ print(head(cent_cokw[order(-cent_cokw$degree), ], 3))
 
 ```{r network-types-run}
 g_coauthor <- bibliographic_network(proj, type = "coauthor")
-cat("Co-authorship edges:", nrow(g_coauthor), "\n")
-g_cokw <- bibliographic_network(proj, type = "co_occurrence")
-cat("Co-occurrence edges:", nrow(g_cokw), "\n")
+cat("Co-authorship edges:", igraph::ecount(g_coauthor), "\n")
+g_keyword <- bibliographic_network(proj, type = "keyword")
+cat("Keyword edges:", igraph::ecount(g_keyword), "\n")
 cent_coauthor <- network_centrality(g_coauthor)
-cent_cokw     <- network_centrality(g_cokw)
+cent_keyword  <- network_centrality(g_keyword)
 cat("\nTop nodes by degree (co-authorship):\n")
 print(head(
   cent_coauthor[order(-cent_coauthor$degree), , drop = FALSE],
   min(3, nrow(cent_coauthor))
 ))
-cat("\nTop nodes by degree (co-occurrence):\n")
+cat("\nTop nodes by degree (keyword):\n")
 print(head(
-  cent_cokw[order(-cent_cokw$degree), , drop = FALSE],
-  min(3, nrow(cent_cokw))
+  cent_keyword[order(-cent_keyword$degree), , drop = FALSE],
+  min(3, nrow(cent_keyword))
 ))
 ```
 
-## 25.5 Exporting for VOSviewer
+## 24.5 Exporting for VOSviewer
 
 VOSviewer is a widely used tool for bibliometric network visualization.
 `export_vosviewer()` prepares your data for direct import:
@@ -2354,9 +2353,9 @@ map based on network data**.
 
 ---
 
-# 26. Appendix H: Temporal analysis in depth {#sec-appendix-h}
+# 25. Appendix H: Temporal analysis in depth {#sec-appendix-h}
 
-## 26.1 Growth modelling
+## 25.1 Growth modelling
 
 `temporal_growth()` fits several candidate models to the year-count
 trajectory and selects the best one:
@@ -2404,7 +2403,7 @@ tg <- temporal_growth(proj)
 print(tg)
 ```
 
-## 26.2 Interpreting citation velocity
+## 25.2 Interpreting citation velocity
 
 `citation_velocity()` normalizes citation counts by years since
 publication:
@@ -2427,7 +2426,7 @@ cat("Median velocity:", median(cv$velocity, na.rm = TRUE), "\n")
 cat("95th percentile:", quantile(cv$velocity, 0.95, na.rm = TRUE), "\n")
 ```
 
-## 26.3 Interpreting disruption indices
+## 25.3 Interpreting disruption indices
 
 The disruption index ranges from -1 (purely consolidating) to +1
 (purely disruptive).  A work is:
@@ -2462,7 +2461,7 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 
 ---
 
-# 27. Appendix I: Frequently asked questions {#sec-faq}
+# 26. Appendix I: Frequently asked questions {#sec-faq}
 
 **Q1: Can I use biblioIntegrator for systematic reviews following
 PRISMA?**
@@ -2567,9 +2566,9 @@ A: Use the following format:
 
 ---
 
-# 28. Appendix J: Troubleshooting guide {#sec-troubleshooting}
+# 27. Appendix J: Troubleshooting guide {#sec-troubleshooting}
 
-## 28.1 Common error messages and their solutions
+## 27.1 Common error messages and their solutions
 
 ### Error: "No works found in input"
 
@@ -2612,7 +2611,7 @@ to `reticulate`.
 Biblium in the Python environment configured for `reticulate`:
 `reticulate::py_install("biblium")`.
 
-## 28.2 Performance tips
+## 27.2 Performance tips
 
 ### Large corpora (>10,000 works)
 
@@ -2639,7 +2638,7 @@ Biblium in the Python environment configured for `reticulate`:
 - Co-citation networks can include millions of cited references.  Start
   by filtering to references cited at least 2 or 3 times.
 
-## 28.3 Debugging workflow
+## 27.3 Debugging workflow
 
 ```{r debug-workflow, eval=FALSE}
 # Passo 1: Verificar saúde do corpus
@@ -2671,7 +2670,7 @@ if (!is.null(test_result)) print(test_result)
 
 ---
 
-# 29. Appendix K: Workflow diagram for systematic reviews {#sec-appendix-k}
+# 28. Appendix K: Workflow diagram for systematic reviews {#sec-appendix-k}
 
 For researchers conducting systematic reviews, the following diagram
 shows where biblioIntegrator fits in the broader PRISMA workflow:
@@ -2705,9 +2704,9 @@ recommended.
 
 ---
 
-# 30. Appendix L: Package versioning and reproducibility {#sec-versions}
+# 29. Appendix L: Package versioning and reproducibility {#sec-versions}
 
-## 30.1 Why software versions matter
+## 29.1 Why software versions matter
 
 Different versions of R packages can produce slightly different results,
 especially for:
@@ -2744,7 +2743,7 @@ for (pkg in c("ggplot2", "visNetwork", "arrow", "duckdb")) {
 }
 ```
 
-## 30.2 Using `sessionInfo()` for full documentation
+## 29.2 Using `sessionInfo()` for full documentation
 
 For supplementary materials of any publication:
 
@@ -2756,7 +2755,7 @@ This output captures R version, platform, attached packages, and loaded
 namespaces—everything needed to reconstruct the computational
 environment.
 
-## 30.3 Reproducibility checklist
+## 29.3 Reproducibility checklist
 
 Again: set `seed = 42` (or your chosen seed) for every stochastic
 function and report it explicitly.  biblioIntegrator uses the `seed`
@@ -2771,7 +2770,7 @@ parameter consistently across `biblio_import()`, `deduplicate_biblio()`,
 
 ---
 
-# 31. Session info {#sec-session}
+# 30. Session info {#sec-session}
 
 ```{r session-info}
 sessionInfo()

@@ -835,7 +835,7 @@ names(bu)
 ```
 
 ```{r ex_to_bibum_preview}
-head(bu[, 1:8], 4)
+head(bu, 4)
 ```
 
 ### 8.2.1 Validating against Biblium schema
@@ -1654,3 +1654,81 @@ PubMed exports (`.nbib` or XML) require `bibliometrix` delegation:
   canonical lowercase form without URL prefixes.
 - **Column resolution**: The case-insensitive, first-match-wins logic that
   maps diverse source column names to logical fields.
+
+# Appendix D: Quick-start checklist
+
+A printable checklist for new users:
+
+1. [ ] Install biblioIntegrator: `install.packages("biblioIntegrator")`
+2. [ ] Load the package: `library(biblioIntegrator)`
+3. [ ] Explore the teaching corpus: `example_biblio()` — familiarise
+      yourself with the expected column names.
+4. [ ] Export your data from Scopus/WoS/Dimensions as CSV (UTF-8).
+5. [ ] Inspect column names: `names(your_df)`. Check the resolution table
+      (Section 6.1) to confirm they will be mapped.
+6. [ ] Import: `x <- biblio_import("your_file.csv")`
+      or `x <- as_biblio_project(your_df, source = "scopus")`
+7. [ ] Health check: `biblio_health(x)` — fix any non-zero rows.
+8. [ ] Integrity check: `validate_integrity(x)` — verify 0 orphans.
+9. [ ] Provenance check: `audit_biblio(x)` — confirm source label and
+      record count look right.
+10. [ ] Export: `export_biblio(x, "output_dir", "csv")` for archiving.
+11. [ ] Continue to `v02-quality-dedup.Rmd` for deduplication.
+
+# Appendix E: Reproducibility template
+
+```{r ex_reproducibility_template, eval=FALSE}
+# Reproducible bibliometric import-and-harmonize template
+# Save this script alongside your data for transparent, repeatable analysis.
+
+# --- Configuration ---
+SOURCE_NAME  <- "scopus_2025q3"
+INPUT_FILE   <- "data/scopus_export.csv"
+OUTPUT_DIR   <- "output/harmonized"
+FORMAT       <- "csv"
+
+# --- Load ---
+library(biblioIntegrator)
+
+# --- Import ---
+raw <- utils::read.csv(INPUT_FILE, stringsAsFactors = FALSE,
+                       fileEncoding = "UTF-8-BOM")
+cat("Raw records:", nrow(raw), "\n")
+
+# --- Harmonize ---
+proj <- as_biblio_project(raw, source = SOURCE_NAME)
+
+# --- Validate ---
+cat("\n=== Health ===\n")
+print(biblio_health(proj))
+
+cat("\n=== Integrity ===\n")
+int <- validate_integrity(proj)
+print(int)
+stopifnot(all(int$n == 0L))
+
+cat("\n=== Provenance ===\n")
+print(audit_biblio(proj))
+
+# --- Describe ---
+desc <- describe_biblio(proj)
+cat("\nDocuments:", desc$n_documents, "\n")
+cat("Years:", desc$years[1], "to", desc$years[2], "\n")
+cat("Total citations:", desc$total_citations, "\n")
+
+# --- Export ---
+dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
+export_biblio(proj, OUTPUT_DIR, format = FORMAT)
+cat("\nExported to:", OUTPUT_DIR, "\n")
+cat("Files:", paste(list.files(OUTPUT_DIR), collapse = ", "), "\n")
+
+# --- Save provenance separately ---
+utils::write.csv(
+  audit_biblio(proj),
+  file.path(OUTPUT_DIR, "provenance.csv"),
+  row.names = FALSE
+)
+cat("Provenance saved.\n")
+
+cat("\n=== Done. Continue with v02-quality-dedup.Rmd ===\n")
+```

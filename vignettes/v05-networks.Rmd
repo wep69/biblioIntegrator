@@ -396,12 +396,12 @@ readable output we merge with the author display names:
 ```{r}
 # Map author IDs to display names
 auth_map <- setNames(x$authors$display_name, x$authors$author_id)
-V(g_coauthor)$label <- auth_map[V(g_coauthor)$name]
+igraph::V(g_coauthor)$label <- auth_map[igraph::V(g_coauthor)$name]
 
 # Verify
 head(data.frame(
-  id    = V(g_coauthor)$name,
-  label = V(g_coauthor)$label
+  id    = igraph::V(g_coauthor)$name,
+  label = igraph::V(g_coauthor)$label
 ))
 ```
 
@@ -421,9 +421,9 @@ associations.
 
 ## 6.5 Build a citation network (directed)
 
-```{r}
+```{r, eval=FALSE}
 # Citation networks require non-empty reference data.
-# The example corpus has no references, so we get an empty graph.
+# The example corpus has no references, so this would return an empty graph.
 g_citation <- bibliographic_network(x, "citation")
 g_citation
 igraph::vcount(g_citation)
@@ -474,16 +474,17 @@ graph and (via the keyword table) the keyword co-occurrence graph.
 # All three network types from the same project
 g_co  <- bibliographic_network(x, "coauthor")
 g_kw  <- bibliographic_network(x, "keyword")
-g_cit <- bibliographic_network(x, "citation")
+g_cit <- tryCatch(bibliographic_network(x, "citation"),
+                   error = function(e) NULL)
 
 summary_df <- data.frame(
   type     = c("coauthor", "keyword", "citation"),
   vertices = c(igraph::vcount(g_co), igraph::vcount(g_kw),
-               igraph::vcount(g_cit)),
+               if (!is.null(g_cit)) igraph::vcount(g_cit) else 0),
   edges    = c(igraph::ecount(g_co), igraph::ecount(g_kw),
-               igraph::ecount(g_cit)),
+               if (!is.null(g_cit)) igraph::ecount(g_cit) else 0),
   directed = c(igraph::is.directed(g_co), igraph::is.directed(g_kw),
-               igraph::is.directed(g_cit))
+               if (!is.null(g_cit)) igraph::is.directed(g_cit) else FALSE)
 )
 summary_df
 ```
@@ -897,9 +898,9 @@ library(igraph)
 
 g <- bibliographic_network(x, "coauthor")
 auth_map <- setNames(x$authors$display_name, x$authors$author_id)
-V(g)$label <- auth_map[V(g)$name]
-V(g)$color <- "lightblue"
-V(g)$size  <- 10 + 3 * igraph::degree(g)
+igraph::V(g)$label <- auth_map[igraph::V(g)$name]
+igraph::V(g)$color <- "lightblue"
+igraph::V(g)$size  <- 10 + 3 * igraph::degree(g)
 E(g)$width <- 0.5 + igraph::E(g)$weight
 
 set.seed(42)
@@ -917,13 +918,13 @@ library(igraph)
 g <- bibliographic_network(x, "coauthor")
 comm <- network_communities(g, method = "louvain")
 auth_map <- setNames(x$authors$display_name, x$authors$author_id)
-V(g)$label <- auth_map[V(g)$name]
+igraph::V(g)$label <- auth_map[igraph::V(g)$name]
 
 # Assign colours by community
-membership_vec <- comm$community[match(V(g)$name, comm$node)]
+membership_vec <- comm$community[match(igraph::V(g)$name, comm$node)]
 palette_colors <- c("#E41A1C", "#377EB8", "#4DAF4A",
                      "#984EA3", "#FF7F00", "#FFFF33")
-V(g)$color <- palette_colors[membership_vec]
+igraph::V(g)$color <- palette_colors[membership_vec]
 
 set.seed(42)
 plot(g,
@@ -938,12 +939,12 @@ plot(g,
 library(igraph)
 
 g_kw <- bibliographic_network(x, "keyword", min_weight = 1)
-V(g_kw)$size  <- 8 + 2 * igraph::degree(g_kw)
-V(g_kw)$color <- "lightyellow"
+igraph::V(g_kw)$size  <- 8 + 2 * igraph::degree(g_kw)
+igraph::V(g_kw)$color <- "lightyellow"
 
 comm_kw <- network_communities(g_kw, method = "louvain")
-membership_kw <- comm_kw$community[match(V(g_kw)$name, comm_kw$node)]
-V(g_kw)$color <- palette_colors[as.numeric(factor(membership_kw))]
+membership_kw <- comm_kw$community[match(igraph::V(g_kw)$name, comm_kw$node)]
+igraph::V(g_kw)$color <- palette_colors[as.numeric(factor(membership_kw))]
 
 set.seed(42)
 plot(g_kw,
@@ -966,8 +967,8 @@ if (requireNamespace("visNetwork", quietly = TRUE)) {
   # Node data frame
   auth_map <- setNames(x$authors$display_name, x$authors$author_id)
   nodes <- data.frame(
-    id    = V(g)$name,
-    label = auth_map[V(g)$name],
+    id    = igraph::V(g)$name,
+    label = auth_map[igraph::V(g)$name],
     size  = 10 + 3 * igraph::degree(g),
     color = "lightblue",
     stringsAsFactors = FALSE
@@ -1027,17 +1028,17 @@ cent <- network_centrality(g)
 
 # Map centrality to visual properties
 auth_map <- setNames(x$authors$display_name, x$authors$author_id)
-V(g)$label <- auth_map[V(g)$name]
+igraph::V(g)$label <- auth_map[igraph::V(g)$name]
 
 # Size by PageRank (scaled)
 pr_scaled <- (cent$pagerank - min(cent$pagerank)) /
   (max(cent$pagerank) - min(cent$pagerank) + 1e-10)
-V(g)$size <- 8 + 20 * pr_scaled
+igraph::V(g)$size <- 8 + 20 * pr_scaled
 
 # Colour by betweenness (gradient: light grey to red)
 bet_scaled <- (cent$betweenness - min(cent$betweenness)) /
   (max(cent$betweenness) - min(cent$betweenness) + 1e-10)
-V(g)$color <- rgb(0.9 - 0.6 * bet_scaled,
+igraph::V(g)$color <- rgb(0.9 - 0.6 * bet_scaled,
                   0.6 * (1 - bet_scaled),
                   0.6 * (1 - bet_scaled))
 
@@ -1059,9 +1060,9 @@ library(igraph)
 
 g <- bibliographic_network(x, "coauthor")
 auth_map <- setNames(x$authors$display_name, x$authors$author_id)
-V(g)$label <- auth_map[V(g)$name]
-V(g)$color <- "lightblue"
-V(g)$size  <- 12 + 3 * igraph::degree(g)
+igraph::V(g)$label <- auth_map[igraph::V(g)$name]
+igraph::V(g)$color <- "lightblue"
+igraph::V(g)$size  <- 12 + 3 * igraph::degree(g)
 E(g)$width <- 0.8 + E(g)$weight
 
 # Save as PNG (300 DPI)
@@ -1093,9 +1094,9 @@ if (requireNamespace("visNetwork", quietly = TRUE)) {
 
   # Build node data frame
   nodes <- data.frame(
-    id    = V(g)$name,
-    label = auth_map[V(g)$name],
-    group = as.factor(comm$community[match(V(g)$name, comm$node)]),
+    id    = igraph::V(g)$name,
+    label = auth_map[igraph::V(g)$name],
+    group = as.factor(comm$community[match(igraph::V(g)$name, comm$node)]),
     size  = 10 + 3 * igraph::degree(g),
     stringsAsFactors = FALSE
   )
@@ -1376,7 +1377,7 @@ E(g_coauthor)$layer <- "coauthor"
 E(g_keyword)$layer  <- "keyword"
 
 # Combine (disjoint union; rename to avoid clashes)
-V(g_keyword)$name <- paste0("kw_", V(g_keyword)$name)
+igraph::V(g_keyword)$name <- paste0("kw_", igraph::V(g_keyword)$name)
 g_combined <- igraph::disjoint_union(g_coauthor, g_keyword)
 ```
 
@@ -1411,8 +1412,8 @@ for (yr in years) {
 # Summary per year
 data.frame(
   year    = names(year_nets),
-  authors = vapply(year_nets, igraph::vcount, integer(1)),
-  edges   = vapply(year_nets, igraph::ecount, integer(1))
+  authors = vapply(year_nets, function(g) as.integer(igraph::vcount(g)), integer(1)),
+  edges   = vapply(year_nets, function(g) as.integer(igraph::ecount(g)), integer(1))
 )
 ```
 
@@ -1430,7 +1431,7 @@ E(g)$log_weight <- log1p(E(g)$weight)
 
 # Betweenness with log-transformed weights
 bc <- betweenness(g, weights = 1 / E(g)$log_weight, normalized = TRUE)
-data.frame(node = V(g)$name, betweenness = bc)
+data.frame(node = igraph::V(g)$name, betweenness = bc)
 ```
 
 ## 15.4 Exporting network data for external tools

@@ -307,7 +307,7 @@ To demonstrate the deduplication workflow, we will systematically introduce qual
 
 ```{r introduce-issues}
 # Start with clean example data
-clean_data <- example_bibloo()
+clean_data <- example_biblio()
 
 # Create duplicates by repeating records
 # 1. Exact DOI duplicate
@@ -425,7 +425,10 @@ cat("DOI normalization examples:\n")
 cat("Raw → Normalized\n")
 cat("--- → ----------\n")
 for (doi in example_dois) {
-  normalized <- .bi_norm_doi(doi)  # Internal function, shown for illustration
+  # Simple DOI normalization (lowercase, strip prefix)
+  normalized <- tolower(trimws(as.character(doi)))
+  normalized <- sub("^https?://(dx\\.)?doi\\.org/", "", normalized)
+  normalized <- sub("^doi:\\s*", "", normalized)
   cat(sprintf("%s → %s\n", 
               ifelse(is.na(doi), "NA", paste0("'", doi, "'")),
               paste0("'", normalized, "'")))
@@ -539,7 +542,7 @@ Always start with a health check to understand the scope of quality issues:
 
 ```{r workflow-step1}
 # Load contaminated data (from Section 4)
-raw <- example_bibloo()
+raw <- example_biblio()
 
 # Create duplicates
 dup1 <- raw[1, ]  # Exact DOI duplicate
@@ -704,7 +707,7 @@ Missing titles prevent reliable deduplication and make records difficult to veri
 
 ```{r missing-titles}
 # Identify records with missing titles
-x <- as_biblio_project(example_bibloo())
+x <- as_biblio_project(example_biblio())
 x$works$title[3] <- ""  # Simulate missing title
 
 missing_title_idx <- which(!nzchar(trimws(x$works$title)))
@@ -779,7 +782,9 @@ example_dois <- c(
 # Show normalization
 cat("DOI normalization examples:\n")
 for (doi in example_dois) {
-  normalized <- .bi_norm_doi(doi)
+  normalized <- tolower(trimws(as.character(doi)))
+  normalized <- sub("^https?://(dx\\.)?doi\\.org/", "", normalized)
+  normalized <- sub("^doi:\\s*", "", normalized)
   cat(sprintf("  %-45s → %s\n", doi, normalized))
 }
 ```
@@ -827,7 +832,7 @@ Every `biblio_project` maintains a provenance log that records:
 
 ```{r audit-basic}
 # Create a project and apply transformations
-x <- as_biblio_project(example_bibloo(), source = "audit demo")
+x <- as_biblio_project(example_biblio(), source = "audit demo")
 
 # Apply deduplication
 x <- deduplicate_biblio(x)
@@ -887,7 +892,7 @@ Orphan records are linkages that reference non-existent entities:
 cat("\nOrphan detection:\n\n")
 
 # Create a scenario with orphans for illustration
-x_demo <- as_biblio_project(example_bibloo())
+x_demo <- as_biblio_project(example_biblio())
 
 # Manually create orphan (not recommended in practice)
 orphan_link <- data.frame(
@@ -915,7 +920,7 @@ The audit trail enables reproducible analysis:
 
 ```{r audit-reproducibility}
 # Example: Complete audit trail for a cleaning workflow
-x <- as_biblio_project(example_bibloo(), source = "reproducibility demo")
+x <- as_biblio_project(example_biblio(), source = "reproducibility demo")
 x <- deduplicate_biblio(x)
 
 # Export the audit trail
@@ -944,7 +949,7 @@ Understanding how different deduplication approaches affect results is essential
 
 ```{r comparison-setup}
 # Create a dataset with known duplicates
-raw <- example_bibloo()
+raw <- example_biblio()
 
 # Add exact duplicates
 dup_exact <- raw[c(1, 3, 5), ]
@@ -1083,7 +1088,7 @@ cat("  x_clean <- deduplicate_biblio(x)\n")
 
 # Demonstrate
 cat("\nPractical example:\n")
-raw <- example_bibloo()
+raw <- example_biblio()
 x <- as_biblio_project(raw, source = "example")
 x_clean <- deduplicate_biblio(x)
 cat(sprintf("  Harmonized: %d records\n", nrow(x$works)))
@@ -1107,7 +1112,7 @@ cat(sprintf("  Deduplicated: %d records\n", nrow(x_clean$works)))
 cat("Method comparison:\n\n")
 
 # Create test data with different duplicate types
-test_data <- example_bibloo()
+test_data <- example_biblio()
 dup_doi <- test_data[1, ]  # Will match by DOI
 dup_title <- test_data[2, ]  # Will match by title+year
 dup_title$doi <- ""  # No DOI, must use title+year
@@ -1174,7 +1179,7 @@ cat("  3. Check a random sample of 5-10% of fuzzy matches\n")
 
 ```{r mistake-provenance}
 # Demonstrate proper provenance tracking
-x <- as_biblio_project(example_bibloo(), source = "provenance demo")
+x <- as_biblio_project(example_biblio(), source = "provenance demo")
 x <- deduplicate_biblio(x)
 
 # Check provenance
@@ -1212,7 +1217,7 @@ cat("5. Verify results with biblio_health() again\n")
 cat("6. Check audit_biblio() for documentation\n")
 
 # Demonstrate
-x <- as_biblio_project(example_bibloo(), source = "workflow demo")
+x <- as_biblio_project(example_biblio(), source = "workflow demo")
 
 cat("\n=== Step 1: Health check ===\n")
 health <- biblio_health(x)
@@ -1250,7 +1255,7 @@ While `deduplicate_biblio()` uses a fixed key strategy, you can implement custom
 
 ```{r advanced-custom-keys}
 # Create custom deduplication keys
-x <- as_biblio_project(example_bibloo(), source = "custom keys demo")
+x <- as_biblio_project(example_biblio(), source = "custom keys demo")
 works <- x$works
 
 # Strategy 1: Author + Year + First Words of Title
@@ -1308,7 +1313,7 @@ The deduplication log can be exported for external verification:
 
 ```{r advanced-export}
 # Export deduplication log for external review
-x <- as_biblio_project(example_bibloo(), source = "export demo")
+x <- as_biblio_project(example_biblio(), source = "export demo")
 x <- deduplicate_biblio(x)
 
 # Get the log
@@ -1339,7 +1344,7 @@ Calculate quality metrics to assess corpus health:
 
 ```{r advanced-metrics}
 # Calculate quality metrics
-x <- as_biblio_project(example_bibloo(), source = "metrics demo")
+x <- as_biblio_project(example_biblio(), source = "metrics demo")
 
 # Metadata completeness
 total_records <- nrow(x$works)
@@ -1383,7 +1388,7 @@ We simulate a common scenario: merging data from two database exports (Web of Sc
 cat("Scenario: Merging WoS and Scopus exports\n\n")
 
 # Load base data
-base_data <- example_bibloo()
+base_data <- example_biblio()
 
 # Simulate WoS export (first 8 records, some duplicates)
 wos_data <- base_data[1:8, ]
@@ -1536,7 +1541,7 @@ cat("  - Impact metrics (biblio_metrics)\n")
 cat("  - Network analysis (bibliographic_network)\n")
 cat("  - Comparative inference (compare_groups)\n")
 cat("  - Temporal analysis (trend_topics)\n")
-
+```
 
 # References {#sec-references}
 

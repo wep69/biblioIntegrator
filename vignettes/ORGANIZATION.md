@@ -10,3 +10,4 @@
 - `v07-foundations-to-advanced-tutorial.Rmd`
 - `v08-scalable-backends.Rmd`
 - `v09-python-report-ui.Rmd`
+- `v10-llm-integration.Rmd`

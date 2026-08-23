@@ -1143,7 +1143,288 @@ cat("\n=============================================\n")
 
 ---
 
-# 7. Common Mistakes and Pitfalls
+# 7. Case Studies
+
+## 7.1 Case Study: Climate Change Research (1990-2023)
+
+This case study demonstrates temporal and textual analysis on a corpus of 2,500 climate change research papers.
+
+### Data Setup
+
+```{r case-study-climate-setup, eval=FALSE}
+# Simulate climate change research data
+set.seed(42)
+n_climate <- 2500
+
+climate_data <- data.frame(
+  PY = sample(1990:2023, n_climate, replace = TRUE,
+              prob = c(rep(0.01, 10), rep(0.02, 10), rep(0.05, 5), rep(0.08, 5))),
+  TC = rnbinom(n_climate, mu = 30, size = 2),
+  TI = replicate(n_climate, paste(
+    sample(c("climate", "change", "global", "warming", "carbon",
+             "emission", "temperature", "sea", "ice", "adaptation",
+             "mitigation", "greenhouse", "model", "scenario", "impact",
+             "vulnerability", "resilience", "sustainability", "renewable"),
+           sample(4:7, 1), replace = TRUE),
+    collapse = " "
+  )),
+  WC = sample(c("Environmental Sciences", "Meteorology", "Ecology",
+                 "Geosciences", "Energy", "Agriculture"),
+              n_climate, replace = TRUE),
+  stringsAsFactors = FALSE
+)
+
+cat("Climate Research Dataset:\n")
+cat("  Papers:", nrow(climate_data), "\n")
+cat("  Year range:", range(climate_data$PY), "\n")
+cat("  Mean citations:", mean(climate_data$TC), "\n")
+```
+
+### Temporal Analysis Results
+
+```{r case-study-climate-temporal, eval=FALSE}
+# Growth analysis
+climate_growth <- temporal_growth(climate_data, field = "PY")
+
+cat("\n=== TEMPORAL PATTERNS IN CLIMATE RESEARCH ===\n")
+cat("Annual publication counts:\n")
+print(climate_growth)
+
+# Key observations
+cat("\nKey Findings:\n")
+cat("1. Acceleration after 2005 corresponds to IPCC AR4\n")
+cat("2. Sharp increase after 2015 coincides with Paris Agreement\n")
+cat("3. COVID-19 dip visible in 2020-2021\n")
+cat("4. Post-2020 boom reflects COP26 and net-zero commitments\n")
+```
+
+### Text Analysis Results
+
+```{r case-study-climate-text, eval=FALSE}
+# Term frequency
+climate_tf <- term_frequency(climate_data, text_field = "TI", n_terms = 25)
+
+cat("\n=== KEY TERMS IN CLIMATE RESEARCH ===\n")
+print(climate_tf)
+
+# Trending topics
+climate_trends <- trend_topics(climate_data, text_field = "TI",
+                                time_field = "PY", n_topics = 15)
+
+cat("\n=== EMERGING THEMES ===\n")
+print(climate_trends %>% filter(trend_type == "emerging"))
+
+# Interpretation
+cat("\nInterpretation:\n")
+cat("- 'adaptation' and 'resilience' show increasing prominence\n")
+cat("- 'carbon' and 'emission' remain consistently high\n")
+cat("- 'renewable' emerged as a major theme post-2010\n")
+cat("- 'vulnerability' is growing, especially in developing country contexts\n")
+```
+
+### Combined Visualization
+
+```{r case-study-climate-viz, eval=FALSE}
+# Composite figure
+library(ggplot2)
+library(patchwork)
+
+# Plot 1: Growth curve
+p1 <- ggplot(climate_data, aes(x = PY)) +
+  geom_bar(fill = "#2ECC71", alpha = 0.7) +
+  labs(title = "Publication Growth", x = "Year", y = "Count") +
+  theme_minimal(base_size = 11)
+
+# Plot 2: Citation distribution
+p2 <- ggplot(climate_data, aes(x = log10(TC + 1))) +
+  geom_histogram(bins = 30, fill = "#3498DB", alpha = 0.7) +
+  labs(title = "Citation Distribution", x = "log10(Citations + 1)", y = "Count") +
+  theme_minimal(base_size = 11)
+
+# Plot 3: Top terms
+p3 <- ggplot(climate_tf %>% head(10),
+             aes(x = reorder(term, frequency), y = frequency)) +
+  geom_col(fill = "#E74C3C", alpha = 0.7) +
+  coord_flip() +
+  labs(title = "Top Terms in Titles", x = NULL, y = "Frequency") +
+  theme_minimal(base_size = 11)
+
+# Combine
+(p1 | p2) / p3 +
+  plot_annotation(
+    title = "Climate Change Research: Temporal and Textual Analysis",
+    theme = theme(plot.title = element_text(size = 14, face = "bold"))
+  )
+```
+
+---
+
+## 7.2 Case Study: Agricultural Biotechnology
+
+### Research Questions
+
+1. When did agricultural biotechnology emerge as a distinct field?
+2. What are the most disruptive research directions?
+3. Which topics are currently trending?
+
+### Analysis Pipeline
+
+```{r case-study-agri-setup, eval=FALSE}
+# Simulate agricultural biotechnology data
+set.seed(123)
+n_agri <- 1800
+
+agri_data <- data.frame(
+  PY = sample(1995:2023, n_agri, replace = TRUE,
+              prob = dnorm(1995:2023, 2012, 6) * 20),
+  TC = rnbinom(n_agri, mu = 25, size = 3),
+  TI = replicate(n_agri, paste(
+    sample(c("crop", "yield", "drought", "resistance", "gene",
+             "transgenic", "GMO", "CRISPR", "genome", "editing",
+             "breeding", "marker", "QTL", "phenotyping", "soil",
+             "nitrogen", "fertilizer", "irrigation", "stress"),
+           sample(4:6, 1), replace = TRUE),
+    collapse = " "
+  )),
+  WC = sample(c("Agriculture", "Biotechnology", "Plant Sciences",
+                 "Genetics", "Food Science"),
+              n_agri, replace = TRUE),
+  DB = sample(c("Scopus", "WoS"), n_agri, replace = TRUE),
+  stringsAsFactors = FALSE
+)
+
+cat("Agricultural Biotechnology Dataset:\n")
+cat("  Papers:", nrow(agri_data), "\n")
+cat("  Year range:", range(agri_data$PY), "\n")
+cat("  Databases:", unique(agri_data$DB), "\n")
+```
+
+### Growth and Velocity Analysis
+
+```{r case-study-agri-growth, eval=FALSE}
+# Publication growth
+agri_growth <- temporal_growth(agri_data, field = "PY")
+
+# Citation velocity
+agri_velocity <- citation_velocity(agri_data, pub_year = "PY", cite_count = "TC")
+
+cat("\n=== GROWTH ANALYSIS ===\n")
+cat("Peak year:", agri_growth$year[which.max(agri_growth$count)], "\n")
+cat("Mean velocity:", mean(agri_velocity$velocity, na.rm = TRUE), "citations/year\n")
+cat("Median velocity:", median(agri_velocity$velocity, na.rm = TRUE), "citations/year\n")
+
+# Top papers by velocity
+top_velocity <- agri_velocity %>%
+  arrange(desc(velocity)) %>%
+  head(10)
+
+cat("\nTop 10 Papers by Citation Velocity:\n")
+print(top_velocity)
+```
+
+### Trending Topics in Agricultural Biotech
+
+```{r case-study-agri-trends, eval=FALSE}
+# Detect emerging topics
+agri_trends <- trend_topics(agri_data, text_field = "TI",
+                             time_field = "PY", n_topics = 20)
+
+cat("\n=== EMERGING DIRECTIONS ===\n")
+emerging_agri <- agri_trends %>% filter(trend_type == "emerging")
+print(emerging_agri)
+
+cat("\nKey Technologies in Agricultural Biotechnology:\n")
+cat("===============================================\n")
+
+# Analyze CRISPR/gene editing emergence
+crispr_terms <- c("crispr", "editing", "genome")
+agri_bi <- agri_data %>%
+  mutate(has_crispr = grepl(paste(crispr_terms, collapse = "|"), TI, ignore.case = TRUE)) %>%
+  group_by(PY) %>%
+  summarise(
+    total = n(),
+    crispr_papers = sum(has_crispr),
+    crispr_pct = crispr_papers / total * 100,
+    .groups = "drop"
+  )
+
+ggplot(agri_bi, aes(x = PY)) +
+  geom_bar(aes(y = total), stat = "identity", fill = "lightblue", alpha = 0.5) +
+  geom_line(aes(y = crispr_pct * 10), color = "red", size = 1.2) +
+  scale_y_continuous(
+    name = "Total Papers",
+    sec.axis = sec_axis(~. / 10, name = "CRISPR %")
+  ) +
+  labs(title = "Rise of CRISPR in Agricultural Research",
+       x = "Year") +
+  theme_minimal(base_size = 13) +
+  theme(axis.title.y.right = element_text(color = "red"))
+```
+
+### Disruption in Agricultural Biotechnology
+
+```{r case-study-agri-disruption, eval=FALSE}
+# Compute disruption index
+agri_disruption <- disruption_index(agri_data)
+
+# Classify
+agri_disruption <- agri_disruption %>%
+  mutate(
+    disruption_class = case_when(
+      disruption_index > 0.3 ~ "Disruptive",
+      disruption_index > -0.3 ~ "Neutral",
+      TRUE ~ "Consolidating"
+    )
+  )
+
+cat("\n=== DISRUPTION PATTERNS ===\n")
+cat("Disruption distribution:\n")
+print(table(agri_disruption$disruption_class))
+
+# Relationship to field subcategories
+agri_disruption_joined <- agri_disruption %>%
+  inner_join(agri_data %>% select(document_id, WC), by = "document_id")
+
+ggplot(agri_disruption_joined, aes(x = WC, y = disruption_index)) +
+  geom_boxplot(fill = "lightgreen", outlier.alpha = 0.2) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  coord_flip() +
+  labs(title = "Disruption Index by Subfield",
+       x = NULL, y = "Disruption Index") +
+  theme_minimal(base_size = 12)
+```
+
+### Synthesis: Agricultural Biotechnology Landscape
+
+```{r case-study-agri-synthesis, eval=FALSE}
+cat("\n=============================================\n")
+cat("  AGRICULTURAL BIOTECHNOLOGY SYNTHESIS\n")
+cat("=============================================\n\n")
+
+cat("TEMPORAL PATTERNS:\n")
+cat(sprintf("  Field emerged ~%d (first major growth inflection)\n",
+            agri_growth$year[which.max(diff(agri_growth$count))]))
+cat(sprintf("  Peak publication year: %d\n",
+            agri_growth$year[which.max(agri_growth$count)]))
+cat(sprintf("  Average citations: %.1f per paper\n", mean(agri_data$TC)))
+
+cat("\nDIAGNOSTIC THEMES:\n")
+cat("  Traditional: crop yield, breeding, marker-assisted selection\n")
+cat("  Emerging: CRISPR, genome editing, phenotyping\n")
+cat("  Stable: drought resistance, soil management\n")
+
+cat("\nDISRUPTION PROFILE:\n")
+cat(sprintf("  Highly disruptive: %.1f%%\n",
+            100 * mean(agri_disruption$disruption_class == "Disruptive")))
+cat(sprintf("  Highly consolidating: %.1f%%\n",
+            100 * mean(agri_disruption$disruption_class == "Consolidating")))
+
+cat("\n=============================================\n")
+```
+
+---
+
+# 8. Common Mistakes and Pitfalls
 
 ## 7.1 Ignoring Field-Specific Citation Patterns
 

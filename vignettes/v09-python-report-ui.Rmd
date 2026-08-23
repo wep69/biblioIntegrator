@@ -1050,7 +1050,7 @@ The Explore tab provides:
 ```{r}
 #| label: production-table
 a <- temporal_growth(x)
-a[, c("year", "documents", "cumulative")]
+head(a)
 ```
 
 ### Leading Terms

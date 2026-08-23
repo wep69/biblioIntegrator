@@ -203,7 +203,7 @@ st
 #> [1] FALSE
 #> 
 #> $python
-#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/2SWa6QQc97UKhNh1/bin/python"
+#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/MFEaSQy-oE3bfJIF/bin/python"
 #> 
 #> $version
 #> [1] NA
@@ -228,7 +228,7 @@ names(st)
 cat("Available:", st$available, "\n")
 #> Available: FALSE
 cat("Python:   ", st$python,    "\n")
-#> Python:    /home/runner/.cache/R/reticulate/uv/cache/archive-v0/2SWa6QQc97UKhNh1/bin/python
+#> Python:    /home/runner/.cache/R/reticulate/uv/cache/archive-v0/MFEaSQy-oE3bfJIF/bin/python
 cat("Version:  ", st$version,   "\n")
 #> Version:   NA
 cat("Reason:   ", st$reason,    "\n")
@@ -795,11 +795,11 @@ report includes:
 
 f_md <- tempfile(fileext = ".md")
 biblio_report(x, f_md)
-#> [1] "/tmp/RtmpR6YJF9/file22c87e95b7c1.md"
+#> [1] "/tmp/RtmpSk6DfF/file22c26bbb5fec.md"
 file.exists(f_md)
 #> [1] TRUE
 cat("Path:", normalizePath(f_md, winslash = "/"), "\n")
-#> Path: /tmp/RtmpR6YJF9/file22c87e95b7c1.md
+#> Path: /tmp/RtmpSk6DfF/file22c26bbb5fec.md
 ```
 
 #### Inspecting the Output
@@ -814,7 +814,7 @@ cat("First 30 lines:\n")
 writeLines(lines[seq_len(min(30, length(lines)))])
 #> # Bibliometric Analysis Report
 #> 
-#> Generated: 2026-08-23 12:54:54.722798
+#> Generated: 2026-08-23 13:31:37.189121
 #> 
 #> ## Corpus summary
 #> Documents: **12**  
@@ -889,11 +889,11 @@ biblio_report(
   x, f_title,
   title = "Agronomic Bibliometric Map — Nutrition Studies"
 )
-#> [1] "/tmp/RtmpR6YJF9/file22c86442b71.md"
+#> [1] "/tmp/RtmpSk6DfF/file22c274421199.md"
 readLines(f_title, n = 3, warn = FALSE)
 #> [1] "# Agronomic Bibliometric Map — Nutrition Studies"
 #> [2] ""                                                
-#> [3] "Generated: 2026-08-23 12:54:54.878157"
+#> [3] "Generated: 2026-08-23 13:31:37.34824"
 ```
 
 ### HTML Reports
@@ -965,7 +965,7 @@ accepts a plain data frame if it matches the schema of
 f_df <- tempfile(fileext = ".md")
 biblio_report(example_biblio(), f_df,
               title = "Report from raw data frame")
-#> [1] "/tmp/RtmpR6YJF9/file22c86b189bc2.md"
+#> [1] "/tmp/RtmpSk6DfF/file22c25da90bb5.md"
 file.exists(f_df)
 #> [1] TRUE
 ```
@@ -980,7 +980,7 @@ logged:
 
 audit_biblio(x)
 #>                    timestamp         operation                          details
-#> 1 2026-08-23 12:54:50.077002 as_biblio_project source=v09 teaching corpus; n=12
+#> 1 2026-08-23 13:31:32.495399 as_biblio_project source=v09 teaching corpus; n=12
 ```
 
 This is what makes reports **auditable**: a reviewer can trace every
@@ -994,9 +994,9 @@ number back to a named transformation step.
 x2 <- as_biblio_project(example_biblio(), source = "grant review")
 f_report <- file.path(tempdir(), "grant-review-report.md")
 biblio_report(x2, f_report, title = "Grant literature mapping")
-#> [1] "/tmp/RtmpR6YJF9/grant-review-report.md"
+#> [1] "/tmp/RtmpSk6DfF/grant-review-report.md"
 cat("Report saved to:", f_report, "\n")
-#> Report saved to: /tmp/RtmpR6YJF9/grant-review-report.md
+#> Report saved to: /tmp/RtmpSk6DfF/grant-review-report.md
 ```
 
 ### Multi-Format Export
@@ -1973,7 +1973,7 @@ ca  <- group_ca(cmp)
 # Report
 f <- file.path(tempdir(), "thesis-review.md")
 biblio_report(x, f, title = "Thesis literature review")
-#> [1] "/tmp/RtmpR6YJF9/thesis-review.md"
+#> [1] "/tmp/RtmpSk6DfF/thesis-review.md"
 ```
 
 ### Mistake 5: Forgetting That `validate_biblium()` Requires Both Engines
@@ -2232,7 +2232,7 @@ print(python_backend_status())
 #> [1] FALSE
 #> 
 #> $python
-#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/2SWa6QQc97UKhNh1/bin/python"
+#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/MFEaSQy-oE3bfJIF/bin/python"
 #> 
 #> $version
 #> [1] NA
@@ -2244,10 +2244,10 @@ print(python_backend_status())
 f_report <- file.path(tempdir(), "end-to-end-report.md")
 biblio_report(proj, f_report,
               title = "End-to-End Bibliometric Analysis")
-#> [1] "/tmp/RtmpR6YJF9/end-to-end-report.md"
+#> [1] "/tmp/RtmpSk6DfF/end-to-end-report.md"
 cat("\nReport saved to:", f_report, "\n")
 #> 
-#> Report saved to: /tmp/RtmpR6YJF9/end-to-end-report.md
+#> Report saved to: /tmp/RtmpSk6DfF/end-to-end-report.md
 
 # 11. Plan-based execution
 plan <- form_plan(
@@ -2303,10 +2303,10 @@ cat("\nPlan results:", paste(names(plan_res), collapse = ", "),
 
 - Pereira, W.E., Pereira Martinez, M.H. (2026). *biblioIntegrator:
   Harmonized, Comparative and Network-Based Bibliometric Analysis*. R
-  package version 0.2.0.
+  package version 0.3.0.
 
-- Pereira, W.E. et al. (2026). Biblium: a Python library for comparative
-  bibliometric analysis. *Scientometrics*.
+- Umek, L. (2026). Biblium: a Python library for comparative
+  bibliometric analysis. *Scientometrics*, 131(5), 3359–3377.
   <doi:%5B10.1007/s11192-026-05636-8>\](<https://doi.org/10.1007/s11192-026-05636-8>)
 
 ### Key Methodological References
@@ -2319,7 +2319,7 @@ cat("\nPlan results:", paste(names(plan_res), collapse = ", "),
 ### Web Resources
 
 - Biblium on PyPI — <https://pypi.org/project/biblium/>
-- biblioIntegrator GitHub — <https://github.com/wep/>
+- biblioIntegrator GitHub — <https://github.com/wep69/biblioIntegrator>
 - reticulate documentation — <https://rstudio.github.io/reticulate/>
 - Shiny tutorial — <https://shiny.posit.co/r/articles/>
 - rmarkdown: The Definitive Guide —

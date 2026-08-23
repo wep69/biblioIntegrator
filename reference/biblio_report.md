@@ -41,17 +41,17 @@ Normalized report path.
 
 ``` r
 f<-tempfile(fileext=".md"); biblio_report(example_biblio(),f); file.exists(f)
-#> [1] "/tmp/RtmpR35u6X/file1ab558a9e796.md"
+#> [1] "/tmp/RtmpxGmpuG/file1a94774b645d.md"
 #> [1] TRUE
 f <- tempfile(fileext = ".md")
 x <- as_biblio_project(example_biblio())
 biblio_report(x, f, title = "Agronomy map")
-#> [1] "/tmp/RtmpR35u6X/file1ab548e43354.md"
+#> [1] "/tmp/RtmpxGmpuG/file1a945d253a52.md"
 # \donttest{
 if (requireNamespace("rmarkdown", quietly = TRUE)) {
   f <- tempfile(fileext = ".html")
   biblio_report(example_biblio(), f, "html")
 }
-#> [1] "/tmp/RtmpR35u6X/file1ab560bc289a.html"
+#> [1] "/tmp/RtmpxGmpuG/file1a94760e72b9.html"
 # }
 ```

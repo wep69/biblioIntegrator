@@ -768,10 +768,10 @@ print(p_inertia)
 
 ### 9.1 What Is Biblium?
 
-Biblium is a Python-based bibliometric analysis engine (Pereira et al.,
-2026). It provides independent implementations of many statistical
-operations found in `biblioIntegrator`. Cross-validating results between
-the two engines guards against:
+Biblium is a Python-based bibliometric analysis engine (Umek, 2026). It
+provides independent implementations of many statistical operations
+found in `biblioIntegrator`. Cross-validating results between the two
+engines guards against:
 
 - Implementation-specific numerical errors.
 - Different algorithmic choices (exact vs. approximate; deterministic
@@ -1710,8 +1710,8 @@ if (requireNamespace("reticulate", quietly = TRUE) &&
   11(4), 959–975.
   [doi:10.1016/j.joi.2017.08.007](https://doi.org/10.1016/j.joi.2017.08.007)
 
-- Pereira, W. R., et al. (2026). Biblium: A Python engine for
-  reproducible bibliometric inference. *Scientometrics*, (in press).
+- Umek, L. (2026). Biblium: A Python library for comparative
+  bibliometric analysis. *Scientometrics*, 131(5), 3359–3377.
   [doi:10.1007/s11192-026-05636-8](https://doi.org/10.1007/s11192-026-05636-8)
 
 ### 21.3 Correspondence Analysis
@@ -1745,7 +1745,7 @@ This vignette was compiled using:
 
 - R version as reported by
   [`sessionInfo()`](https://rdrr.io/r/utils/sessionInfo.html)
-- `biblioIntegrator` 0.2.0
+- `biblioIntegrator` 0.3.0
 - `knitr` and `rmarkdown` for report generation
 - `reticulate` (optional) for Biblium Python bridge
 

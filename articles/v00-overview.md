@@ -503,7 +503,7 @@ function examines the provenance table:
 
 audit_biblio(proj)
 #>                    timestamp         operation           details
-#> 1 2026-08-23 12:52:35.469661 as_biblio_project source=user; n=12
+#> 1 2026-08-23 13:29:18.263143 as_biblio_project source=user; n=12
 ```
 
 This is essential for understanding the analytical history of a project,
@@ -804,9 +804,9 @@ if (requireNamespace("duckdb", quietly = TRUE)) {
 
 #### Biblium
 
-Biblium (Pereira et al., 2026) is a modern bibliometric toolkit that
-provides streamlined analytical functions. `biblioIntegrator` can export
-to Biblium format.
+Biblium (Umek, 2026) is a modern bibliometric toolkit that provides
+streamlined analytical functions. `biblioIntegrator` can export to
+Biblium format.
 
 ``` r
 
@@ -1568,8 +1568,8 @@ sessionInfo()
   creating bibliometric networks. *GitHub repository*.
   <https://github.com/agoutsmedt/biblionetwork>
 
-- **Pereira, W.E., et al.** (2026). Biblium: A modern bibliometric
-  analysis toolkit. *Scientometrics*, forthcoming.
+- **Umek, L.** (2026). Biblium: a Python library for comparative
+  bibliometric analysis. *Scientometrics*, 131(5), 3359–3377.
   <doi:10.1007/s11192-026-05636-8>
 
 ### Methodological References

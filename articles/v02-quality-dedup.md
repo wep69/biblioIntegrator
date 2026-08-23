@@ -835,8 +835,8 @@ cat("Provenance log:\n")
 #> Provenance log:
 print(audit_log)
 #>                    timestamp          operation                   details
-#> 1 2026-08-23 12:52:58.956602  as_biblio_project source=contaminated; n=15
-#> 2 2026-08-23 12:52:59.120081 deduplicate_biblio                 removed=1
+#> 1 2026-08-23 13:29:41.248727  as_biblio_project source=contaminated; n=15
+#> 2  2026-08-23 13:29:41.41303 deduplicate_biblio                 removed=1
 
 cat("\nProvenance entries:\n")
 #> 
@@ -1126,8 +1126,8 @@ cat("Provenance log:\n")
 #> Provenance log:
 print(audit_log)
 #>                    timestamp          operation                 details
-#> 1 2026-08-23 12:53:00.918062  as_biblio_project source=audit demo; n=12
-#> 2 2026-08-23 12:53:00.919217 deduplicate_biblio               removed=0
+#> 1 2026-08-23 13:29:43.214826  as_biblio_project source=audit demo; n=12
+#> 2 2026-08-23 13:29:43.216047 deduplicate_biblio               removed=0
 ```
 
 ### Interpreting Provenance Entries
@@ -1147,11 +1147,11 @@ for (i in seq_len(nrow(audit_log))) {
   cat(sprintf("  Details: %s\n", entry$details))
   cat("\n")
 }
-#> Entry 1 [2026-08-23 12:53:00.918062]
+#> Entry 1 [2026-08-23 13:29:43.214826]
 #>   Operation: as_biblio_project
 #>   Details: source=audit demo; n=12
 #> 
-#> Entry 2 [2026-08-23 12:53:00.919217]
+#> Entry 2 [2026-08-23 13:29:43.216047]
 #>   Operation: deduplicate_biblio
 #>   Details: removed=0
 ```
@@ -1245,14 +1245,14 @@ temp_file <- tempfile(fileext = ".csv")
 write.csv(audit_df, temp_file, row.names = FALSE)
 
 cat("Audit trail saved to:", temp_file, "\n")
-#> Audit trail saved to: /tmp/RtmpY0VhUD/file211448e267cb.csv
+#> Audit trail saved to: /tmp/RtmpYtwfnz/file20ea32bbf884.csv
 cat("\nAudit trail contents:\n")
 #> 
 #> Audit trail contents:
 print(audit_df)
 #>                    timestamp          operation
-#> 1 2026-08-23 12:53:01.590244  as_biblio_project
-#> 2 2026-08-23 12:53:01.591388 deduplicate_biblio
+#> 1 2026-08-23 13:29:43.887262  as_biblio_project
+#> 2 2026-08-23 13:29:43.888303 deduplicate_biblio
 #>                             details
 #> 1 source=reproducibility demo; n=12
 #> 2                         removed=0
@@ -1610,8 +1610,8 @@ cat("Provenance after deduplication:\n")
 #> Provenance after deduplication:
 print(audit_log)
 #>                    timestamp          operation                      details
-#> 1  2026-08-23 12:53:02.98264  as_biblio_project source=provenance demo; n=12
-#> 2 2026-08-23 12:53:02.983674 deduplicate_biblio                    removed=0
+#> 1 2026-08-23 13:29:45.285139  as_biblio_project source=provenance demo; n=12
+#> 2 2026-08-23 13:29:45.286178 deduplicate_biblio                    removed=0
 
 cat("\nThis log records:\n")
 #> 
@@ -2075,8 +2075,8 @@ cat("Complete audit trail:\n")
 #> Complete audit trail:
 print(audit_log)
 #>                    timestamp          operation                       details
-#> 1 2026-08-23 12:53:04.198191  as_biblio_project source=WoS+Scopus merge; n=17
-#> 2 2026-08-23 12:53:04.521062 deduplicate_biblio                     removed=3
+#> 1 2026-08-23 13:29:46.503851  as_biblio_project source=WoS+Scopus merge; n=17
+#> 2 2026-08-23 13:29:46.827374 deduplicate_biblio                     removed=3
 
 cat("\nSummary of transformations:\n")
 #> 

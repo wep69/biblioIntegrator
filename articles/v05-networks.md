@@ -387,9 +387,9 @@ corpus, as expected for the example data.
 # Build coauthorship network using the native engine (always available)
 g_coauthor <- bibliographic_network(x, "coauthor")
 g_coauthor
-#> IGRAPH d6dc9bd UNW- 7 10 -- 
+#> IGRAPH f80cee4 UNW- 7 10 -- 
 #> + attr: name (v/c), weight (e/n)
-#> + edges from d6dc9bd (vertex names):
+#> + edges from f80cee4 (vertex names):
 #>  [1] A000008c4--A00000621 A00000905--A000008ad A000008c4--A00000f4d
 #>  [4] A00000f4d--A00000f73 A00000f4d--A0000043f A000008c4--A0000043f
 #>  [7] A00000f73--A000008ad A00000f4d--A00000621 A00000905--A0000043f
@@ -497,9 +497,9 @@ head(data.frame(
 
 g_keyword <- bibliographic_network(x, "keyword", min_weight = 1)
 g_keyword
-#> IGRAPH 506a7bb UNW- 24 28 -- 
+#> IGRAPH e67cca5 UNW- 24 28 -- 
 #> + attr: name (v/c), weight (e/n)
-#> + edges from 506a7bb (vertex names):
+#> + edges from e67cca5 (vertex names):
 #>  [1] cover crops    --aggregation    cover crops    --soil carbon   
 #>  [3] silicon        --drought        maize          --efficiency    
 #>  [5] nitrogen       --efficiency     maize          --drought       

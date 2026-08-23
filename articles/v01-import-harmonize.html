@@ -692,7 +692,7 @@ and <code>cited_id</code> pairs.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">x</span><span class="op">$</span><span class="va">provenance</span></span>
 <span><span class="co">#&gt;                    timestamp         operation                      details</span></span>
-<span><span class="co">#&gt; 1 2026-08-23 12:52:42.928856 as_biblio_project source=teaching corpus; n=12</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 2026-08-23 13:29:25.345914 as_biblio_project source=teaching corpus; n=12</span></span></code></pre></div>
 <p>Every operation that touches the <code>biblio_project</code> appends
 a row here. You can always trace the full life history of your data by
 reading this table.</p>
@@ -1081,7 +1081,7 @@ richest part of the project.</p>
 <div class="sourceCode" id="cb38"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/audit_biblio.html">audit_biblio</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                    timestamp         operation                      details</span></span>
-<span><span class="co">#&gt; 1 2026-08-23 12:52:42.928856 as_biblio_project source=teaching corpus; n=12</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 2026-08-23 13:29:25.345914 as_biblio_project source=teaching corpus; n=12</span></span></code></pre></div>
 <div class="sourceCode" id="cb39"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Adding an operation changes provenance</span></span>
 <span><span class="co"># Health check — see v02-quality-dedup.Rmd for full coverage</span></span>
@@ -1105,8 +1105,8 @@ richest part of the project.</p>
 <span><span class="va">x_dedup</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deduplicate_biblio.html">deduplicate_biblio</a></span><span class="op">(</span><span class="va">x_dup_p</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/audit_biblio.html">audit_biblio</a></span><span class="op">(</span><span class="va">x_dedup</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                    timestamp          operation                 details</span></span>
-<span><span class="co">#&gt; 1 2026-08-23 12:52:45.237615  as_biblio_project source=duplicated; n=13</span></span>
-<span><span class="co">#&gt; 2 2026-08-23 12:52:45.238799 deduplicate_biblio               removed=1</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 2026-08-23 13:29:27.635727  as_biblio_project source=duplicated; n=13</span></span>
+<span><span class="co">#&gt; 2 2026-08-23 13:29:27.636809 deduplicate_biblio               removed=1</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="the-health-diagnostic">6.7 The health diagnostic<a class="anchor" aria-label="anchor" href="#the-health-diagnostic"></a>
@@ -1341,8 +1341,7 @@ session.</p>
 <h3 id="to_biblium-biblium-compatibility">8.2 <code>to_biblium()</code> — Biblium compatibility<a class="anchor" aria-label="anchor" href="#to_biblium-biblium-compatibility"></a>
 </h3>
 <p><strong>Biblium</strong> is a Python-based bibliometric analysis tool
-(Pereira et al., 2026). Its canonical column names differ from
-bibliometrix.</p>
+(Umek, 2026). Its canonical column names differ from bibliometrix.</p>
 <div class="sourceCode" id="cb55"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/to_biblium.html">to_biblium</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">bu</span><span class="op">)</span></span>
@@ -1438,8 +1437,8 @@ The <code>arrow</code> package provides transparent reading.</p>
 <span>  <span class="fu"><a href="../reference/export_biblio.html">export_biblio</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">d</span>, format <span class="op">=</span> <span class="va">fmt</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="va">fmt</span>, <span class="st">":"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span>, <span class="st">"files in"</span>, <span class="va">d</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; csv : 6 files in /tmp/Rtmp8t6kCA/export_csv </span></span>
-<span><span class="co">#&gt; json : 6 files in /tmp/Rtmp8t6kCA/export_json</span></span></code></pre></div>
+<span><span class="co">#&gt; csv : 6 files in /tmp/RtmpGVMYeW/export_csv </span></span>
+<span><span class="co">#&gt; json : 6 files in /tmp/RtmpGVMYeW/export_json</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level3">
@@ -1702,8 +1701,8 @@ data frames and re-harmonize.</p>
 <div class="sourceCode" id="cb81"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/audit_biblio.html">audit_biblio</a></span><span class="op">(</span><span class="va">x_dedup</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                    timestamp          operation                        details</span></span>
-<span><span class="co">#&gt; 1 2026-08-23 12:52:47.961505  as_biblio_project source=merged_scopus_wos; n=16</span></span>
-<span><span class="co">#&gt; 2  2026-08-23 12:52:48.02713 deduplicate_biblio                      removed=4</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 2026-08-23 13:29:30.333866  as_biblio_project source=merged_scopus_wos; n=16</span></span>
+<span><span class="co">#&gt; 2 2026-08-23 13:29:30.399817 deduplicate_biblio                      removed=4</span></span></code></pre></div>
 <p>The provenance table tells you the full story: which sources were
 merged, when, and how many duplicates were removed.</p>
 </div>
@@ -2016,7 +2015,7 @@ that mirrors what you would do in a real research project.</p>
 <span><span class="co">#&gt; 5   reference_cited_orphans 0</span></span>
 <span><span class="fu"><a href="../reference/audit_biblio.html">audit_biblio</a></span><span class="op">(</span><span class="va">proj</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                    timestamp         operation                       details</span></span>
-<span><span class="co">#&gt; 1 2026-08-23 12:52:48.553076 as_biblio_project source=thesis-chapter-2; n=12</span></span>
+<span><span class="co">#&gt; 1 2026-08-23 13:29:30.920801 as_biblio_project source=thesis-chapter-2; n=12</span></span>
 <span></span>
 <span><span class="co"># Step 5: Export for downstream tools</span></span>
 <span><span class="co"># 5a: bibliometrix for a colleague</span></span>
@@ -2283,8 +2282,8 @@ extension.</li>
 <li><p>Aria, M. &amp; Cuccurullo, C. (2017). bibliometrix: An R-tool for
 comprehensive science mapping analysis. <em>Journal of
 Informetrics</em>, 11(4), 959–975. <a href="doi:10.1016/j.joi.2017.08.007" class="uri">doi:10.1016/j.joi.2017.08.007</a></p></li>
-<li><p>Pereira, W.E. et al. (2026). Biblium: a Python package for
-bibliometric analysis. <em>Scientometrics</em>. <a href="doi:10.1007/s11192-026-05636-8" class="uri">doi:10.1007/s11192-026-05636-8</a></p></li>
+<li><p>Umek, L. (2026). Biblium: a Python library for comparative
+bibliometric analysis. <em>Scientometrics</em>, 131(5), 3359–3377. <a href="doi:10.1007/s11192-026-05636-8" class="uri">doi:10.1007/s11192-026-05636-8</a></p></li>
 <li><p>Priem, J., Piwowar, H., &amp; Orr, R. (2022). OpenAlex: A
 fully-open index of scholarly works, authors, venues, institutions and
 concepts. <em>arXiv preprint</em> arXiv:2205.01833.</p></li>

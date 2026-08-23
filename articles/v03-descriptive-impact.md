@@ -2151,7 +2151,7 @@ Every metric should be interpreted in context:
 
 - Wu, L., Wang, D., & Evans, J. A. (2019). Large teams develop and small
   teams disrupt science and technology. *Nature*, 566(7744), 378–382.
-  <doi:10.1038/s1586-019-0941-9>
+  <doi:10.1038/s41586-019-0941-9>
 
 ### Text analysis in bibliometrics
 
@@ -2177,9 +2177,9 @@ Every metric should be interpreted in context:
 
 ### biblioIntegrator package
 
-- Pereira, W. E., & Martinez, M. H. P. (2025). biblioIntegrator:
+- Pereira, W. E., & Martinez, M. H. P. (2026). biblioIntegrator:
   Harmonized, Comparative and Network-Based Bibliometric Analysis. R
-  package version 0.2.0.
+  package version 0.3.0.
 
 ------------------------------------------------------------------------
 

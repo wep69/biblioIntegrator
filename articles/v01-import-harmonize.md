@@ -459,7 +459,7 @@ references), this table will be populated with `citing_id` and
 
 x$provenance
 #>                    timestamp         operation                      details
-#> 1 2026-08-23 12:52:42.928856 as_biblio_project source=teaching corpus; n=12
+#> 1 2026-08-23 13:29:25.345914 as_biblio_project source=teaching corpus; n=12
 ```
 
 Every operation that touches the `biblio_project` appends a row here.
@@ -865,7 +865,7 @@ richest part of the project.
 
 audit_biblio(x)
 #>                    timestamp         operation                      details
-#> 1 2026-08-23 12:52:42.928856 as_biblio_project source=teaching corpus; n=12
+#> 1 2026-08-23 13:29:25.345914 as_biblio_project source=teaching corpus; n=12
 ```
 
 ``` r
@@ -898,8 +898,8 @@ x_dup_p <- as_biblio_project(x_dup, source = "duplicated")
 x_dedup <- deduplicate_biblio(x_dup_p)
 audit_biblio(x_dedup)
 #>                    timestamp          operation                 details
-#> 1 2026-08-23 12:52:45.237615  as_biblio_project source=duplicated; n=13
-#> 2 2026-08-23 12:52:45.238799 deduplicate_biblio               removed=1
+#> 1 2026-08-23 13:29:27.635727  as_biblio_project source=duplicated; n=13
+#> 2 2026-08-23 13:29:27.636809 deduplicate_biblio               removed=1
 ```
 
 ### 6.7 The health diagnostic
@@ -1145,8 +1145,8 @@ model stays in your R session.
 
 ### 8.2 `to_biblium()` — Biblium compatibility
 
-**Biblium** is a Python-based bibliometric analysis tool (Pereira et
-al., 2026). Its canonical column names differ from bibliometrix.
+**Biblium** is a Python-based bibliometric analysis tool (Umek, 2026).
+Its canonical column names differ from bibliometrix.
 
 ``` r
 
@@ -1255,8 +1255,8 @@ for (fmt in c("csv", "json")) {
   export_biblio(x, d, format = fmt)
   cat(fmt, ":", length(list.files(d)), "files in", d, "\n")
 }
-#> csv : 6 files in /tmp/Rtmp8t6kCA/export_csv 
-#> json : 6 files in /tmp/Rtmp8t6kCA/export_json
+#> csv : 6 files in /tmp/RtmpGVMYeW/export_csv 
+#> json : 6 files in /tmp/RtmpGVMYeW/export_json
 ```
 
 ### 8.4 `export_vosviewer()` — VOSviewer network files
@@ -1557,8 +1557,8 @@ cat("After dedup:", nrow(x_dedup$works), "works\n")
 
 audit_biblio(x_dedup)
 #>                    timestamp          operation                        details
-#> 1 2026-08-23 12:52:47.961505  as_biblio_project source=merged_scopus_wos; n=16
-#> 2  2026-08-23 12:52:48.02713 deduplicate_biblio                      removed=4
+#> 1 2026-08-23 13:29:30.333866  as_biblio_project source=merged_scopus_wos; n=16
+#> 2 2026-08-23 13:29:30.399817 deduplicate_biblio                      removed=4
 ```
 
 The provenance table tells you the full story: which sources were
@@ -1872,7 +1872,7 @@ validate_integrity(proj)
 #> 5   reference_cited_orphans 0
 audit_biblio(proj)
 #>                    timestamp         operation                       details
-#> 1 2026-08-23 12:52:48.553076 as_biblio_project source=thesis-chapter-2; n=12
+#> 1 2026-08-23 13:29:30.920801 as_biblio_project source=thesis-chapter-2; n=12
 
 # Step 5: Export for downstream tools
 # 5a: bibliometrix for a colleague
@@ -2104,8 +2104,8 @@ sessionInfo()
   comprehensive science mapping analysis. *Journal of Informetrics*,
   11(4), 959–975. <doi:10.1016/j.joi.2017.08.007>
 
-- Pereira, W.E. et al. (2026). Biblium: a Python package for
-  bibliometric analysis. *Scientometrics*.
+- Umek, L. (2026). Biblium: a Python library for comparative
+  bibliometric analysis. *Scientometrics*, 131(5), 3359–3377.
   <doi:10.1007/s11192-026-05636-8>
 
 - Priem, J., Piwowar, H., & Orr, R. (2022). OpenAlex: A fully-open index

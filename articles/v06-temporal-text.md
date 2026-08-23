@@ -1840,5 +1840,5 @@ sessionInfo()
 
 ------------------------------------------------------------------------
 
-**biblioIntegrator** version 0.2.0 \| Vignette: Temporal and Textual
+**biblioIntegrator** version 0.3.0 \| Vignette: Temporal and Textual
 Analysis \| Last updated: 2026-08-23

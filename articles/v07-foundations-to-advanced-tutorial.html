@@ -96,7 +96,7 @@ define groups. Then analyze. Then interpret with uncertainty.</p>
 <div class="section level3">
 <h3 id="what-bibliointegrator-provides">1.2 What biblioIntegrator provides<a class="anchor" aria-label="anchor" href="#what-bibliointegrator-provides"></a>
 </h3>
-<p><strong>biblioIntegrator</strong> (version 0.2.0) brings the entire
+<p><strong>biblioIntegrator</strong> (version 0.3.0) brings the entire
 analytical pipeline—from raw bibliographic files to final reproducible
 report—under a single, auditable interface. The package is <em>not</em>
 a replacement for specialist tools such as <strong>bibliometrix</strong>
@@ -702,7 +702,7 @@ any check fails, proceed to <code><a href="../reference/audit_biblio.html">audit
 <code class="sourceCode R"><span><span class="va">audit_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/audit_biblio.html">audit_biblio</a></span><span class="op">(</span><span class="va">proj</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">audit_result</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                    timestamp         operation                        details</span></span>
-<span><span class="co">#&gt; 1 2026-08-23 12:54:16.292412 as_biblio_project source=agronomy tutorial; n=12</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 2026-08-23 13:30:58.350148 as_biblio_project source=agronomy tutorial; n=12</span></span></code></pre></div>
 <blockquote>
 <p><strong>Key concept:</strong> Treat a failed health check as a
 <strong>hard gate</strong>. Do not proceed to analysis until the corpus
@@ -1805,8 +1805,8 @@ server:</p>
 <h3 id="biblium-python-backend">12.4 Biblium Python backend<a class="anchor" aria-label="anchor" href="#biblium-python-backend"></a>
 </h3>
 <p><strong>Biblium</strong> is a Python library for comparative
-bibliometric analysis (Pereira et al., 2026). biblioIntegrator
-integrates with it via <code>reticulate</code>.</p>
+bibliometric analysis (Umek, 2026). biblioIntegrator integrates with it
+via <code>reticulate</code>.</p>
 <div class="sourceCode" id="cb73"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Verificar se o backend Python está configurado</span></span>
 <span><span class="fu"><a href="../reference/python_backend_status.html">python_backend_status</a></span><span class="op">(</span><span class="op">)</span></span>
@@ -1941,11 +1941,11 @@ report:</p>
 <div class="sourceCode" id="cb85"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">f</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".md"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/biblio_report.html">biblio_report</a></span><span class="op">(</span><span class="va">proj</span>, <span class="va">f</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "/tmp/RtmpI6WDSW/file224a36f8eec9.md"</span></span>
+<span><span class="co">#&gt; [1] "/tmp/RtmpNRFSnU/file22417e6ee946.md"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/readLines.html" class="external-link">readLines</a></span><span class="op">(</span><span class="va">f</span>, n <span class="op">=</span> <span class="fl">30</span><span class="op">)</span>, sep <span class="op">=</span> <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; # Bibliometric Analysis Report</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Generated: 2026-08-23 12:54:24.088399</span></span>
+<span><span class="co">#&gt; Generated: 2026-08-23 13:31:06.153985</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ## Corpus summary</span></span>
 <span><span class="co">#&gt; Documents: **12**  </span></span>
@@ -2354,8 +2354,8 @@ Informetrics</em>, 11(4), 959–975. <a href="doi:%5B10.1016/j.joi.2017.08.007" 
 <li><p>Goutsmedt, A., Claveau, F. &amp; Truc, A. (2021). biblionetwork:
 A Package For Creating Different Types of Bibliometric Networks. R
 package. <a href="https://github.com/agoutsmedt/biblionetwork" class="external-link">https://github.com/agoutsmedt/biblionetwork</a></p></li>
-<li><p>Pereira, W.E. et al. (2026). Biblium: a Python library for
-comparative bibliometric analysis. <em>Scientometrics</em>. <a href="doi:%5B10.1007/s11192-026-05636-8" class="uri">doi:[10.1007/s11192-026-05636-8</a>](<a href="https://doi.org/10.1007/s11192-026-05636-8" class="external-link uri">https://doi.org/10.1007/s11192-026-05636-8</a>)</p></li>
+<li><p>Umek, L. (2026). Biblium: a Python library for comparative
+bibliometric analysis. <em>Scientometrics</em>, 131(5), 3359–3377. <a href="doi:%5B10.1007/s11192-026-05636-8" class="uri">doi:[10.1007/s11192-026-05636-8</a>](<a href="https://doi.org/10.1007/s11192-026-05636-8" class="external-link uri">https://doi.org/10.1007/s11192-026-05636-8</a>)</p></li>
 <li><p>OpenAlex documentation: <a href="https://docs.openalex.org" class="external-link">https://docs.openalex.org</a></p></li>
 <li><p>OpenCitations: <a href="https://opencitations.net" class="external-link">https://opencitations.net</a></p></li>
 <li><p>Apache Arrow: <a href="https://arrow.apache.org/" class="external-link">https://arrow.apache.org/</a></p></li>
@@ -2779,7 +2779,7 @@ or neutral.</td>
 <tr class="odd">
 <td align="left"><strong>Biblium</strong></td>
 <td align="left">Python library for comparative bibliometric analysis
-(Pereira et al., 2026).</td>
+(Umek, 2026).</td>
 </tr>
 <tr class="even">
 <td align="left"><strong>OpenAlex</strong></td>
@@ -3731,7 +3731,7 @@ bootstrap 95% CI [0.08, 0.24]).”</em></p>
 <blockquote>
 <p>Pereira, W.E. &amp; Martinez, M.H.P. (2026). biblioIntegrator:
 Harmonized, Comparative and Network-Based Bibliometric Analysis. R
-package version 0.2.0. <a href="https://github.com/user/biblioIntegrator" class="external-link uri">https://github.com/user/biblioIntegrator</a></p>
+package version 0.3.0. <a href="https://github.com/user/biblioIntegrator" class="external-link uri">https://github.com/user/biblioIntegrator</a></p>
 </blockquote>
 <div style="page-break-after: always;"></div>
 <hr>

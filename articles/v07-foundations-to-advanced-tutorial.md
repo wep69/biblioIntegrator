@@ -21,7 +21,7 @@ is the backbone of credible science.
 
 ### 1.2 What biblioIntegrator provides
 
-**biblioIntegrator** (version 0.2.0) brings the entire analytical
+**biblioIntegrator** (version 0.3.0) brings the entire analytical
 pipeline—from raw bibliographic files to final reproducible report—under
 a single, auditable interface. The package is *not* a replacement for
 specialist tools such as **bibliometrix** (Aria & Cuccurullo, 2017) or
@@ -432,7 +432,7 @@ print(audit)
 audit_result <- audit_biblio(proj)
 print(audit_result)
 #>                    timestamp         operation                        details
-#> 1 2026-08-23 12:54:16.292412 as_biblio_project source=agronomy tutorial; n=12
+#> 1 2026-08-23 13:30:58.350148 as_biblio_project source=agronomy tutorial; n=12
 ```
 
 > **Key concept:** Treat a failed health check as a **hard gate**. Do
@@ -1615,8 +1615,7 @@ if (requireNamespace("duckdb", quietly = TRUE) &&
 ### 12.4 Biblium Python backend
 
 **Biblium** is a Python library for comparative bibliometric analysis
-(Pereira et al., 2026). biblioIntegrator integrates with it via
-`reticulate`.
+(Umek, 2026). biblioIntegrator integrates with it via `reticulate`.
 
 ``` r
 
@@ -1782,11 +1781,11 @@ cat(readLines(f), sep = "\n")
 
 f <- tempfile(fileext = ".md")
 biblio_report(proj, f)
-#> [1] "/tmp/RtmpI6WDSW/file224a36f8eec9.md"
+#> [1] "/tmp/RtmpNRFSnU/file22417e6ee946.md"
 cat(readLines(f, n = 30), sep = "\n")
 #> # Bibliometric Analysis Report
 #> 
-#> Generated: 2026-08-23 12:54:24.088399
+#> Generated: 2026-08-23 13:31:06.153985
 #> 
 #> ## Corpus summary
 #> Documents: **12**  
@@ -2087,8 +2086,8 @@ Data stored in a format that can be re-imported
   For Creating Different Types of Bibliometric Networks. R package.
   <https://github.com/agoutsmedt/biblionetwork>
 
-- Pereira, W.E. et al. (2026). Biblium: a Python library for comparative
-  bibliometric analysis. *Scientometrics*.
+- Umek, L. (2026). Biblium: a Python library for comparative
+  bibliometric analysis. *Scientometrics*, 131(5), 3359–3377.
   <doi:%5B10.1007/s11192-026-05636-8>\](<https://doi.org/10.1007/s11192-026-05636-8>)
 
 - OpenAlex documentation: <https://docs.openalex.org>
@@ -2385,7 +2384,7 @@ breaking core functionality when absent.
 | **TF-IDF** | Term Frequency × Inverse Document Frequency — a text weighting scheme. |
 | **Community detection** | Network partitioning algorithm (e.g., Louvain) maximizing within-group edge density. |
 | **Disruption index** | Metric classifying works as disruptive, consolidating, or neutral. |
-| **Biblium** | Python library for comparative bibliometric analysis (Pereira et al., 2026). |
+| **Biblium** | Python library for comparative bibliometric analysis (Umek, 2026). |
 | **OpenAlex** | Open, comprehensive bibliographic database covering 200M+ works. |
 | **OpenCitations** | Open scholarly citation data infrastructure. |
 | **Arrow** | Apache Arrow — columnar in-memory data format for fast analytics. |
@@ -3258,7 +3257,7 @@ A: Use the following format:
 
 > Pereira, W.E. & Martinez, M.H.P. (2026). biblioIntegrator: Harmonized,
 > Comparative and Network-Based Bibliometric Analysis. R package version
-> 0.2.0. <https://github.com/user/biblioIntegrator>
+> 0.3.0. <https://github.com/user/biblioIntegrator>
 
 ------------------------------------------------------------------------
 

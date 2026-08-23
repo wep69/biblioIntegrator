@@ -109,6 +109,20 @@ reference:
     contents:
       - deduplicate_biblio
 
+  - title: "LLM Integration"
+    desc: "Optional LLM-powered semantic analysis."
+    contents:
+      - llm_configure
+      - llm_get_config
+      - llm_status
+      - semantic_search
+      - llm_topic_discovery
+      - llm_summarize
+      - llm_gap_analysis
+      - llm_query_expand
+      - llm_classify
+      - llm_citation_context
+
 articles:
   - title: "Getting Started"
     navbar: ~
@@ -126,3 +140,4 @@ articles:
       - v07-foundations-to-advanced-tutorial
       - v08-scalable-backends
       - v09-python-report-ui
+      - v10-llm-integration

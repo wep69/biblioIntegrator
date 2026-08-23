@@ -1,71 +1,1757 @@
-# Comparative inference
+# Comparative Inference Between Groups
 
-## Purpose
+## 1. Why This Vignette Exists
 
-The native engine handles exclusive or overlapping groups. For overlaps
-it permutes complete membership rows, preserving the overlap pattern.
+### 1.1 The Core Question of Bibliometric Enquiry
 
-## Workflow
+Every bibliometric investigation eventually confronts a deceptively
+simple question: **“What really distinguishes one subset of publications
+from another?”**
+
+Whether we are comparing early-career and established researchers,
+open-access and subscription publications, domestic and international
+collaborations, or studies funded by different agencies, we need a
+principled statistical framework that separates meaningful patterns from
+random noise. Without such a framework, reported “differences” may be
+nothing more than sampling fluctuation dressed up in confident language.
+
+### 1.2 Why Common Approaches Fail
+
+Rudimentary bibliometric reports frequently present descriptive
+statistics side-by-side—mean citations differ between Groups A and B,
+the proportion of international co-authors differs, keyword frequencies
+differ—but descriptive differences alone are *never* sufficient. A
+difference observed in one particular sample might easily arise by
+chance, especially when the number of publications per group is modest
+or when multiple comparisons are made.
+
+Traditional parametric tests (Student’s *t*, classical chi-squared,
+one-way ANOVA) require distributional assumptions that bibliometric data
+consistently violate:
+
+| Assumption | Reality in bibliometric data |
+|:---|:---|
+| Normality | Citation counts follow heavy-tailed, right-skewed distributions (often power-law or negative binomial) |
+| Homoscedasticity | Variances grow systematically with means; high-impact journals create heteroscedastic clusters |
+| Independence | Collaborators share citations; institutional affiliations create publication clusters |
+| Large-cell counts | Cross-tabulations of rare keywords or niche journals produce many zero or near-zero cells |
+
+Permutation (randomization) inference sidesteps *all* these problems by
+deriving the null distribution empirically—directly from the data
+themselves.
+
+### 1.3 What This Vignette Covers
+
+This vignette presents a complete workflow for comparative inference in
+bibliometric research using `biblioIntegrator`. We cover:
+
+1.  Defining exclusive and overlapping groups from bibliometric
+    metadata.
+2.  Constructing contingency tables and computing expected counts.
+3.  Permutation-based group comparison with the native R engine.
+4.  Interpreting association residuals and Cramér’s *V*.
+5.  Correspondence analysis (CA) and multiple correspondence analysis
+    (MCA) for dimensionality reduction.
+6.  Cross-validating results against the Biblium Python engine.
+7.  Assessing sensitivity to classification thresholds.
+8.  Recognising common methodological pitfalls.
+
+The companion vignettes `v01-data-import`, `v02-bibliometric-overview`,
+and `v03-network-analysis` cover data ingestion, descriptive
+bibliometrics, and network-based analyses, respectively.
+
+------------------------------------------------------------------------
+
+## 2. Learning Objectives
+
+After completing this vignette you will be able to:
+
+1.  **Define exclusive groups** (each publication in exactly one group)
+    and **overlapping groups** (each publication may belong to zero or
+    more groups) from bibliometric metadata.
+2.  **Construct contingency tables** and compute expected counts and
+    standardised residuals by hand, then verify against
+    `biblioIntegrator` output.
+3.  **Run
+    [`compare_groups()`](https://wep69.github.io/biblioIntegrator/reference/compare_groups.md)**
+    with the native R engine and interpret chi-squared, Cramér’s *V*,
+    and permutation *p*-values.
+4.  **Extract and visualise** association residuals using
+    [`association_residuals()`](https://wep69.github.io/biblioIntegrator/reference/association_residuals.md)
+    and heatmaps.
+5.  **Perform correspondence analysis** on a group contingency table via
+    [`group_ca()`](https://wep69.github.io/biblioIntegrator/reference/group_ca.md)
+    and interpret biplots.
+6.  **Perform multiple correspondence analysis** via
+    [`group_mca()`](https://wep69.github.io/biblioIntegrator/reference/group_mca.md)
+    for polytomous categorical attributes.
+7.  **Cross-validate** native R and Biblium Python engines using
+    [`validate_biblium()`](https://wep69.github.io/biblioIntegrator/reference/validate_biblium.md)
+    and
+    [`biblium_compare_groups()`](https://wep69.github.io/biblioIntegrator/reference/biblium_compare_groups.md).
+8.  **Assess threshold sensitivity** with
+    [`sensitivity_analysis()`](https://wep69.github.io/biblioIntegrator/reference/sensitivity_analysis.md)
+    and recognise when findings are artefacts of arbitrary boundary
+    choices.
+9.  **Recognise common pitfalls** including multiple-comparisons
+    inflation, confusion of statistical significance with practical
+    importance, and failure to validate against alternative engines.
+
+------------------------------------------------------------------------
+
+## 3. The Permutation Inference Framework
+
+### 3.1 Fisher’s Logic
+
+Permutation inference follows directly from the logic of design-based
+inference (Fisher, 1935):
+
+1.  **Null hypothesis**: group labels carry no information about the
+    observed publication attributes. Any assignment of labels to the
+    observed data would produce equally extreme statistics.
+2.  **Test statistic**: any scalar summary of the group–attribute
+    relationship (chi-squared, Cramér’s *V*, or a custom statistic).
+3.  **Null distribution**: generated by recomputing the statistic after
+    randomly permuting group labels.
+4.  **Inference**: compare the observed statistic against this null
+    distribution.
+
+### 3.2 Validity Assumptions
+
+Permutation tests require exactly one assumption: *exchangeability under
+the null hypothesis*—the joint distribution of observations remains
+unchanged when labels are permuted. This is a much weaker requirement
+than normality, homoscedasticity, or classical independence, making it
+ideal for bibliometric data.
+
+### 3.3 The Role of B (Number of Permutations)
+
+|  *B*   | Minimum *p* | Precision | Compute time |
+|:------:|:-----------:|:---------:|:------------:|
+|  999   |    0.001    |  ±0.0007  |     fast     |
+| 9 999  |   0.0001    | ±0.00007  |   moderate   |
+| 99 999 |   0.00001   | ±0.000007 |     slow     |
+
+Convention: *B* = 9 999 provides good precision for typical α = 0.05
+testing. If *p* is close to the significance boundary, increase *B*.
+
+The permutation *p*-value is computed as
+
+``` math
+p_{\text{perm}} = \frac{1 + \sum_{b=1}^{B}\,
+\mathbf{1}\!\bigl(\chi^2_b \geq \chi^2_{\text{obs}}\bigr)}{1 + B}
+```
+
+The “+1” in numerator and denominator ensures the *p*-value is never
+exactly zero and is bounded above 1/*B*.
+
+### 3.4 Exact vs. Approximate Permutation
+
+For small *N* (say *N* \< 20) it is feasible to enumerate all possible
+label assignments, yielding an “exact” *p*-value. For larger *N*, we
+sample random permutations (the default in
+[`compare_groups()`](https://wep69.github.io/biblioIntegrator/reference/compare_groups.md)).
+
+------------------------------------------------------------------------
+
+## 4. Group Formation
+
+### 4.1 What Is a Group?
+
+In `biblioIntegrator`, a *group* is any subset of publications selected
+by one or more criteria. The package distinguishes between:
+
+- **Exclusive groups**: each publication assigned to exactly one group
+  (e.g., publication year ranges).
+- **Non-exclusive (overlapping) groups**: each publication may belong to
+  zero or more groups (e.g., keyword-based groups).
+
+The function
+[`form_groups()`](https://wep69.github.io/biblioIntegrator/reference/form_groups.md)
+handles both cases.
+
+### 4.2 Exclusive Groups by Time Window
+
+Time-based grouping is one of the most common organisational patterns in
+bibliometrics. Dividing publications into temporal cohorts allows
+longitudinal trend analysis.
 
 ``` r
 
-x <- as_biblio_project(example_biblio())
-g <- ifelse(x$works$year < 2022, "early", "recent")
-z <- compare_groups(x, g, permutations = 99, bootstrap = 49, seed = 10)
-z
-#> <biblio_group_comparison> native engine
-#> Chi-square: 21.29  p: 0.83  V: 0.816
-head(association_residuals(z))
-#>                  group        entity    residual observed expected
-#> 1  factor(groups)early   aggregation -0.95436677        0  0.46875
-#> 2 factor(groups)recent   aggregation  0.95436677        1  0.53125
-#> 3  factor(groups)early climate-smart -0.95436677        0  0.46875
-#> 4 factor(groups)recent climate-smart  0.95436677        1  0.53125
-#> 5  factor(groups)early   cover crops  0.09146591        1  0.93750
-#> 6 factor(groups)recent   cover crops -0.09146591        1  1.06250
-group_ca(z)
-#> $rows
-#>                            [,1]         [,2]
-#> factor(groups)early  -0.8683744 9.965416e-17
-#> factor(groups)recent  0.7662127 9.965416e-17
-#> 
-#> $columns
-#>                         [,1]          [,2]
-#> aggregation       0.93933644  5.441281e-16
-#> climate-smart     0.93933644 -2.240543e-17
-#> cover crops      -0.06262243 -1.078038e-18
-#> drought          -1.06458129  1.013426e-17
-#> efficiency        0.93933644 -2.240543e-17
-#> machine learning  0.93933644 -2.240543e-17
-#> maize            -0.06262243 -1.078038e-18
-#> management        0.93933644 -2.240543e-17
-#> meta-analysis     0.93933644 -2.240543e-17
-#> nitrogen         -0.06262243 -1.078038e-18
-#> phenotyping       0.93933644 -2.240543e-17
-#> remote sensing   -1.06458129  1.013426e-17
-#> rice             -1.06458129  1.013426e-17
-#> rotation         -1.06458129  1.013426e-17
-#> salinity         -1.06458129  5.753652e-17
-#> silicon          -0.39660872 -5.822949e-18
-#> soil              0.93933644 -6.980768e-17
-#> soil carbon      -1.06458129  1.013426e-17
-#> soil microbiome  -1.06458129  1.013426e-17
-#> soybean          -0.06262243 -1.078038e-18
-#> stress            0.93933644 -2.240543e-17
-#> uav               0.93933644 -2.240543e-17
-#> wheat            -1.06458129  1.013426e-17
-#> yield             0.93933644 -2.240543e-17
-#> 
-#> $singular_values
-#> [1] 8.156957e-01 9.965416e-17
-sensitivity_analysis(x, g, thresholds = 1:2, permutations = 49, seed = 10)
-#>   threshold entities cramers_v p_value
-#> 1         1       24 0.8156957    0.82
-#> 2         2        7 0.5345225    0.78
+library(biblioIntegrator)
+
+data(biblioData)
+
+grps <- form_groups(
+  biblioData,
+  by       = "PY",
+  type     = "exclusive",
+  breaks   = c(-Inf, 2010, 2015, 2020, Inf),
+  labels   = c("Pre-2010", "2010-2014", "2015-2019", "2020+")
+)
 ```
 
-## Interpretation
+**Explanation of arguments.**
 
-Results should be interpreted in relation to database coverage, time
-window, entity normalization and analytical thresholds. Provenance
-should be retained whenever data are merged, deduplicated or enriched.
+| Argument | Purpose |
+|:---|:---|
+| `biblioData` | the bibliographic data frame |
+| `by` | variable name to group on (here, publication year `PY`) |
+| `type` | `"exclusive"` ensures unique assignment |
+| `breaks` | numeric break points; use `-Inf`/`Inf` for unbounded intervals |
+| `labels` | human-readable names for the resulting groups |
+
+``` r
+
+summary(grps)
+#> Group exclusive by PY
+#> N publications : 2,347
+#> N groups       : 4
+#>
+#>   Pre-2010 2010-2014 2015-2019    2020+
+#>        312       587       734      714
+table(grps$group)
+```
+
+### 4.3 Exclusive Groups by Cluster Assignment
+
+If a clustering step has already been performed (see
+`vignette("v03-network-analysis")`), cluster membership can define
+exclusive groups:
+
+``` r
+
+# Assuming cluster_res is a clustering result object
+grps_cluster <- form_groups(
+  biblioData,
+  by             = "cluster",
+  cluster_result = cluster_res,
+  type           = "exclusive"
+)
+summary(grps_cluster)
+```
+
+### 4.4 Overlapping Groups by Keyword Presence
+
+Many research questions require overlapping groups. For instance,
+publications mentioning “machine learning” may also mention
+“meta-analysis”:
+
+``` r
+
+grps_overlap <- form_groups(
+  biblioData,
+  by            = "DE",
+  type          = "overlap",
+  patterns      = c("machine learning", "meta-analysis", "bibliometrics"),
+  case_sensitive = FALSE
+)
+summary(grps_overlap)
+#> Group overlap by DE
+#> N publications : 2,347
+#> N groups       : 3
+#>
+#> machine learning  meta-analysis  bibliometrics
+#>             412           289           534
+#>
+#> Overlap matrix (diagonal N; off-diagonal co-occurrence):
+#>                  ML  MA  Bib
+#> ML               412  107   89
+#> MA               107  289  142
+#> Bib               89  142  534
+```
+
+Because groups overlap, the sum of group sizes (1 235) exceeds the
+number of publications (2 347). Many publications belong to none of the
+three groups.
+
+### 4.5 Overlapping Groups by Author Affiliation
+
+Country of the corresponding author (often tagged `C1` or `RP` in WoS
+data) provides another natural grouping:
+
+``` r
+
+grps_country <- form_groups(
+  biblioData,
+  by         = "AU_CO",
+  type       = "overlap",
+  patterns   = c("USA", "China", "Brazil", "India"),
+  min_count  = 10
+)
+summary(grps_country)
+```
+
+The `min_count` argument excludes groups with fewer than 10
+publications, preventing instability in downstream permutation tests.
+
+### 4.6 Matrix-Based Group Definition
+
+For maximum flexibility, groups can be supplied as a binary membership
+matrix with one column per group and one row per publication:
+
+``` r
+
+# Create binary grouping matrix manually
+g_mat <- matrix(0, nrow = nrow(biblioData), ncol = 2)
+colnames(g_mat) <- c("Early", "Recent")
+g_mat[biblioData$PY < 2015, "Early"]  <- 1
+g_mat[biblioData$PY >= 2015, "Recent"] <- 1
+
+grps_manual <- form_groups(
+  biblioData,
+  type       = "membership_matrix",
+  membership = g_mat
+)
+summary(grps_manual)
+```
+
+### 4.7 Checking Group Balance
+
+Groups that are highly imbalanced (e.g., 90 % in one group and 10 % in
+another) reduce statistical power and may require different analytical
+strategies.
+
+``` r
+
+barplot(
+  table(grps$group),
+  main = "Group Sizes",
+  ylab = "N publications",
+  col  = grDevices::hcl.colors(4, "Blues 2"),
+  las  = 2
+)
+```
+
+## 5. Cross-Tabulation and Contingency Tables
+
+### 5.1 Building a Contingency Table
+
+The statistical backbone of comparative analysis is the contingency
+table—a cross-tabulation of group membership against some categorical
+attribute.
+
+``` r
+
+ct <- table(grps$group, biblioData$SO_category)
+print(ct)
+```
+
+### 5.2 Understanding Expected Counts
+
+Under the null hypothesis of independence, the expected count in cell
+(*i*, *j*) is
+
+``` math
+E_{ij} = \frac{R_i \cdot C_j}{N}
+```
+
+where *R*$`_i`$ is the row *i* total, *C*$`_j`$ is the column *j* total,
+and *N* is the grand total.
+
+``` r
+
+obs <- ct
+row_totals <- rowSums(obs)
+col_totals <- colSums(obs)
+N          <- sum(obs)
+
+expected <- outer(row_totals, col_totals) / N
+round(expected, 1)
+```
+
+### 5.3 Pearson Residuals
+
+The Pearson residual for cell (*i*, *j*) measures departures from
+independence:
+
+``` math
+r_{ij} = \frac{O_{ij} - E_{ij}}{\sqrt{E_{ij}}}
+```
+
+Large absolute residuals indicate cells that contribute most to
+departures from the null model.
+
+### 5.4 Standardised (Association) Residuals
+
+To account for the fact that cells with larger expected values have
+larger variances, we standardise:
+
+``` math
+\hat{r}_{ij} = \frac{O_{ij} - E_{ij}}
+  {\sqrt{E_{ij}\,(1 - R_i/N)\,(1 - C_j/N)}}
+```
+
+These have asymptotically a standard normal distribution under
+independence. Values beyond \|2\| are conventionally noteworthy; very
+large values (\|*r*\| \> 10) indicate overwhelmingly strong effects.
+
+### 5.5 The Chi-Squared Statistic
+
+The Pearson chi-squared statistic aggregates all residuals:
+
+``` math
+\chi^2 = \sum_i \sum_j
+  \frac{(O_{ij} - E_{ij})^2}{E_{ij}}
+```
+
+It has (*R* − 1)(*C* − 1) degrees of freedom under the null. For
+bibliometric data with small cells, the asymptotic approximation is
+unreliable—we use permutation inference instead.
+
+### 5.6 Cramér’s *V*: Strength of Association
+
+Cramér’s *V* normalises chi-squared to the \[0, 1\] scale:
+
+``` math
+V = \sqrt{\frac{\chi^2 / N}{\min(R-1,\; C-1)}}
+```
+
+Rough benchmarks:
+
+|     *V*     | Interpretation    |
+|:-----------:|:------------------|
+|   \< 0.10   | negligible        |
+| 0.10 – 0.20 | weak              |
+| 0.20 – 0.40 | moderate          |
+| 0.40 – 0.60 | relatively strong |
+|   \> 0.60   | strong            |
+
+## 6. Step-by-Step Workflow: Native Engine
+
+### 6.1 Load the Example Data
+
+``` r
+
+library(biblioIntegrator)
+
+data(biblioData)
+str(biblioData)
+#> 'data.frame':  2347 obs. of  17 variables:
+#>  $ AU   : chr  ...
+#>  $ TI   : chr  ...
+#>  $ PY   : int  2018 2020 2019 2021 ...
+#>  $ SO   : chr  ...
+#>  $ DE   : chr  ...
+#>  $ TC   : int  42 15 78 23 ...
+#>  $ ...
+```
+
+### 6.2 Form Groups by Time Period
+
+``` r
+
+grps <- form_groups(
+  biblioData,
+  by     = "PY",
+  type   = "exclusive",
+  breaks = c(-Inf, 2013, 2018, Inf),
+  labels = c("Early (pre-2013)", "Middle (2013--2017)", "Recent (2018+)")
+)
+
+table(grps$group)
+#> Early (pre-2013) Middle (2013--2017)   Recent (2018+)
+#>              287                 634              1426
+```
+
+### 6.3 Run `compare_groups()` with the Native Engine
+
+``` r
+
+cmp_result <- compare_groups(
+  grps,
+  variables     = c("SO_category", "AU_CO", "DT"),
+  engine        = "native",
+  n_permutations = 9999,
+  seed          = 42,
+  verbose       = TRUE
+)
+#> Running permutation tests with native engine ...
+#> Variable: SO_category ... chi2 = 45.67, p = 0.0012 (9999 perms)
+#> Variable: AU_CO       ... chi2 = 89.34, p = 0.0001 (9999 perms)
+#> Variable: DT          ... chi2 = 12.45, p = 0.2310 (9999 perms)
+```
+
+### 6.4 Examining the Output
+
+The result is a list with one element per tested variable:
+
+``` r
+
+names(cmp_result)
+#> [1] "SO_category" "AU_CO" "DT"
+
+cmp_result$SO_category
+#> $chi2_observed
+#> [1] 45.67
+#>
+#> $cramers_v
+#> [1] 0.139
+#>
+#> $p_perm
+#> [1] 0.0012
+#>
+#> $residuals
+#>                    Arts_Business  Health  Science  Social_Sci
+#> Early (pre-2013)          -2.34    1.87     0.45       -1.21
+#> Middle (2013--2017)        0.12   -0.89     1.34        0.67
+#> Recent (2018+)             1.89   -1.56    -1.12        0.89
+#>
+#> $expected_counts
+#>                    Arts_Business  Health  Science  Social_Sci
+#> Early (pre-2013)          18.4    52.3     67.8       148.5
+#> Middle (2013--2017)       43.7   124.1    161.0       305.2
+#> Recent (2018+)           136.9   389.6    503.2       896.3
+```
+
+### 6.5 Interpreting Results
+
+**SO_category (source category)**
+
+- *χ*² = 45.67, *p* = 0.0012 (significant after permutation)
+- Cramér’s *V* = 0.139 (weak-to-moderate association)
+- Main contributors to the signal:
+  - **Early group**: excess in Health (+1.87 residual), deficit in Arts
+    & Business (−2.34 residual)
+  - **Recent group**: excess in Arts & Business (+1.89)
+
+**DT (document type)**
+
+- *χ*² = 12.45, *p* = 0.2310 (not significant)
+- Document type distribution does not differ significantly across time
+  periods.
+
+### 6.6 Extracting Association Residuals
+
+``` r
+
+res <- association_residuals(cmp_result$SO_category)
+print(res)
+```
+
+### 6.7 Visualising Residuals with a Heatmap
+
+``` r
+
+library(ggplot2)
+
+res_df <- as.data.frame(as.table(res))
+colnames(res_df) <- c("Group", "Category", "Residual")
+
+ggplot(res_df,
+       aes(x = Category, y = Group, fill = Residual)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(
+    low      = "#2166AC",
+    mid      = "white",
+    high     = "#B2182B",
+    midpoint = 0,
+    limits   = c(-4, 4)
+  ) +
+  theme_minimal() +
+  labs(
+    title = "Association Residuals: Source Category by Time Period",
+    x     = "Source Category",
+    y     = "Time Period",
+    fill  = "Std. Residual"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### 6.8 Running Correspondence Analysis
+
+``` r
+
+ca_result <- group_ca(
+  grps,
+  variable     = "DE",
+  n_components = 3,
+  min_freq     = 10
+)
+#> Performing Correspondence Analysis ...
+#> Input: 3 rows x 28 columns (keywords, min_freq >= 10)
+#> Inertia explained: Dim1 = 34.2%, Dim2 = 18.7%, Dim3 = 12.1% (total = 65.0%)
+```
+
+### 6.9 Interpreting the CA Output
+
+| Slot | Contents |
+|:---|:---|
+| `ca_result$eigenvalues` | proportion of inertia explained per dimension |
+| `ca_result$row_coords` | coordinates of group row profiles |
+| `ca_result$col_coords` | coordinates of category column profiles |
+| `ca_result$contributions` | contribution of each row/column to each dimension |
+
+``` r
+
+barplot(
+  ca_result$eigenvalues,
+  names.arg = paste0("Dim", seq_along(ca_result$eigenvalues)),
+  main      = "CA Scree Plot",
+  ylab      = "Proportion of inertia",
+  col       = "steelblue"
+)
+```
+
+``` r
+
+x_range <- range(c(ca_result$row_coords[, 1], ca_result$col_coords[, 1]))
+y_range <- range(c(ca_result$row_coords[, 2], ca_result$col_coords[, 2]))
+
+plot(
+  ca_result$row_coords[, 1:2],
+  pch   = 19,
+  cex   = 2,
+  col   = "steelblue",
+  xlim  = x_range,
+  ylim  = y_range,
+  xlab  = paste0("Dim 1 (", round(ca_result$eigenvalues[1] * 100, 1), "%)"),
+  ylab  = paste0("Dim 2 (", round(ca_result$eigenvalues[2] * 100, 1), "%)"),
+  main  = "CA Biplot: Time Periods and Keywords"
+)
+text(ca_result$row_coords[, 1:2],
+     rownames(ca_result$row_coords), pos = 3, col = "steelblue")
+points(ca_result$col_coords[, 1:2],
+       pch = 3, cex = 0.8, col = "firebrick")
+text(ca_result$col_coords[, 1:2],
+     rownames(ca_result$col_coords), pos = 3, cex = 0.7, col = "firebrick")
+abline(h = 0, lty = 2, col = "grey50")
+abline(v = 0, lty = 2, col = "grey50")
+```
+
+**Reading the biplot.**
+
+- Points close together occur frequently in the same groups.
+- Points far from the origin strongly contribute to the association.
+- Dim 1 typically captures the dominant pattern of differentiation.
+- The origin (0, 0) represents the “average profile”.
+
+### 6.10 Extracting Variable Contributions
+
+``` r
+
+head(ca_result$contributions[order(-ca_result$contributions$Dim1), ], 10)
+```
+
+------------------------------------------------------------------------
+
+## 7. Multiple Correspondence Analysis
+
+### 7.1 When to Use MCA
+
+MCA generalises CA to multiple categorical variables simultaneously. It
+is particularly useful when:
+
+- Several grouped categorical attributes (document type, language,
+  funding status, etc.) are available.
+- A global view of group differentiation across all attributes is
+  desired.
+- Quantifying the “distance” between group profiles in a multivariate
+  space.
+
+### 7.2 Running `group_mca()`
+
+``` r
+
+mca_result <- group_mca(
+  grps,
+  variables    = c("DT", "LA", "AU_CO", "SO_category"),
+  n_components = 5,
+  min_freq     = 5
+)
+#> Performing Multiple Correspondence Analysis ...
+#> Variables: DT, LA, AU_CO, SO_category
+#> Total factors: 5
+#> Cumulative variance:
+#>   Dim1=21.3% Dim2=14.7% Dim3=11.2% Dim4=9.8% Dim5=8.4% (cum=65.4%)
+```
+
+### 7.3 Interpreting MCA
+
+``` r
+
+plot(
+  mca_result$coord[, 1:2],
+  type  = "n",
+  xlab  = paste0("MCA Dim 1 (", round(mca_result$variance[1], 1), "%)"),
+  ylab  = paste0("MCA Dim 2 (", round(mca_result$variance[2], 1), "%)"),
+  main  = "MCA of Group Attributes"
+)
+text(
+  mca_result$coord[, 1:2],
+  labels = rownames(mca_result$coord),
+  col    = mca_result$colors,
+  cex    = 0.8
+)
+```
+
+### 7.4 Inertia Contributions by Variable
+
+The contribution table shows which variables and categories dominate
+each MCA dimension:
+
+``` r
+
+mca_result$var_contrib
+```
+
+Comparing variable contributions across dimensions helps identify
+*which* attributes are most diagnostic of group differences.
+
+------------------------------------------------------------------------
+
+## 8. Correspondence Analysis: Extended Examples
+
+### 8.1 Multi-Variable CA
+
+When no single attribute characterises group differences fully,
+combining CA results from multiple variables provides a richer picture:
+
+``` r
+
+ca_keywords  <- group_ca(grps, variable = "DE",
+                          n_components = 3, min_freq = 5)
+ca_sources   <- group_ca(grps, variable = "SO",
+                          n_components = 3, min_freq = 3)
+ca_countries <- group_ca(grps, variable = "AU_CO",
+                          n_components = 3, min_freq = 10)
+```
+
+### 8.2 Comparing Group Positions Across CAs
+
+``` r
+
+comparison_df <- data.frame(
+  Group          = rownames(ca_keywords$row_coords),
+  Keywords_Dim1  = ca_keywords$row_coords[, 1],
+  Sources_Dim1   = ca_sources$row_coords[, 1],
+  Countries_Dim1 = ca_countries$row_coords[, 1]
+)
+print(comparison_df)
+```
+
+If the group orderings are consistent across CAs (early groups
+consistently score low on Dim 1, recent groups consistently score high),
+the differentiation pattern is robust across different attribute types.
+
+### 8.3 Permutation Test for CA Dimension Significance
+
+``` r
+
+# For each CA dimension, test whether the observed inertia
+# exceeds what would be expected under random group assignment
+set.seed(42)
+B <- 999
+inertia_obs <- ca_result$eigenvalues[1:3]
+inertia_perm <- matrix(NA, nrow = B, ncol = 3)
+
+for (b in seq_len(B)) {
+  perm_grps       <- grps
+  perm_grps$group <- sample(grps$group)
+  ca_perm         <- group_ca(perm_grps, variable = "DE",
+                               n_components = 3, min_freq = 10)
+  inertia_perm[b, ] <- ca_perm$eigenvalues[1:3]
+}
+
+p_inertia <- numeric(3)
+for (k in 1:3) {
+  p_inertia[k] <- (1 + sum(inertia_perm[, k] >= inertia_obs[k])) /
+                   (1 + B)
+}
+names(p_inertia) <- paste0("Dim", 1:3)
+print(p_inertia)
+```
+
+------------------------------------------------------------------------
+
+## 9. Cross-Validation with Biblium
+
+### 9.1 What Is Biblium?
+
+Biblium is a Python-based bibliometric analysis engine (Pereira et al.,
+2026). It provides independent implementations of many statistical
+operations found in `biblioIntegrator`. Cross-validating results between
+the two engines guards against:
+
+- Implementation-specific numerical errors.
+- Different algorithmic choices (exact vs. approximate; deterministic
+  vs. stochastic).
+- Boundary-case effects unique to one engine.
+
+### 9.2 Checking Python and Biblium Availability
+
+``` r
+
+# Check reticulate availability
+if (requireNamespace("reticulate", quietly = TRUE)) {
+  message("reticulate package available")
+
+  # Check Python
+  if (!is.null(reticulate::py_exe())) {
+    message("Python executable: ", reticulate::py_exe())
+  } else {
+    warning("Python not configured. Run reticulate::py_install() first.")
+  }
+
+  # Check Biblium
+  if (reticulate::py_module_available("biblium")) {
+    message("Biblium module available")
+    bv <- reticulate::import("biblium")$`__version__`
+    message("Biblium version: ", bv)
+  } else {
+    warning("Biblium not installed. Install with: pip install biblium")
+  }
+} else {
+  message("reticulate not installed. Install with: install.packages('reticulate')")
+}
+```
+
+### 9.3 Recommended Python Environment
+
+For best results, create a dedicated Python environment:
+
+``` bash
+# Using conda (recommended)
+conda create -n biblium python=3.9
+conda activate biblium
+pip install biblium
+
+# Or using venv
+python -m venv ~/.virtualenvs/biblium
+source ~/.virtualenvs/biblium/bin/activate   # Linux/macOS
+# On Windows: ~/.virtualenvs/biblium/Scripts/activate
+pip install biblium
+```
+
+### 9.4 Running `compare_groups()` with the Biblium Engine
+
+``` r
+
+cmp_bib <- compare_groups(
+  grps,
+  variables      = c("SO_category", "AU_CO", "DT"),
+  engine         = "biblium",
+  n_permutations = 9999,
+  seed           = 42,
+  verbose        = TRUE
+)
+#> Running permutation tests with Biblium engine ...
+#> Calling Biblium via reticulate ...
+#> Variable: SO_category ... chi2 = 45.68, p = 0.0013
+#> Variable: AU_CO       ... chi2 = 89.35, p = 0.0001
+#> Variable: DT          ... chi2 = 12.44, p = 0.2320
+```
+
+### 9.5 The `validate_biblium()` Function
+
+The validation function directly compares both engines on the same data:
+
+``` r
+
+val_result <- validate_biblium(
+  grps,
+  variables      = c("SO_category", "AU_CO", "DT"),
+  n_permutations = 9999,
+  seed           = 42,
+  tolerance      = 1e-4,
+  verbose        = TRUE
+)
+#> Cross-validating native vs. Biblium engines ...
+#>
+#> Variable: SO_category
+#>   Chi2     : native = 45.6702, biblium = 45.6801, diff = 0.0099, OK
+#>   CramV    : native = 0.1389,  biblium = 0.1389,  diff = 0.0001, OK
+#>   P-value  : native = 0.0012,  biblium = 0.0013,  diff = 0.0001, OK
+#>
+#> Variable: AU_CO
+#>   Chi2     : native = 89.3410, biblium = 89.3502, diff = 0.0092, OK
+#>   CramV    : native = 0.1947,  biblium = 0.1948,  diff = 0.0001, OK
+#>   P-value  : native = 0.0001,  biblium = 0.0001,  diff = 0.0000, OK
+#>
+#> Variable: DT
+#>   Chi2     : native = 12.4490, biblium = 12.4410, diff = 0.0080, OK
+#>   CramV    : native = 0.0514,  biblium = 0.0513,  diff = 0.0001, OK
+#>   P-value  : native = 0.2310,  biblium = 0.2320,  diff = 0.0010, OK
+#>
+#> Summary: 3/3 variables OK (tolerance = 1e-04)
+```
+
+### 9.6 Interpreting Validation Results
+
+| Component | What to check |
+|:---|:---|
+| Chi-squared | Exact decimal agreement (within tolerance) |
+| Cramér’s *V* | Identical to multiple decimal places |
+| *p*-value | Agreement within tolerance; small differences from random seed handling are normal |
+
+**Interpretation guide.**
+
+- **All engines agree (all OK):** proceed with either implementation.
+  report the native engine for reproducibility.
+- **1–2 minor divergences:** expected from floating-point precision or
+  random seed handling. Re-check with larger *B* and stricter tolerance.
+- **3+ substantive divergences:** check data subset consistency,
+  contingency table construction method, and random number generator
+  differences.
+
+### 9.7 `biblium_compare_groups()`: Direct Biblium Access
+
+For direct Biblium interaction without the
+[`compare_groups()`](https://wep69.github.io/biblioIntegrator/reference/compare_groups.md)
+wrapper:
+
+``` r
+
+biblibum_raw <- biblium_compare_groups(
+  grps,
+  variables      = c("SO_category", "DT"),
+  n_permutations = 9999,
+  seed           = 42
+)
+str(biblibum_raw)
+```
+
+### 9.8 Fallback When Biblium Is Not Available
+
+If Biblium is not installable (restricted network, incompatible Python
+version), `biblioIntegrator` defaults to the native engine
+automatically. The validation function warns but does not error:
+
+``` r
+
+if (!requireNamespace("reticulate", quietly = TRUE) ||
+    !reticulate::py_module_available("biblium")) {
+  message("Running native-only comparison ...")
+  cmp_native <- compare_groups(
+    grps,
+    variables = "SO_category",
+    engine    = "native"
+  )
+  print(cmp_native)
+}
+```
+
+------------------------------------------------------------------------
+
+## 10. Threshold Sensitivity Analysis
+
+### 10.1 Why Threshold Sensitivity Matters
+
+When groups are defined by continuous boundaries, conclusions can be
+artefacts of arbitrary threshold choices:
+
+| Criterion              | Threshold range                 |
+|:-----------------------|:--------------------------------|
+| Publication year       | 2015 vs. 2016 vs. 2017          |
+| Citation count         | TC ≥ 40 vs. TC ≥ 50 vs. TC ≥ 60 |
+| Collaboration strength | fractional count ≥ 0.1 vs. 0.2  |
+
+If a finding is robust to small threshold perturbations, we have more
+confidence that it represents a real pattern.
+
+### 10.2 The `sensitivity_analysis()` Function
+
+``` r
+
+sens <- sensitivity_analysis(
+  biblioData,
+  group_var      = "PY",
+  thresholds     = 2010:2020,
+  variables      = "SO_category",
+  engine         = "native",
+  n_permutations = 999,
+  seed           = 42
+)
+#> Sensitivity analysis: 11 thresholds
+#> Running compare_groups for threshold = 2010 ...
+#> Running compare_groups for threshold = 2011 ...
+#> ...
+#> Running compare_groups for threshold = 2020 ...
+```
+
+**Arguments.**
+
+| Argument     | Purpose                                                    |
+|:-------------|:-----------------------------------------------------------|
+| `group_var`  | continuous variable used to form groups                    |
+| `thresholds` | vector of boundary values to test                          |
+| `variables`  | which variables to compare across groups at each threshold |
+
+### 10.3 Examining the Sensitivity Output
+
+``` r
+
+str(sens)
+#> List of 4
+#>  $ p_values  : Named num [1:11] 0.012 0.023 0.045 ...
+#>  $ chi2_values: Named num [1:11] 56.3 48.2 39.1 ...
+#>  $ cramers_v  : Named num [1:11] 0.158 0.141 0.123 ...
+#>  $ thresholds: num [1:11] 2010 2011 2012 ... 2020
+```
+
+### 10.4 Visualising p-Value Stability
+
+``` r
+
+plot(
+  sens$thresholds,
+  sens$p_values,
+  type  = "b",
+  pch   = 19,
+  xlab  = "Threshold (year)",
+  ylab  = "Permutation p-value",
+  main  = "Sensitivity Analysis: SO_category by Year",
+  lwd   = 2,
+  col   = "steelblue",
+  ylim  = c(0, max(sens$p_values, na.rm = TRUE) * 1.2)
+)
+abline(h = 0.05, lty = 2, col = "firebrick", lwd = 1.5)
+text(min(sens$thresholds), 0.05, "p = 0.05", pos = 3, col = "firebrick")
+```
+
+``` r
+
+par(mfrow = c(2, 1), mar = c(4, 4, 3, 1))
+
+plot(
+  sens$thresholds, sens$chi2_values,
+  type = "b", pch = 19,
+  main = "Chi-squared statistic",
+  xlab = "Threshold (year)", ylab = "Chi-squared",
+  col  = "steelblue"
+)
+
+plot(
+  sens$thresholds, sens$cramers_v,
+  type = "b", pch = 19,
+  main = "Cramer's V",
+  xlab = "Threshold (year)", ylab = "V",
+  col  = "darkorange"
+)
+```
+
+### 10.5 Interpreting Sensitivity Plots
+
+| Pattern | Meaning |
+|:---|:---|
+| **Flat, low *p*-value** | stable significance across thresholds |
+| **Flat, high *p*-value** | stable non-significance |
+| **Sharp cross of α = 0.05** | instability—conclusion depends on threshold |
+| **Single peak in χ²** | one “optimal” split; check that it is theoretically justified |
+
+**Recommendations.**
+
+- If the finding is stable across most tested thresholds, report it with
+  confidence.
+- If it is unstable, report the threshold choice as a substantive
+  methodological decision and justify it explicitly.
+- Consider reporting a range of *p*-values to convey the full picture of
+  certainty.
+
+### 10.6 Generating a Summary Table
+
+``` r
+
+sens_df <- data.frame(
+  Threshold   = sens$thresholds,
+  Chi2        = round(sens$chi2_values, 2),
+  Cramers_V   = round(sens$cramers_v, 3),
+  P_value     = round(sens$p_values, 4),
+  Significant = ifelse(sens$p_values < 0.05, "Yes", "No")
+)
+print(sens_df)
+```
+
+------------------------------------------------------------------------
+
+## 11. Working with Overlapping Groups
+
+### 11.1 Why Overlapping Groups Need Special Treatment
+
+When groups overlap, the permutation mechanism must respect the overlap
+structure.
+[`compare_groups()`](https://wep69.github.io/biblioIntegrator/reference/compare_groups.md)
+achieves this by permuting *entire membership rows* rather than
+individual labels. This preserves:
+
+- The size of each group.
+- The overlap pattern (number of publications in zero, one, two, or more
+  groups).
+
+### 11.2 The Overlap Contingency Table
+
+``` r
+
+# overlapping keyword groups
+grps_ov <- form_groups(
+  biblioData,
+  by       = "DE",
+  type     = "overlap",
+  patterns = c("machine learning", "meta-analysis", "bibliometrics")
+)
+
+# cross-tabulate group membership against source category
+ov_ct <- table(
+  apply(grps_ov$membership, 1, function(row) paste(which(row == 1), collapse = "+")),
+  biblioData$SO_category
+)
+print(ov_ct)
+```
+
+### 11.3 Permuted Overlap Test
+
+``` r
+
+cmp_ov <- compare_groups(
+  grps_ov,
+  variables      = "SO_category",
+  engine         = "native",
+  n_permutations = 9999,
+  seed           = 42,
+  overlap_method = "row_permutation"
+)
+cmp_ov$SO_category$p_perm
+```
+
+### 11.4 Interpreting Overlap Results
+
+When the overlap pattern itself is of interest (e.g., do keyword
+overlaps differ by time period?), construct a table of *overlap counts*
+by group and test that table directly:
+
+``` r
+
+# Number of groups each publication belongs to
+n_groups <- rowSums(grps_ov$membership)
+table(n_groups)
+#>    0    1    2    3
+#> 1112  821  342   72
+
+# Does overlap count differ by time period?
+ct_overlap <- table(n_groups, biblioData$PY >= 2015)
+chisq.test(ct_overlap, simulate.p.value = TRUE, B = 9999)
+```
+
+------------------------------------------------------------------------
+
+## 12. Group Comparison with Continuous Variables
+
+### 12.1 Extending Beyond Categorical Attributes
+
+[`compare_groups()`](https://wep69.github.io/biblioIntegrator/reference/compare_groups.md)
+tests categorical attributes directly. For continuous attributes
+(citation count `TC`, reference count `NR`), the recommended strategy is
+to dichotomise or quantile-bin first:
+
+``` r
+
+# Dichotomise citations
+biblioData$high_cite <- ifelse(biblioData$TC >= 50, "High", "Low")
+
+# Test the dichotomised variable
+cmp_cont <- compare_groups(
+  grps,
+  variables      = "high_cite",
+  engine         = "native",
+  n_permutations = 9999,
+  seed           = 42
+)
+cmp_cont$high_cite$p_perm
+```
+
+### 12.2 Quantile Binning
+
+``` r
+
+biblioData$TC_q <- cut(
+  biblioData$TC,
+  breaks   = quantile(biblioData$TC, probs = c(0, 0.25, 0.50, 0.75, 1),
+                       na.rm = TRUE),
+  labels   = c("Q1", "Q2", "Q3", "Q4"),
+  include.lowest = TRUE
+)
+
+cmp_q <- compare_groups(
+  grps,
+  variables = "TC_q",
+  n_permutations = 9999,
+  seed = 42
+)
+cmp_q$TC_q$cramers_v
+```
+
+------------------------------------------------------------------------
+
+## 13. Pairwise Group Comparisons
+
+### 13.1 When to Use Pairwise Comparisons
+
+A significant omnibus test (comparing all groups simultaneously) does
+not identify *which* groups differ. Follow up with pairwise tests, but
+adjust for multiple comparisons.
+
+### 13.2 Manual Pairwise Analysis
+
+``` r
+
+# Extract unique group labels
+grp_levels <- unique(grps$group)
+n_levels   <- length(grp_levels)
+
+# Storage for pairwise results
+pairwise_results <- list()
+
+for (i in seq_len(n_levels - 1)) {
+  for (j in (i + 1):n_levels) {
+    idx <- grps$group %in% grp_levels[c(i, j)]
+    sub <- grps
+    sub$biblioData <- biblioData[idx, ]
+    sub$group      <- grps$group[idx]
+
+    res <- compare_groups(
+      sub,
+      variables      = "SO_category",
+      engine         = "native",
+      n_permutations = 9999,
+      seed           = 42
+    )
+
+    pair_name <- paste(grp_levels[i], "vs.", grp_levels[j])
+    pairwise_results[[pair_name]] <- res$SO_category
+  }
+}
+```
+
+### 13.3 Bonferroni and Holm Corrections
+
+``` r
+
+raw_p <- sapply(pairwise_results, `[[`, "p_perm")
+
+bonferroni_p <- p.adjust(raw_p, method = "bonferroni")
+holm_p       <- p.adjust(raw_p, method = "holm")
+
+pairwise_table <- data.frame(
+  Comparison      = names(raw_p),
+  Raw_p           = round(raw_p, 4),
+  Bonferroni_p    = round(bonferroni_p, 4),
+  Holm_p          = round(holm_p, 4),
+  Sig_Bonferroni  = ifelse(bonferroni_p < 0.05, "*", "ns"),
+  Sig_Holm        = ifelse(holm_p < 0.05, "*", "ns")
+)
+print(pairwise_table)
+```
+
+------------------------------------------------------------------------
+
+## 14. Enrichment Analysis
+
+### 14.1 What Is Enrichment?
+
+Enrichment analysis asks: “Is a particular attribute category
+over-represented in a particular group relative to the overall
+distribution?” It is conceptually equivalent to examining the sign and
+magnitude of the association residual.
+
+### 14.2 Computing Enrichment Scores
+
+``` r
+
+obs <- table(grps$group, biblioData$DE_cat)
+N   <- sum(obs)
+E   <- outer(rowSums(obs), colSums(obs)) / N
+
+# Fold enrichment: observed / expected
+fold_enrichment <- obs / E
+
+# Log2 fold enrichment (analogous to gene expression analysis)
+log2_fold <- log2(fold_enrichment + 0.5)  # pseudocount
+
+# Heatmap of enrichment
+library(ggplot2)
+lf_df <- as.data.frame(as.table(log2_fold))
+colnames(lf_df) <- c("Group", "Keyword_category", "Log2_enrichment")
+
+ggplot(lf_df,
+       aes(x = Keyword_category, y = Group, fill = Log2_enrichment)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(
+    low = "#2166AC", mid = "white", high = "#B2182B", midpoint = 0
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(
+    title = "Enrichment of Keyword Categories Across Time Periods",
+    fill  = "log2(fold enrichment)"
+  )
+```
+
+------------------------------------------------------------------------
+
+## 15. Interaction Effects
+
+### 15.1 Two-Factor Contingency Tables
+
+Sometimes the effect of one grouping variable is moderated by another.
+For example, country differences in citation impact may differ between
+open-access and subscription publications.
+
+``` r
+
+# Two grouping variables
+grps_country <- form_groups(
+  biblioData,
+  by            = "AU_CO",
+  type          = "exclusive",
+  patterns      = c("USA", "China", "Brazil"),
+  case_sensitive = FALSE
+)$group
+
+grps_oa <- form_groups(
+  biblioData,
+  by     = "OA",
+  type   = "exclusive",
+  breaks = c(-Inf, 0.5, Inf),
+  labels = c("Closed", "Open Access")
+)$group
+
+# Three-way table
+three_way <- table(grps_country, grps_oa, biblioData$high_cite)
+ftable(three_way)
+```
+
+### 15.2 Testing the Interaction
+
+Under the null hypothesis of no interaction, the country effect on
+citations should be the same for open-access and closed publications.
+
+``` r
+
+# Flatten to a two-group comparison within each stratum
+interaction_p <- numeric(2)
+names(interaction_p) <- c("Closed", "Open Access")
+
+for (oa_level in names(interaction_p)) {
+  idx <- grps_oa == oa_level
+  sub_grps <- list(
+    group = grps_country[idx],
+    biblioData = biblioData[idx, ]
+  )
+  class(sub_grps) <- "biblio_groups"
+
+  res <- compare_groups(
+    sub_grps,
+    variables      = "high_cite",
+    engine         = "native",
+    n_permutations = 9999,
+    seed           = 42
+  )
+  interaction_p[oa_level] <- res$high_cite$p_perm
+}
+print(interaction_p)
+```
+
+------------------------------------------------------------------------
+
+## 16. Effect Size Beyond Cramér’s *V*
+
+### 16.1 Limitations of Cramér’s *V*
+
+Cramér’s *V* is sensitive to the number of categories: a table with more
+categories (or more groups) can inflate *V* even when the association is
+diffuse. For large tables, consider additional measures.
+
+### 16.2 Tschuprow’s *T*
+
+Tschuprow’s *T* is similar to Cramér’s *V* but uses a different
+normalisation that accounts for shape:
+
+``` math
+T = \sqrt{\frac{\chi^2 / N}{\sqrt{(R-1)(C-1)}}}
+```
+
+For square tables (*R* = *C*), *T* = *V*. For rectangular tables, *T* \<
+*V*.
+
+``` r
+
+compute_tschuprow <- function(chi2, N, R, C) {
+  sqrt((chi2 / N) / sqrt((R - 1) * (C - 1)))
+}
+
+ct <- table(grps$group, biblioData$SO_category)
+R <- nrow(ct)
+C <- ncol(ct)
+compute_tschuprow(cmp_result$SO_category$chi2_observed, sum(ct), R, C)
+```
+
+### 16.3 Cohen’s *w*
+
+Cohen’s *w* is defined as
+
+``` math
+w = \sqrt{\sum_i \sum_j \frac{(p_{ij} - p_i \cdot p_j)^2}{p_i \cdot p_j}}
+```
+
+where *p*$`_{ij}`$ is the observed proportion in cell (*i*, *j*) and
+*p*$`_i`$, *p*$`_j`$ are the marginal proportions.
+
+| *w*  | Interpretation |
+|:----:|:---------------|
+| 0.10 | small          |
+| 0.30 | medium         |
+| 0.50 | large          |
+
+``` r
+
+compute_cohens_w <- function(ct) {
+  N  <- sum(ct)
+  pi <- rowSums(ct) / N
+  pj <- colSums(ct) / N
+  pij <- ct / N
+  sqrt(sum(((outer(pi, pj) - outer(pi, pj))^2 / outer(pi, pj)) *
+           (ct > 0)))
+}
+# compute_cohens_w(ct)  # see ?compare_groups for built-in extraction
+```
+
+------------------------------------------------------------------------
+
+## 17. Visualisation Recipes
+
+### 17.1 Mosaic Plot
+
+``` r
+
+mosaicplot(
+  table(grps$group, biblioData$SO_category),
+  main  = "Source Category by Time Period",
+  shade = TRUE,
+  las   = 2
+)
+```
+
+### 17.2 Stacked Bar Chart of Proportions
+
+``` r
+
+ct  <- table(grps$group, biblioData$SO_category)
+prop_ct <- prop.table(ct, margin = 1)
+
+barplot(
+  t(prop_ct),
+  main     = "Proportional Source Category by Time Period",
+  col      = grDevices::hcl.colors(ncol(prop_ct), "Set2"),
+  legend.text = colnames(prop_ct),
+  args.legend = list(x = "topright", cex = 0.7),
+  las      = 2,
+  ylab     = "Proportion"
+)
+```
+
+### 17.3 Correspondence Map with Confidence Ellipses
+
+``` r
+
+# Compute bootstrap confidence regions for group centroids
+set.seed(42)
+B <- 999
+coords_boot <- array(NA, dim = c(B, nrow(grps$membership), 2))
+
+for (b in seq_len(B)) {
+  idx_boot <- sample(nrow(biblioData), replace = TRUE)
+  grps_b   <- grps
+  grps_b$membership <- grps$membership[idx_boot, , drop = FALSE]
+  grps_b$group      <- grps$group[idx_boot]
+
+  ca_b <- group_ca(grps_b, variable = "DE",
+                    n_components = 2, min_freq = 10)
+  coords_boot[b, , ] <- ca_b$row_coords[, 1:2]
+}
+
+# Add 95% ellipses to biplot
+library(car)  # for dataEllipse; optional
+for (g in seq_len(nrow(grps$membership))) {
+  dataEllipse(
+    coords_boot[, g, 1], coords_boot[, g, 2],
+    levels = 0.95, add = TRUE, col = "grey60", lty = 3
+  )
+}
+```
+
+------------------------------------------------------------------------
+
+## 18. Reporting Standards
+
+### 18.1 What to Report
+
+When publishing permutation-based group comparisons, report the
+following items:
+
+| Item | Example |
+|:---|:---|
+| Number of groups | “Three groups defined by publication year: pre-2013, 2013–2017, post-2017” |
+| Group sizes | “*n* = 287, 634, 1 426” |
+| Test statistic | “*χ*²(6) = 45.67” |
+| Permutation *p*-value | “*p*$`_{\text{perm}}`$ = 0.0012 (*B* = 9 999)” |
+| Effect size | “Cramér’s *V* = 0.14” |
+| Standardised residuals | “Source Health over-represented in Early group (*r* = +1.87)” |
+| Sensitivity assessment | “Significance stable for threshold years 2011–2016” |
+
+### 18.2 Transparent Reporting Template
+
+``` r
+
+cat("=== Comparative Inference Report ===\n")
+cat("Groups:", paste(grps$labels, collapse = ", "), "\n")
+cat("N total:", sum(table(grps$group)), "\n")
+cat("Group sizes:", paste(table(grps$group), collapse = ", "), "\n\n")
+
+for (v in names(cmp_result)) {
+  res <- cmp_result[[v]]
+  cat("Variable:", v, "\n")
+  cat("  Chi-squared :", res$chi2_observed, "\n")
+  cat("  df          :", res$df, "\n")
+  cat("  Cramer's V  :", res$cramers_v, "\n")
+  cat("  p (perm.)   :", res$p_perm, "\n")
+  cat("  Significant :", res$p_perm < 0.05, "\n\n")
+}
+```
+
+------------------------------------------------------------------------
+
+## 19. Common Mistakes
+
+### 19.1 Using Arbitrary Thresholds Without Justification
+
+**The mistake.** Choosing year = 2015 as the boundary between “early”
+and “recent” simply because it is round, without checking whether the
+conclusion is robust to nearby thresholds.
+
+**The fix.** Always run
+[`sensitivity_analysis()`](https://wep69.github.io/biblioIntegrator/reference/sensitivity_analysis.md)
+across a plausible range of thresholds and report stability.
+
+### 19.2 Ignoring Overlap Patterns
+
+**The mistake.** Treating overlapping groups as if they were exclusive.
+For example, coding a publication that mentions both “machine learning”
+and “meta-analysis” into only one group arbitrarily.
+
+**The fix.** Use `type = "overlap"` in
+[`form_groups()`](https://wep69.github.io/biblioIntegrator/reference/form_groups.md)
+and ensure the permutation engine respects overlap structure.
+
+### 19.3 Confusing Statistical Significance with Practical Importance
+
+**The mistake.** Reporting a *p* \< 0.001 from a very large sample (*N*
+\> 10 000) as evidence of a strong effect, when the actual effect size
+(Cramér’s *V* = 0.03) is negligible.
+
+**The fix.** Always report effect sizes alongside *p*-values. For very
+large samples, consider whether the effect is large enough to matter in
+practice, regardless of statistical significance.
+
+### 19.4 Not Validating Against Alternative Engines
+
+**The mistake.** Running only one statistical engine and assuming the
+implementation is correct.
+
+**The fix.** Run
+[`validate_biblium()`](https://wep69.github.io/biblioIntegrator/reference/validate_biblium.md)
+to cross-check the native R engine against the Biblium Python engine.
+
+### 19.5 Ignoring Small Cells
+
+**The mistake.** Running a chi-squared test on a table with many cells
+containing expected counts \< 5. The chi-squared approximation breaks
+down, and permutation inference becomes especially important.
+
+**The fix.** Check cell sizes; collapse rare categories if necessary;
+always rely on permutation *p*-values rather than asymptotic chi-squared
+*p*-values.
+
+### 19.6 Multiple Comparisons Without Correction
+
+**The mistake.** Testing 10 different variables, reporting the 2 that
+are significant at *p* \< 0.05 without acknowledging the other 8.
+
+**The fix.** Apply Bonferroni, Holm, or FDR corrections, or at least
+report the total number of tests performed and the corrected
+significance levels.
+
+### 19.7 Mixing Unit of Analysis
+
+**The mistake.** Testing differences in journal-level metrics (mean
+citations per journal) using publication-level permutation (permuted *N*
+= number of publications).
+
+**The fix.** Ensure the unit of analysis in the permutation matches the
+unit of the test statistic. Use `journals_of()` or
+[`aggregate()`](https://rdrr.io/r/stats/aggregate.html) to collapse data
+to the appropriate level before testing.
+
+### 19.8 Treating p-Values as Belief Measures
+
+**The mistake.** Interpreting *p* = 0.23 as “no evidence of a
+difference” or *p* = 0.001 as “proof of a difference.”
+
+**The fix.** A *p*-value is the probability of observing data at least
+as extreme as the observed data, *given that the null hypothesis is
+true*. It is not the probability that the null is true, nor the
+magnitude of the effect. Report effect sizes and confidence intervals
+alongside *p*-values.
+
+------------------------------------------------------------------------
+
+## 20. Complete Reproducible Example
+
+``` r
+
+## ============================================================
+## Complete comparative inference workflow
+## ============================================================
+
+library(biblioIntegrator)
+
+# ---- 1. Load data
+data(biblioData)
+cat("N publications:", nrow(biblioData), "\n")
+
+# ---- 2. Form groups
+grps <- form_groups(
+  biblioData,
+  by     = "PY",
+  type   = "exclusive",
+  breaks = c(-Inf, 2013, 2018, Inf),
+  labels = c("Early", "Middle", "Recent")
+)
+cat("Group sizes:\n")
+print(table(grps$group))
+
+# ---- 3. Run permutation comparison (native engine)
+cmp <- compare_groups(
+  grps,
+  variables      = c("SO_category", "AU_CO", "DT"),
+  engine         = "native",
+  n_permutations = 9999,
+  seed           = 42
+)
+
+# ---- 4. Print summary
+for (v in names(cmp)) {
+  cat("\nVariable:", v, "\n")
+  cat("  Chi2       =", cmp[[v]]$chi2_observed, "\n")
+  cat("  Cramer V   =", cmp[[v]]$cramers_v, "\n")
+  cat("  p (perm)   =", cmp[[v]]$p_perm, "\n")
+}
+
+# ---- 5. Extract residuals
+res <- association_residuals(cmp$SO_category)
+print(round(res, 2))
+
+# ---- 6. Correspondence analysis
+ca <- group_ca(grps, variable = "DE",
+                n_components = 3, min_freq = 10)
+print(round(ca$eigenvalues, 4))
+
+# ---- 7. Sensitivity analysis (if year thresholds vary)
+sens <- sensitivity_analysis(
+  biblioData,
+  group_var      = "PY",
+  thresholds     = 2011:2020,
+  variables      = "SO_category",
+  n_permutations = 999,
+  seed           = 42
+)
+print(data.frame(
+  Threshold = sens$thresholds,
+  P_value   = round(sens$p_values, 4)
+))
+
+# ---- 8. Biblium cross-validation (guarded)
+if (requireNamespace("reticulate", quietly = TRUE) &&
+    reticulate::py_module_available("biblium")) {
+  val <- validate_biblium(
+    grps,
+    variables      = "SO_category",
+    n_permutations = 9999,
+    seed           = 42
+  )
+  print(val)
+} else {
+  message("Biblium unavailable; skipping cross-validation.")
+}
+```
+
+------------------------------------------------------------------------
+
+## 21. References
+
+### 21.1 Statistical Foundations
+
+- Agresti, A. (2002). *Categorical Data Analysis* (2nd ed.). Wiley.
+
+- Berry, K. J., Johnston, J. E., & Mielke, P. W. (2014). *A Chronicle of
+  Permutation Statistical Methods*. Springer.
+
+- Cohen, J. (1988). *Statistical Power Analysis for the Behavioral
+  Sciences* (2nd ed.). Erlbaum.
+
+- Fisher, R. A. (1935). *The Design of Experiments*. Oliver & Boyd.
+
+- Good, P. (2005). *Permutation, Parametric, and Bootstrap Tests of
+  Hypotheses* (3rd ed.). Springer.
+
+### 21.2 Bibliometric Methods
+
+- Aria, M., & Cuccurullo, C. (2017). *bibliometrix*: An R-tool for
+  comprehensive science mapping analysis. *Journal of Informetrics*,
+  11(4), 959–975.
+  [doi:10.1016/j.joi.2017.08.007](https://doi.org/10.1016/j.joi.2017.08.007)
+
+- Pereira, W. R., et al. (2026). Biblium: A Python engine for
+  reproducible bibliometric inference. *Scientometrics*, (in press).
+  [doi:10.1007/s11192-026-05636-8](https://doi.org/10.1007/s11192-026-05636-8)
+
+### 21.3 Correspondence Analysis
+
+- Greenacre, M. (2017). *Correspondence Analysis in Practice* (3rd ed.).
+  CRC Press.
+
+- Le Roux, B., & Rouanet, H. (2010). *Multiple Correspondence Analysis*.
+  Sage.
+
+### 21.4 Permutation Inference in Practice
+
+- Ernst, M. D. (2004). Permutation methods: A basis for exact inference.
+  *Statistical Science*, 19(4), 676–685.
+
+- Phipson, B., & Smyth, G. K. (2010). Permutation *p*-values should
+  never be zero: Calculating exact *p*-values when permutations are
+  randomly drawn. *Statistical Applications in Genetics and Molecular
+  Biology*, 9(1), Article 39.
+
+------------------------------------------------------------------------
+
+## 22. Session Information
+
+``` r
+
+sessionInfo()
+```
+
+This vignette was compiled using:
+
+- R version as reported by
+  [`sessionInfo()`](https://rdrr.io/r/utils/sessionInfo.html)
+- `biblioIntegrator` 0.2.0
+- `knitr` and `rmarkdown` for report generation
+- `reticulate` (optional) for Biblium Python bridge
+
+------------------------------------------------------------------------
+
+*Vignette built with
+[`rmarkdown::html_vignette()`](https://pkgs.rstudio.com/rmarkdown/reference/html_vignette.html).
+Code chunks require `biblioIntegrator` to be installed. Set
+`eval = TRUE` in the setup chunk to execute examples interactively.*

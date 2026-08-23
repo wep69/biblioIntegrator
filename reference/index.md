@@ -156,3 +156,28 @@ Identify and remove duplicate records.
 
 - [`deduplicate_biblio()`](https://wep69.github.io/biblioIntegrator/reference/deduplicate_biblio.md)
   : Deduplicate bibliographic records
+
+## LLM Integration
+
+Optional LLM-powered semantic analysis.
+
+- [`llm_configure()`](https://wep69.github.io/biblioIntegrator/reference/llm_configure.md)
+  : Configure LLM provider for biblioIntegrator
+- [`llm_get_config()`](https://wep69.github.io/biblioIntegrator/reference/llm_get_config.md)
+  : Get current LLM configuration
+- [`llm_status()`](https://wep69.github.io/biblioIntegrator/reference/llm_status.md)
+  : Check if LLM is configured and available
+- [`semantic_search()`](https://wep69.github.io/biblioIntegrator/reference/semantic_search.md)
+  : Semantic search in bibliographic corpus
+- [`llm_topic_discovery()`](https://wep69.github.io/biblioIntegrator/reference/llm_topic_discovery.md)
+  : Discover research topics using LLM
+- [`llm_summarize()`](https://wep69.github.io/biblioIntegrator/reference/llm_summarize.md)
+  : Summarize corpus using LLM
+- [`llm_gap_analysis()`](https://wep69.github.io/biblioIntegrator/reference/llm_gap_analysis.md)
+  : Identify research gaps using LLM
+- [`llm_query_expand()`](https://wep69.github.io/biblioIntegrator/reference/llm_query_expand.md)
+  : Expand search query using LLM
+- [`llm_classify()`](https://wep69.github.io/biblioIntegrator/reference/llm_classify.md)
+  : Classify works into thematic categories using LLM
+- [`llm_citation_context()`](https://wep69.github.io/biblioIntegrator/reference/llm_citation_context.md)
+  : Analyze citation context using LLM

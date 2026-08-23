@@ -27,7 +27,7 @@ python_backend_status()
 #> [1] FALSE
 #> 
 #> $python
-#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/FmQDvvVmOV6c0PMR/bin/python"
+#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/2SWa6QQc97UKhNh1/bin/python"
 #> 
 #> $version
 #> [1] NA

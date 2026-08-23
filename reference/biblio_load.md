@@ -36,7 +36,7 @@ if (requireNamespace("duckdb", quietly = TRUE) &&
   biblio_load(p, "duckdb")
 }
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpTNcht6/duckdb
+#> ℹ /tmp/RtmpR35u6X/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -44,7 +44,7 @@ if (requireNamespace("duckdb", quietly = TRUE) &&
 #> ℹ Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
 #> ℹ See ?duckdb_storage for details and alternatives.
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpTNcht6/duckdb
+#> ℹ /tmp/RtmpR35u6X/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.

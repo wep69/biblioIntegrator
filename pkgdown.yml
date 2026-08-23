@@ -12,7 +12,8 @@ articles:
   v07-foundations-to-advanced-tutorial: v07-foundations-to-advanced-tutorial.html
   v08-scalable-backends: v08-scalable-backends.html
   v09-python-report-ui: v09-python-report-ui.html
-last_built: 2026-08-22T23:10Z
+  v10-llm-integration: v10-llm-integration.html
+last_built: 2026-08-23T12:51Z
 urls:
   reference: https://wep69.github.io/biblioIntegrator/reference
   article: https://wep69.github.io/biblioIntegrator/articles

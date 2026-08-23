@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">biblioIntegrator</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -18,7 +18,7 @@
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/v00-overview.html">Overview and design</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/v00-overview.html">Overview and Package Architecture</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul></li>
@@ -39,6 +39,16 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.3.0" id="bibliointegrator-030">biblioIntegrator 0.3.0<a class="anchor" aria-label="anchor" href="#bibliointegrator-030"></a></h2>
+<ul><li>Added optional LLM integration for semantic bibliometric analysis.</li>
+<li>New functions: semantic_search(), llm_topic_discovery(), llm_summarize(), llm_gap_analysis(), llm_query_expand(), llm_classify(), llm_citation_context().</li>
+<li>Supported LLM providers: Ollama (local, free), Google Gemini (free tier), OpenAI, Anthropic, Hugging Face.</li>
+<li>New llm_configure() for provider setup, llm_status() for diagnostics.</li>
+<li>Added ellmer as optional dependency for unified LLM API access.</li>
+<li>Expanded all 10 vignettes to comprehensive tutorials (17,657 lines total).</li>
+<li>Added v10-llm-integration.Rmd vignette for LLM-powered analysis.</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="bibliointegrator-020">biblioIntegrator 0.2.0<a class="anchor" aria-label="anchor" href="#bibliointegrator-020"></a></h2>
 <ul><li>Added executable Biblium backend discovery and group-analysis bridge.</li>
 <li>Added biblionetwork engine for large bibliographic networks.</li>
@@ -46,7 +56,8 @@
 <li>Expanded automated report and interactive Shiny application.</li>
 <li>Added release-grade validation workflow for immutable source tarballs.</li>
 </ul></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

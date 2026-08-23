@@ -12,6 +12,7 @@
 <url><loc>https://wep69.github.io/biblioIntegrator/articles/v07-foundations-to-advanced-tutorial.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/articles/v08-scalable-backends.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/articles/v09-python-report-ui.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/articles/v10-llm-integration.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/authors.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/index.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/news/index.html</loc></url>
@@ -50,6 +51,15 @@
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/group_mca.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/index.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/install_biblium_backend.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/reference/llm_citation_context.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/reference/llm_classify.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/reference/llm_configure.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/reference/llm_gap_analysis.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/reference/llm_get_config.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/reference/llm_query_expand.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/reference/llm_status.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/reference/llm_summarize.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/reference/llm_topic_discovery.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/network_centrality.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/network_communities.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/network_stability.html</loc></url>
@@ -59,6 +69,7 @@
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/python_backend_status.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/rpys.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/run_plan.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/reference/semantic_search.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/sensitivity_analysis.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/temporal_growth.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/term_frequency.html</loc></url>

@@ -130,6 +130,7 @@ articles:
       - v00-overview
 
   - title: "Tutorial completo para Agronomia"
+    navbar: ~
     desc: >
       Tutorial progressivo para doutorandos em Agronomia: 12 módulos, 52 figuras,
       117 tabelas, 24 tarefas e 24 gabaritos comentados, com três corpora

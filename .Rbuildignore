@@ -43,6 +43,8 @@
 # Projeto Quarto dos artigos do site (nao faz parte do pacote)
 ^vignettes/_quarto\.yaml$
 
-# Cache de execucao do Quarto: arquivos ocultos e caminhos longos, que geram
-# NOTE em "hidden files and directories" e "portable file names"
+# Cache de execucao do Quarto e pasta de trabalho do remendo do pkgdown:
+# arquivos ocultos e caminhos longos, que geram NOTE em
+# "hidden files and directories" e "portable file names"
 ^vignettes/\.quarto$
+^vignettes/\.pkgdown-quarto-tmp$

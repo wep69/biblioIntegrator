@@ -1,23 +1,30 @@
 # ============================================================================
 # tools/pkgdown-patch.R
 #
-# Remendo para a incompatibilidade entre o pkgdown e o Quarto na renderizacao
-# de artigos .qmd:
+# Remendos para a renderizacao de artigos Quarto (.qmd) no build do site.
 #
+# Problema 1 - booleanos do YAML
 #   pkgdown:::quarto_render() grava o YAML de metadados com yaml::write_yaml(),
 #   que emite booleanos no estilo YAML 1.1 ("yes" / "no"). O parser do Quarto
-#   (a partir da serie 1.6) segue YAML 1.2, em que "yes" e "no" sao TEXTO, e
+#   (serie 1.6 em diante) segue YAML 1.2, em que "yes" e "no" sao TEXTO, e
 #   aborta com:
 #
 #     Error parsing quarto-defaults....yml:
 #     Aeson exception: Error in $: expected Bool, but encountered String
 #
-#   Sem este remendo, QUALQUER artigo .qmd faz o build do site falhar, e a
-#   mensagem do Quarto nao aparece, porque o pkgdown o chama em modo silencioso
-#   (a pista visivel e apenas "! System command 'quarto' failed").
+# Problema 2 - caminho de saida no Windows
+#   O mesmo trecho passa --output-dir com um caminho ABSOLUTO (a pasta temporaria
+#   da sessao). No Windows, quando a pasta temporaria esta em outro volume que o
+#   projeto, o Quarto junta os dois caminhos e falha com:
 #
-# O remendo substitui apenas a gravacao do arquivo de metadados, convertendo os
-# booleanos para "true" / "false". Nada mais do pkgdown e alterado.
+#     ERROR: A sintaxe do nome do arquivo ... esta incorreta (os error 123):
+#     stat '...\vignettes\C:\Users\...\pkgdown-quarto-...'
+#
+#   A correcao passa um caminho relativo ao diretorio do projeto e, se os
+#   volumes diferirem, usa uma pasta dentro do proprio projeto.
+#
+# Como o pkgdown chama o Quarto em modo silencioso, nos dois casos a unica pista
+# visivel e "! System command 'quarto' failed", o que torna o diagnostico opaco.
 #
 # Uso:  source("tools/pkgdown-patch.R") antes de pkgdown::build_site()
 # ============================================================================
@@ -35,6 +42,21 @@ pkgdown_quarto_metadata <- function(pkg) {
   linhas
 }
 
+#' Diretorio de saida do Quarto, sempre dentro do projeto
+#'
+#' O Quarto resolve \code{--output-dir} relativo a RAIZ DO PROJETO (a pasta
+#' \code{vignettes}), e nao ao diretorio de trabalho, por isso o caminho de saida
+#' precisa ficar dentro do projeto e ser informado de forma relativa.
+#' @param pkg Objeto pkgdown.
+#' @return Lista com caminho absoluto, caminho relativo e raiz do projeto.
+pkgdown_quarto_output_dir <- function(pkg) {
+  projeto <- file.path(pkg$src_path, "vignettes")
+  out <- file.path(projeto, ".pkgdown-quarto-tmp")
+  unlink(out, recursive = TRUE)
+  dir.create(out, recursive = TRUE, showWarnings = FALSE)
+  list(abs = out, rel = ".pkgdown-quarto-tmp", projeto = projeto)
+}
+
 #' Instala a versao corrigida de pkgdown:::quarto_render
 patch_pkgdown_quarto <- function() {
   novo_quarto_render <- function(pkg, path, quiet = TRUE,
@@ -43,11 +65,19 @@ patch_pkgdown_quarto <- function() {
       fileext = ".yml", pattern = "pkgdown-quarto-metadata-")
     writeLines(pkgdown_quarto_metadata(pkg), metadata_path)
 
-    output_dir <- withr::local_tempdir("pkgdown-quarto-", .local_envir = frame)
+    dirs <- pkgdown_quarto_output_dir(pkg)
     quarto::quarto_render(path, metadata_file = metadata_path,
-                          quarto_args = c("--output-dir", output_dir),
+                          quarto_args = c("--output-dir", dirs$rel),
                           quiet = quiet, as_job = FALSE)
-    output_dir
+
+    # o Quarto pode resolver o caminho relativo a raiz do projeto ou a pasta do
+    # arquivo renderizado; procura o resultado nos dois casos
+    candidatos <- c(dirs$abs,
+                    file.path(dirs$projeto, "articles", ".pkgdown-quarto-tmp"))
+    for (cand in candidatos) {
+      if (length(list.files(cand, recursive = TRUE))) return(cand)
+    }
+    dirs$abs
   }
   assignInNamespace("quarto_render", novo_quarto_render, ns = "pkgdown")
   invisible(TRUE)

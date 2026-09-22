@@ -48,3 +48,6 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# pasta de trabalho do remendo do pkgdown (tools/pkgdown-patch.R)
+vignettes/.pkgdown-quarto-tmp/

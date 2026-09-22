@@ -459,7 +459,7 @@ references), this table will be populated with `citing_id` and
 
 x$provenance
 #>                    timestamp         operation                      details
-#> 1 2026-08-23 13:29:25.345914 as_biblio_project source=teaching corpus; n=12
+#> 1 2026-09-22 01:44:04.570643 as_biblio_project source=teaching corpus; n=12
 ```
 
 Every operation that touches the `biblio_project` appends a row here.
@@ -865,7 +865,7 @@ richest part of the project.
 
 audit_biblio(x)
 #>                    timestamp         operation                      details
-#> 1 2026-08-23 13:29:25.345914 as_biblio_project source=teaching corpus; n=12
+#> 1 2026-09-22 01:44:04.570643 as_biblio_project source=teaching corpus; n=12
 ```
 
 ``` r
@@ -898,8 +898,8 @@ x_dup_p <- as_biblio_project(x_dup, source = "duplicated")
 x_dedup <- deduplicate_biblio(x_dup_p)
 audit_biblio(x_dedup)
 #>                    timestamp          operation                 details
-#> 1 2026-08-23 13:29:27.635727  as_biblio_project source=duplicated; n=13
-#> 2 2026-08-23 13:29:27.636809 deduplicate_biblio               removed=1
+#> 1 2026-09-22 01:44:06.847377  as_biblio_project source=duplicated; n=13
+#> 2 2026-09-22 01:44:06.848449 deduplicate_biblio               removed=1
 ```
 
 ### 6.7 The health diagnostic
@@ -1255,8 +1255,8 @@ for (fmt in c("csv", "json")) {
   export_biblio(x, d, format = fmt)
   cat(fmt, ":", length(list.files(d)), "files in", d, "\n")
 }
-#> csv : 6 files in /tmp/RtmpGVMYeW/export_csv 
-#> json : 6 files in /tmp/RtmpGVMYeW/export_json
+#> csv : 6 files in /tmp/RtmpUhX6tO/export_csv 
+#> json : 6 files in /tmp/RtmpUhX6tO/export_json
 ```
 
 ### 8.4 `export_vosviewer()` — VOSviewer network files
@@ -1557,8 +1557,8 @@ cat("After dedup:", nrow(x_dedup$works), "works\n")
 
 audit_biblio(x_dedup)
 #>                    timestamp          operation                        details
-#> 1 2026-08-23 13:29:30.333866  as_biblio_project source=merged_scopus_wos; n=16
-#> 2 2026-08-23 13:29:30.399817 deduplicate_biblio                      removed=4
+#> 1 2026-09-22 01:44:09.524046  as_biblio_project source=merged_scopus_wos; n=16
+#> 2 2026-09-22 01:44:09.591517 deduplicate_biblio                      removed=4
 ```
 
 The provenance table tells you the full story: which sources were
@@ -1872,7 +1872,7 @@ validate_integrity(proj)
 #> 5   reference_cited_orphans 0
 audit_biblio(proj)
 #>                    timestamp         operation                       details
-#> 1 2026-08-23 13:29:30.920801 as_biblio_project source=thesis-chapter-2; n=12
+#> 1 2026-09-22 01:44:10.106373 as_biblio_project source=thesis-chapter-2; n=12
 
 # Step 5: Export for downstream tools
 # 5a: bibliometrix for a colleague
@@ -2062,7 +2062,7 @@ Convert to UTF-8 CSV and import natively.
 sessionInfo()
 #> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 24.04.5 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
@@ -2084,10 +2084,10 @@ sessionInfo()
 #> [1] biblioIntegrator_0.3.0
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] cli_3.6.6           knitr_1.51          rlang_1.3.0        
-#>  [4] xfun_0.60           otel_0.2.0          textshaping_1.0.5  
-#>  [7] data.table_1.18.4   jsonlite_2.0.0      htmltools_0.5.9    
-#> [10] ragg_1.5.2          sass_0.4.10         rmarkdown_2.31     
+#>  [1] cli_3.6.6           knitr_1.52          rlang_1.3.0        
+#>  [4] xfun_0.61           otel_0.2.0          textshaping_1.0.5  
+#>  [7] data.table_1.18.6.1 jsonlite_2.0.0      htmltools_0.5.9    
+#> [10] ragg_1.5.2          sass_0.4.10         rmarkdown_2.32     
 #> [13] evaluate_1.0.5      jquerylib_0.1.4     fastmap_1.2.0      
 #> [16] yaml_2.3.12         lifecycle_1.0.5     compiler_4.6.1     
 #> [19] igraph_2.3.3        fs_2.1.0            htmlwidgets_1.6.4  

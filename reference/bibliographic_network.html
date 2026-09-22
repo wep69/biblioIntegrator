@@ -86,17 +86,17 @@
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="as_biblio_project.html">as_biblio_project</a></span><span class="op">(</span><span class="fu"><a href="example_biblio.html">example_biblio</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>; <span class="fu">bibliographic_network</span><span class="op">(</span><span class="va">x</span>,<span class="st">"coauthor"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> IGRAPH 59844f1 UNW- 7 10 -- </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> IGRAPH 6b8fa86 UNW- 7 10 -- </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> + attr: name (v/c), weight (e/n)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> + edges from 59844f1 (vertex names):</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> + edges from 6b8fa86 (vertex names):</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [1] A000008c4--A00000621 A00000905--A000008ad A000008c4--A00000f4d</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [4] A00000f4d--A00000f73 A00000f4d--A0000043f A000008c4--A0000043f</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [7] A00000f73--A000008ad A00000f4d--A00000621 A00000905--A0000043f</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [10] A00000f73--A00000621</span>
 <span class="r-in"><span><span class="fu">bibliographic_network</span><span class="op">(</span><span class="va">x</span>,<span class="st">"keyword"</span>,min_weight<span class="op">=</span><span class="fl">1</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> IGRAPH 761c026 UNW- 24 28 -- </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> IGRAPH 4bf14fd UNW- 24 28 -- </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> + attr: name (v/c), weight (e/n)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> + edges from 761c026 (vertex names):</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> + edges from 4bf14fd (vertex names):</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [1] cover crops    --aggregation    cover crops    --soil carbon   </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [3] silicon        --drought        maize          --efficiency    </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [5] nitrogen       --efficiency     maize          --drought       </span>
@@ -109,9 +109,9 @@
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"biblionetwork"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>  <span class="fu">bibliographic_network</span><span class="op">(</span><span class="va">x</span>, <span class="st">"coauthor"</span>, engine <span class="op">=</span> <span class="st">"biblionetwork"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> IGRAPH 185b51e UNW- 7 10 -- </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> IGRAPH 3830e59 UNW- 7 10 -- </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> + attr: name (v/c), weight (e/n)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> + edges from 185b51e (vertex names):</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> + edges from 3830e59 (vertex names):</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [1] A000008c4--A00000621 A00000905--A000008ad A000008c4--A00000f4d</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [4] A00000f4d--A00000f73 A00000f4d--A0000043f A000008c4--A0000043f</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  [7] A00000f73--A000008ad A00000f4d--A00000621 A00000905--A0000043f</span>

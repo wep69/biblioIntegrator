@@ -939,8 +939,8 @@ corpus:</p>
 <span><span class="co">#&gt; Provenance log:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">audit_log</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                    timestamp          operation                   details</span></span>
-<span><span class="co">#&gt; 1 2026-08-23 13:29:41.248727  as_biblio_project source=contaminated; n=15</span></span>
-<span><span class="co">#&gt; 2  2026-08-23 13:29:41.41303 deduplicate_biblio                 removed=1</span></span>
+<span><span class="co">#&gt; 1 2026-09-22 01:44:20.186418  as_biblio_project source=contaminated; n=15</span></span>
+<span><span class="co">#&gt; 2 2026-09-22 01:44:20.350461 deduplicate_biblio                 removed=1</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nProvenance entries:\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -1222,8 +1222,8 @@ records:</p>
 <span><span class="co">#&gt; Provenance log:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">audit_log</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                    timestamp          operation                 details</span></span>
-<span><span class="co">#&gt; 1 2026-08-23 13:29:43.214826  as_biblio_project source=audit demo; n=12</span></span>
-<span><span class="co">#&gt; 2 2026-08-23 13:29:43.216047 deduplicate_biblio               removed=0</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 2026-09-22 01:44:22.146633  as_biblio_project source=audit demo; n=12</span></span>
+<span><span class="co">#&gt; 2 2026-09-22 01:44:22.147751 deduplicate_biblio               removed=0</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="interpreting-provenance-entries">Interpreting Provenance Entries<a class="anchor" aria-label="anchor" href="#interpreting-provenance-entries"></a>
@@ -1241,11 +1241,11 @@ records:</p>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"  Details: %s\n"</span>, <span class="va">entry</span><span class="op">$</span><span class="va">details</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; Entry 1 [2026-08-23 13:29:43.214826]</span></span>
+<span><span class="co">#&gt; Entry 1 [2026-09-22 01:44:22.146633]</span></span>
 <span><span class="co">#&gt;   Operation: as_biblio_project</span></span>
 <span><span class="co">#&gt;   Details: source=audit demo; n=12</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Entry 2 [2026-08-23 13:29:43.216047]</span></span>
+<span><span class="co">#&gt; Entry 2 [2026-09-22 01:44:22.147751]</span></span>
 <span><span class="co">#&gt;   Operation: deduplicate_biblio</span></span>
 <span><span class="co">#&gt;   Details: removed=0</span></span></code></pre></div>
 </div>
@@ -1331,14 +1331,14 @@ deduplication.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/write.table.html" class="external-link">write.csv</a></span><span class="op">(</span><span class="va">audit_df</span>, <span class="va">temp_file</span>, row.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Audit trail saved to:"</span>, <span class="va">temp_file</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Audit trail saved to: /tmp/RtmpYtwfnz/file20ea32bbf884.csv</span></span>
+<span><span class="co">#&gt; Audit trail saved to: /tmp/Rtmpa4fHDj/file238d2755c7e7.csv</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nAudit trail contents:\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Audit trail contents:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">audit_df</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                    timestamp          operation</span></span>
-<span><span class="co">#&gt; 1 2026-08-23 13:29:43.887262  as_biblio_project</span></span>
-<span><span class="co">#&gt; 2 2026-08-23 13:29:43.888303 deduplicate_biblio</span></span>
+<span><span class="co">#&gt; 1 2026-09-22 01:44:22.819048  as_biblio_project</span></span>
+<span><span class="co">#&gt; 2 2026-09-22 01:44:22.820056 deduplicate_biblio</span></span>
 <span><span class="co">#&gt;                             details</span></span>
 <span><span class="co">#&gt; 1 source=reproducibility demo; n=12</span></span>
 <span><span class="co">#&gt; 2                         removed=0</span></span>
@@ -1684,8 +1684,8 @@ after deduplication.</p>
 <span><span class="co">#&gt; Provenance after deduplication:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">audit_log</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                    timestamp          operation                      details</span></span>
-<span><span class="co">#&gt; 1 2026-08-23 13:29:45.285139  as_biblio_project source=provenance demo; n=12</span></span>
-<span><span class="co">#&gt; 2 2026-08-23 13:29:45.286178 deduplicate_biblio                    removed=0</span></span>
+<span><span class="co">#&gt; 1 2026-09-22 01:44:24.205042  as_biblio_project source=provenance demo; n=12</span></span>
+<span><span class="co">#&gt; 2 2026-09-22 01:44:24.206077 deduplicate_biblio                    removed=0</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nThis log records:\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -2132,8 +2132,8 @@ research.</p>
 <span><span class="co">#&gt; Complete audit trail:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">audit_log</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                    timestamp          operation                       details</span></span>
-<span><span class="co">#&gt; 1 2026-08-23 13:29:46.503851  as_biblio_project source=WoS+Scopus merge; n=17</span></span>
-<span><span class="co">#&gt; 2 2026-08-23 13:29:46.827374 deduplicate_biblio                     removed=3</span></span>
+<span><span class="co">#&gt; 1 2026-09-22 01:44:25.422354  as_biblio_project source=WoS+Scopus merge; n=17</span></span>
+<span><span class="co">#&gt; 2 2026-09-22 01:44:25.749808 deduplicate_biblio                     removed=3</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nSummary of transformations:\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -2314,7 +2314,7 @@ documentation:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt; R version 4.6.1 (2026-06-24)</span></span>
 <span><span class="co">#&gt; Platform: x86_64-pc-linux-gnu</span></span>
-<span><span class="co">#&gt; Running under: Ubuntu 24.04.4 LTS</span></span>
+<span><span class="co">#&gt; Running under: Ubuntu 24.04.5 LTS</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Matrix products: default</span></span>
 <span><span class="co">#&gt; BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 </span></span>
@@ -2337,8 +2337,8 @@ documentation:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
 <span><span class="co">#&gt;  [1] digest_0.6.39     desc_1.4.3        R6_2.6.1          fastmap_1.2.0    </span></span>
-<span><span class="co">#&gt;  [5] xfun_0.60         cachem_1.1.0      parallel_4.6.1    knitr_1.51       </span></span>
-<span><span class="co">#&gt;  [9] htmltools_0.5.9   rmarkdown_2.31    lifecycle_1.0.5   cli_3.6.6        </span></span>
+<span><span class="co">#&gt;  [5] xfun_0.61         cachem_1.1.0      parallel_4.6.1    knitr_1.52       </span></span>
+<span><span class="co">#&gt;  [9] htmltools_0.5.9   rmarkdown_2.32    lifecycle_1.0.5   cli_3.6.6        </span></span>
 <span><span class="co">#&gt; [13] sass_0.4.10       pkgdown_2.2.1     textshaping_1.0.5 jquerylib_0.1.4  </span></span>
 <span><span class="co">#&gt; [17] systemfonts_1.3.2 compiler_4.6.1    tools_4.6.1       ragg_1.5.2       </span></span>
 <span><span class="co">#&gt; [21] bslib_0.12.0      evaluate_1.0.5    yaml_2.3.12       otel_0.2.0       </span></span>

@@ -2772,7 +2772,7 @@ for full R object preservation.
 sessionInfo()
 #> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 24.04.5 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
@@ -2791,13 +2791,13 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] jsonlite_2.0.0         knitr_1.51             tibble_3.3.1          
+#> [1] jsonlite_2.0.0         knitr_1.52             tibble_3.3.1          
 #> [4] biblioIntegrator_0.3.0
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] vctrs_0.7.3       cli_3.6.6         rlang_1.3.0       xfun_0.60        
+#>  [1] vctrs_0.7.3       cli_3.6.6         rlang_1.3.0       xfun_0.61        
 #>  [5] otel_0.2.0        textshaping_1.0.5 glue_1.8.1        htmltools_0.5.9  
-#>  [9] ragg_1.5.2        sass_0.4.10       rmarkdown_2.31    evaluate_1.0.5   
+#>  [9] ragg_1.5.2        sass_0.4.10       rmarkdown_2.32    evaluate_1.0.5   
 #> [13] jquerylib_0.1.4   fastmap_1.2.0     yaml_2.3.12       lifecycle_1.0.5  
 #> [17] compiler_4.6.1    fs_2.1.0          pkgconfig_2.0.3   htmlwidgets_1.6.4
 #> [21] systemfonts_1.3.2 digest_0.6.39     R6_2.6.1          pillar_1.11.1    

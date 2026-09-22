@@ -203,7 +203,7 @@ st
 #> [1] FALSE
 #> 
 #> $python
-#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/MFEaSQy-oE3bfJIF/bin/python"
+#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/ka0OLm6bEvr-E1K5/bin/python"
 #> 
 #> $version
 #> [1] NA
@@ -228,7 +228,7 @@ names(st)
 cat("Available:", st$available, "\n")
 #> Available: FALSE
 cat("Python:   ", st$python,    "\n")
-#> Python:    /home/runner/.cache/R/reticulate/uv/cache/archive-v0/MFEaSQy-oE3bfJIF/bin/python
+#> Python:    /home/runner/.cache/R/reticulate/uv/cache/archive-v0/ka0OLm6bEvr-E1K5/bin/python
 cat("Version:  ", st$version,   "\n")
 #> Version:   NA
 cat("Reason:   ", st$reason,    "\n")
@@ -795,11 +795,11 @@ report includes:
 
 f_md <- tempfile(fileext = ".md")
 biblio_report(x, f_md)
-#> [1] "/tmp/RtmpSk6DfF/file22c26bbb5fec.md"
+#> [1] "/tmp/Rtmp3JCLh7/file25483a3c75ff.md"
 file.exists(f_md)
 #> [1] TRUE
 cat("Path:", normalizePath(f_md, winslash = "/"), "\n")
-#> Path: /tmp/RtmpSk6DfF/file22c26bbb5fec.md
+#> Path: /tmp/Rtmp3JCLh7/file25483a3c75ff.md
 ```
 
 #### Inspecting the Output
@@ -814,7 +814,7 @@ cat("First 30 lines:\n")
 writeLines(lines[seq_len(min(30, length(lines)))])
 #> # Bibliometric Analysis Report
 #> 
-#> Generated: 2026-08-23 13:31:37.189121
+#> Generated: 2026-09-22 01:46:11.800446
 #> 
 #> ## Corpus summary
 #> Documents: **12**  
@@ -889,11 +889,11 @@ biblio_report(
   x, f_title,
   title = "Agronomic Bibliometric Map — Nutrition Studies"
 )
-#> [1] "/tmp/RtmpSk6DfF/file22c274421199.md"
+#> [1] "/tmp/Rtmp3JCLh7/file25486729ada6.md"
 readLines(f_title, n = 3, warn = FALSE)
 #> [1] "# Agronomic Bibliometric Map — Nutrition Studies"
 #> [2] ""                                                
-#> [3] "Generated: 2026-08-23 13:31:37.34824"
+#> [3] "Generated: 2026-09-22 01:46:11.957155"
 ```
 
 ### HTML Reports
@@ -965,7 +965,7 @@ accepts a plain data frame if it matches the schema of
 f_df <- tempfile(fileext = ".md")
 biblio_report(example_biblio(), f_df,
               title = "Report from raw data frame")
-#> [1] "/tmp/RtmpSk6DfF/file22c25da90bb5.md"
+#> [1] "/tmp/Rtmp3JCLh7/file2548717fe1d7.md"
 file.exists(f_df)
 #> [1] TRUE
 ```
@@ -980,7 +980,7 @@ logged:
 
 audit_biblio(x)
 #>                    timestamp         operation                          details
-#> 1 2026-08-23 13:31:32.495399 as_biblio_project source=v09 teaching corpus; n=12
+#> 1 2026-09-22 01:46:07.274304 as_biblio_project source=v09 teaching corpus; n=12
 ```
 
 This is what makes reports **auditable**: a reviewer can trace every
@@ -994,9 +994,9 @@ number back to a named transformation step.
 x2 <- as_biblio_project(example_biblio(), source = "grant review")
 f_report <- file.path(tempdir(), "grant-review-report.md")
 biblio_report(x2, f_report, title = "Grant literature mapping")
-#> [1] "/tmp/RtmpSk6DfF/grant-review-report.md"
+#> [1] "/tmp/Rtmp3JCLh7/grant-review-report.md"
 cat("Report saved to:", f_report, "\n")
-#> Report saved to: /tmp/RtmpSk6DfF/grant-review-report.md
+#> Report saved to: /tmp/Rtmp3JCLh7/grant-review-report.md
 ```
 
 ### Multi-Format Export
@@ -1973,7 +1973,7 @@ ca  <- group_ca(cmp)
 # Report
 f <- file.path(tempdir(), "thesis-review.md")
 biblio_report(x, f, title = "Thesis literature review")
-#> [1] "/tmp/RtmpSk6DfF/thesis-review.md"
+#> [1] "/tmp/Rtmp3JCLh7/thesis-review.md"
 ```
 
 ### Mistake 5: Forgetting That `validate_biblium()` Requires Both Engines
@@ -2232,7 +2232,7 @@ print(python_backend_status())
 #> [1] FALSE
 #> 
 #> $python
-#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/MFEaSQy-oE3bfJIF/bin/python"
+#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/ka0OLm6bEvr-E1K5/bin/python"
 #> 
 #> $version
 #> [1] NA
@@ -2244,10 +2244,10 @@ print(python_backend_status())
 f_report <- file.path(tempdir(), "end-to-end-report.md")
 biblio_report(proj, f_report,
               title = "End-to-End Bibliometric Analysis")
-#> [1] "/tmp/RtmpSk6DfF/end-to-end-report.md"
+#> [1] "/tmp/Rtmp3JCLh7/end-to-end-report.md"
 cat("\nReport saved to:", f_report, "\n")
 #> 
-#> Report saved to: /tmp/RtmpSk6DfF/end-to-end-report.md
+#> Report saved to: /tmp/Rtmp3JCLh7/end-to-end-report.md
 
 # 11. Plan-based execution
 plan <- form_plan(
@@ -2332,7 +2332,7 @@ cat("\nPlan results:", paste(names(plan_res), collapse = ", "),
 sessionInfo()
 #> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 24.04.5 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
@@ -2351,31 +2351,31 @@ sessionInfo()
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] knitr_1.51             biblioIntegrator_0.3.0
+#> [1] knitr_1.52             biblioIntegrator_0.3.0
 #> 
 #> loaded via a namespace (and not attached):
 #>   [1] tidyselect_1.2.1       viridisLite_0.4.3      dplyr_1.2.1           
-#>   [4] farver_2.1.2           arrow_25.0.0           S7_0.2.2              
+#>   [4] farver_2.1.2           arrow_25.0.1           S7_0.2.2              
 #>   [7] fastmap_1.2.0          duckdb_1.5.5           janeaustenr_1.0.0     
 #>  [10] promises_1.5.0         XML_3.99-0.24          digest_0.6.39         
 #>  [13] mime_0.13              lifecycle_1.0.5        qpdf_1.4.1            
 #>  [16] tokenizers_0.3.0       magrittr_2.0.5         compiler_4.6.1        
 #>  [19] rlang_1.3.0            sass_0.4.10            tools_4.6.1           
 #>  [22] igraph_2.3.3           tidytext_0.4.3         yaml_2.3.12           
-#>  [25] data.table_1.18.4      askpass_1.2.1          htmlwidgets_1.6.4     
-#>  [28] bit_4.6.0              reticulate_1.46.0      plyr_1.8.9            
-#>  [31] RColorBrewer_1.1-3     ca_0.71.1              withr_3.0.3           
+#>  [25] data.table_1.18.6.1    askpass_1.2.1          htmlwidgets_1.6.4     
+#>  [28] bit_4.6.0              reticulate_1.47.0      plyr_1.8.9            
+#>  [31] RColorBrewer_1.1-3     ca_0.72                withr_3.0.3           
 #>  [34] purrr_1.2.2            pubmedR_1.0.2          contentanalysis_1.1.1 
 #>  [37] desc_1.4.3             grid_4.6.1             xtable_1.8-8          
 #>  [40] ggplot2_4.0.3          scales_1.4.0           cli_3.6.6             
-#>  [43] rmarkdown_2.31         ragg_1.5.2             generics_0.1.4        
-#>  [46] stringdist_0.9.17      otel_0.2.0             httr_1.4.8            
-#>  [49] tzdb_0.5.0             visNetwork_2.1.4       readxl_1.5.0          
+#>  [43] rmarkdown_2.32         ragg_1.5.2             generics_0.1.4        
+#>  [46] stringdist_0.9.17      otel_0.2.0             httr_1.4.9            
+#>  [49] tzdb_0.5.0             visNetwork_2.1.4       readxl_1.5.0.1        
 #>  [52] DBI_1.3.0              cachem_1.1.0           stringr_1.6.0         
 #>  [55] rscopus_0.9.0          parallel_4.6.1         assertthat_0.2.1      
 #>  [58] cellranger_1.1.0       base64enc_0.1-6        vctrs_0.7.3           
 #>  [61] Matrix_1.7-5           jsonlite_2.0.0         hms_1.1.4             
-#>  [64] bit64_4.8.4            ggrepel_0.9.8          systemfonts_1.3.2     
+#>  [64] bit64_4.8.6            ggrepel_0.9.8          systemfonts_1.3.2     
 #>  [67] biblionetwork_0.1.0    plotly_4.12.1          tidyr_1.3.2           
 #>  [70] jquerylib_0.1.4        glue_1.8.1             pkgdown_2.2.1         
 #>  [73] stringi_1.8.9          gtable_0.3.6           later_1.4.8           
@@ -2384,11 +2384,11 @@ sessionInfo()
 #>  [82] httr2_1.3.0            textshaping_1.0.5      Rdpack_2.6.6          
 #>  [85] evaluate_1.0.5         shiny_1.14.0           lattice_0.22-9        
 #>  [88] readr_2.2.0            rentrez_1.2.4          rbibutils_2.4.1       
-#>  [91] png_0.1-9              SnowballC_0.7.1        openxlsx_4.2.8.1      
+#>  [91] png_0.1-9              SnowballC_0.7.1        openxlsx_4.2.9        
 #>  [94] openalexR_3.1.0        httpuv_1.6.17          bslib_0.12.0          
-#>  [97] zip_3.0.2              Rcpp_1.1.2             bibliometrix_5.4.1    
-#> [100] dimensionsR_0.0.3      xfun_0.60              fs_2.1.0              
-#> [103] forcats_1.0.1          pdftools_3.9.0         pkgconfig_2.0.3
+#>  [97] zip_3.0.2              Rcpp_1.1.2             bibliometrix_5.5.0    
+#> [100] dimensionsR_0.0.3      xfun_0.61              fs_2.1.0              
+#> [103] forcats_1.0.1          pdftools_3.9.1         pkgconfig_2.0.3
 ```
 
 ------------------------------------------------------------------------

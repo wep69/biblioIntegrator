@@ -100,9 +100,9 @@ run_plan(form_plan(),example_biblio())
 #> 9 2025         1         9        -50
 #> 
 #> $network
-#> IGRAPH 8e29217 UNW- 7 10 -- 
+#> IGRAPH 873fac0 UNW- 7 10 -- 
 #> + attr: name (v/c), weight (e/n)
-#> + edges from 8e29217 (vertex names):
+#> + edges from 873fac0 (vertex names):
 #>  [1] A000008c4--A00000621 A00000905--A000008ad A000008c4--A00000f4d
 #>  [4] A00000f4d--A00000f73 A00000f4d--A0000043f A000008c4--A0000043f
 #>  [7] A00000f73--A000008ad A00000f4d--A00000621 A00000905--A0000043f

@@ -284,7 +284,7 @@ access them without rewriting R code.</li>
 <span><span class="co">#&gt; [1] FALSE</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $python</span></span>
-<span><span class="co">#&gt; [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/MFEaSQy-oE3bfJIF/bin/python"</span></span>
+<span><span class="co">#&gt; [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/ka0OLm6bEvr-E1K5/bin/python"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $version</span></span>
 <span><span class="co">#&gt; [1] NA</span></span>
@@ -324,7 +324,7 @@ explanation)</td>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Available:"</span>, <span class="va">st</span><span class="op">$</span><span class="va">available</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Available: FALSE</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Python:   "</span>, <span class="va">st</span><span class="op">$</span><span class="va">python</span>,    <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Python:    /home/runner/.cache/R/reticulate/uv/cache/archive-v0/MFEaSQy-oE3bfJIF/bin/python</span></span>
+<span><span class="co">#&gt; Python:    /home/runner/.cache/R/reticulate/uv/cache/archive-v0/ka0OLm6bEvr-E1K5/bin/python</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Version:  "</span>, <span class="va">st</span><span class="op">$</span><span class="va">version</span>,   <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Version:   NA</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Reason:   "</span>, <span class="va">st</span><span class="op">$</span><span class="va">reason</span>,    <span class="st">"\n"</span><span class="op">)</span></span>
@@ -936,11 +936,11 @@ year range.</li>
 <div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">f_md</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".md"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/biblio_report.html">biblio_report</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">f_md</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "/tmp/RtmpSk6DfF/file22c26bbb5fec.md"</span></span>
+<span><span class="co">#&gt; [1] "/tmp/Rtmp3JCLh7/file25483a3c75ff.md"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.exists</a></span><span class="op">(</span><span class="va">f_md</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Path:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/normalizePath.html" class="external-link">normalizePath</a></span><span class="op">(</span><span class="va">f_md</span>, winslash <span class="op">=</span> <span class="st">"/"</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Path: /tmp/RtmpSk6DfF/file22c26bbb5fec.md</span></span></code></pre></div>
+<span><span class="co">#&gt; Path: /tmp/Rtmp3JCLh7/file25483a3c75ff.md</span></span></code></pre></div>
 </div>
 <div class="section level4">
 <h4 id="inspecting-the-output">Inspecting the Output<a class="anchor" aria-label="anchor" href="#inspecting-the-output"></a>
@@ -954,7 +954,7 @@ year range.</li>
 <span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span><span class="va">lines</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="fl">30</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">lines</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt; # Bibliometric Analysis Report</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Generated: 2026-08-23 13:31:37.189121</span></span>
+<span><span class="co">#&gt; Generated: 2026-09-22 01:46:11.800446</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ## Corpus summary</span></span>
 <span><span class="co">#&gt; Documents: **12**  </span></span>
@@ -1029,11 +1029,11 @@ Years: **&lt;first&gt;-&lt;last&gt;**
 <span>  <span class="va">x</span>, <span class="va">f_title</span>,</span>
 <span>  title <span class="op">=</span> <span class="st">"Agronomic Bibliometric Map — Nutrition Studies"</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "/tmp/RtmpSk6DfF/file22c274421199.md"</span></span>
+<span><span class="co">#&gt; [1] "/tmp/Rtmp3JCLh7/file25486729ada6.md"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/readLines.html" class="external-link">readLines</a></span><span class="op">(</span><span class="va">f_title</span>, n <span class="op">=</span> <span class="fl">3</span>, warn <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "# Agronomic Bibliometric Map — Nutrition Studies"</span></span>
 <span><span class="co">#&gt; [2] ""                                                </span></span>
-<span><span class="co">#&gt; [3] "Generated: 2026-08-23 13:31:37.34824"</span></span></code></pre></div>
+<span><span class="co">#&gt; [3] "Generated: 2026-09-22 01:46:11.957155"</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level3">
@@ -1129,7 +1129,7 @@ the schema of <code><a href="../reference/example_biblio.html">example_biblio()<
 <code class="sourceCode R"><span><span class="va">f_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".md"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/biblio_report.html">biblio_report</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_biblio.html">example_biblio</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">f_df</span>,</span>
 <span>              title <span class="op">=</span> <span class="st">"Report from raw data frame"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "/tmp/RtmpSk6DfF/file22c25da90bb5.md"</span></span>
+<span><span class="co">#&gt; [1] "/tmp/Rtmp3JCLh7/file2548717fe1d7.md"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.exists</a></span><span class="op">(</span><span class="va">f_df</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
 </div>
@@ -1142,7 +1142,7 @@ been logged:</p>
 <div class="sourceCode" id="cb45"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/audit_biblio.html">audit_biblio</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                    timestamp         operation                          details</span></span>
-<span><span class="co">#&gt; 1 2026-08-23 13:31:32.495399 as_biblio_project source=v09 teaching corpus; n=12</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 2026-09-22 01:46:07.274304 as_biblio_project source=v09 teaching corpus; n=12</span></span></code></pre></div>
 <p>This is what makes reports <strong>auditable</strong>: a reviewer can
 trace every number back to a named transformation step.</p>
 </div>
@@ -1154,9 +1154,9 @@ trace every number back to a named transformation step.</p>
 <span><span class="va">x2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/as_biblio_project.html">as_biblio_project</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_biblio.html">example_biblio</a></span><span class="op">(</span><span class="op">)</span>, source <span class="op">=</span> <span class="st">"grant review"</span><span class="op">)</span></span>
 <span><span class="va">f_report</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"grant-review-report.md"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/biblio_report.html">biblio_report</a></span><span class="op">(</span><span class="va">x2</span>, <span class="va">f_report</span>, title <span class="op">=</span> <span class="st">"Grant literature mapping"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "/tmp/RtmpSk6DfF/grant-review-report.md"</span></span>
+<span><span class="co">#&gt; [1] "/tmp/Rtmp3JCLh7/grant-review-report.md"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Report saved to:"</span>, <span class="va">f_report</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Report saved to: /tmp/RtmpSk6DfF/grant-review-report.md</span></span></code></pre></div>
+<span><span class="co">#&gt; Report saved to: /tmp/Rtmp3JCLh7/grant-review-report.md</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="multi-format-export">Multi-Format Export<a class="anchor" aria-label="anchor" href="#multi-format-export"></a>
@@ -2144,7 +2144,7 @@ requires scripts.</p>
 <span><span class="co"># Report</span></span>
 <span><span class="va">f</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"thesis-review.md"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/biblio_report.html">biblio_report</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">f</span>, title <span class="op">=</span> <span class="st">"Thesis literature review"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "/tmp/RtmpSk6DfF/thesis-review.md"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "/tmp/Rtmp3JCLh7/thesis-review.md"</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="mistake-5-forgetting-that-validate_biblium-requires-both-engines">Mistake 5: Forgetting That <code>validate_biblium()</code> Requires
@@ -2393,7 +2393,7 @@ script.</p>
 <span><span class="co">#&gt; [1] FALSE</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $python</span></span>
-<span><span class="co">#&gt; [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/MFEaSQy-oE3bfJIF/bin/python"</span></span>
+<span><span class="co">#&gt; [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/ka0OLm6bEvr-E1K5/bin/python"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $version</span></span>
 <span><span class="co">#&gt; [1] NA</span></span>
@@ -2405,10 +2405,10 @@ script.</p>
 <span><span class="va">f_report</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"end-to-end-report.md"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/biblio_report.html">biblio_report</a></span><span class="op">(</span><span class="va">proj</span>, <span class="va">f_report</span>,</span>
 <span>              title <span class="op">=</span> <span class="st">"End-to-End Bibliometric Analysis"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "/tmp/RtmpSk6DfF/end-to-end-report.md"</span></span>
+<span><span class="co">#&gt; [1] "/tmp/Rtmp3JCLh7/end-to-end-report.md"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nReport saved to:"</span>, <span class="va">f_report</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Report saved to: /tmp/RtmpSk6DfF/end-to-end-report.md</span></span>
+<span><span class="co">#&gt; Report saved to: /tmp/Rtmp3JCLh7/end-to-end-report.md</span></span>
 <span></span>
 <span><span class="co"># 11. Plan-based execution</span></span>
 <span><span class="va">plan</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/form_plan.html">form_plan</a></span><span class="op">(</span></span>
@@ -2565,7 +2565,7 @@ Informetrics</em>, 11(4), 959–975. <a href="doi:%5B10.1016/j.joi.2017.08.007" 
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt; R version 4.6.1 (2026-06-24)</span></span>
 <span><span class="co">#&gt; Platform: x86_64-pc-linux-gnu</span></span>
-<span><span class="co">#&gt; Running under: Ubuntu 24.04.4 LTS</span></span>
+<span><span class="co">#&gt; Running under: Ubuntu 24.04.5 LTS</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Matrix products: default</span></span>
 <span><span class="co">#&gt; BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 </span></span>
@@ -2584,31 +2584,31 @@ Informetrics</em>, 11(4), 959–975. <a href="doi:%5B10.1016/j.joi.2017.08.007" 
 <span><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; other attached packages:</span></span>
-<span><span class="co">#&gt; [1] knitr_1.51             biblioIntegrator_0.3.0</span></span>
+<span><span class="co">#&gt; [1] knitr_1.52             biblioIntegrator_0.3.0</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
 <span><span class="co">#&gt;   [1] tidyselect_1.2.1       viridisLite_0.4.3      dplyr_1.2.1           </span></span>
-<span><span class="co">#&gt;   [4] farver_2.1.2           arrow_25.0.0           S7_0.2.2              </span></span>
+<span><span class="co">#&gt;   [4] farver_2.1.2           arrow_25.0.1           S7_0.2.2              </span></span>
 <span><span class="co">#&gt;   [7] fastmap_1.2.0          duckdb_1.5.5           janeaustenr_1.0.0     </span></span>
 <span><span class="co">#&gt;  [10] promises_1.5.0         XML_3.99-0.24          digest_0.6.39         </span></span>
 <span><span class="co">#&gt;  [13] mime_0.13              lifecycle_1.0.5        qpdf_1.4.1            </span></span>
 <span><span class="co">#&gt;  [16] tokenizers_0.3.0       magrittr_2.0.5         compiler_4.6.1        </span></span>
 <span><span class="co">#&gt;  [19] rlang_1.3.0            sass_0.4.10            tools_4.6.1           </span></span>
 <span><span class="co">#&gt;  [22] igraph_2.3.3           tidytext_0.4.3         yaml_2.3.12           </span></span>
-<span><span class="co">#&gt;  [25] data.table_1.18.4      askpass_1.2.1          htmlwidgets_1.6.4     </span></span>
-<span><span class="co">#&gt;  [28] bit_4.6.0              reticulate_1.46.0      plyr_1.8.9            </span></span>
-<span><span class="co">#&gt;  [31] RColorBrewer_1.1-3     ca_0.71.1              withr_3.0.3           </span></span>
+<span><span class="co">#&gt;  [25] data.table_1.18.6.1    askpass_1.2.1          htmlwidgets_1.6.4     </span></span>
+<span><span class="co">#&gt;  [28] bit_4.6.0              reticulate_1.47.0      plyr_1.8.9            </span></span>
+<span><span class="co">#&gt;  [31] RColorBrewer_1.1-3     ca_0.72                withr_3.0.3           </span></span>
 <span><span class="co">#&gt;  [34] purrr_1.2.2            pubmedR_1.0.2          contentanalysis_1.1.1 </span></span>
 <span><span class="co">#&gt;  [37] desc_1.4.3             grid_4.6.1             xtable_1.8-8          </span></span>
 <span><span class="co">#&gt;  [40] ggplot2_4.0.3          scales_1.4.0           cli_3.6.6             </span></span>
-<span><span class="co">#&gt;  [43] rmarkdown_2.31         ragg_1.5.2             generics_0.1.4        </span></span>
-<span><span class="co">#&gt;  [46] stringdist_0.9.17      otel_0.2.0             httr_1.4.8            </span></span>
-<span><span class="co">#&gt;  [49] tzdb_0.5.0             visNetwork_2.1.4       readxl_1.5.0          </span></span>
+<span><span class="co">#&gt;  [43] rmarkdown_2.32         ragg_1.5.2             generics_0.1.4        </span></span>
+<span><span class="co">#&gt;  [46] stringdist_0.9.17      otel_0.2.0             httr_1.4.9            </span></span>
+<span><span class="co">#&gt;  [49] tzdb_0.5.0             visNetwork_2.1.4       readxl_1.5.0.1        </span></span>
 <span><span class="co">#&gt;  [52] DBI_1.3.0              cachem_1.1.0           stringr_1.6.0         </span></span>
 <span><span class="co">#&gt;  [55] rscopus_0.9.0          parallel_4.6.1         assertthat_0.2.1      </span></span>
 <span><span class="co">#&gt;  [58] cellranger_1.1.0       base64enc_0.1-6        vctrs_0.7.3           </span></span>
 <span><span class="co">#&gt;  [61] Matrix_1.7-5           jsonlite_2.0.0         hms_1.1.4             </span></span>
-<span><span class="co">#&gt;  [64] bit64_4.8.4            ggrepel_0.9.8          systemfonts_1.3.2     </span></span>
+<span><span class="co">#&gt;  [64] bit64_4.8.6            ggrepel_0.9.8          systemfonts_1.3.2     </span></span>
 <span><span class="co">#&gt;  [67] biblionetwork_0.1.0    plotly_4.12.1          tidyr_1.3.2           </span></span>
 <span><span class="co">#&gt;  [70] jquerylib_0.1.4        glue_1.8.1             pkgdown_2.2.1         </span></span>
 <span><span class="co">#&gt;  [73] stringi_1.8.9          gtable_0.3.6           later_1.4.8           </span></span>
@@ -2617,11 +2617,11 @@ Informetrics</em>, 11(4), 959–975. <a href="doi:%5B10.1016/j.joi.2017.08.007" 
 <span><span class="co">#&gt;  [82] httr2_1.3.0            textshaping_1.0.5      Rdpack_2.6.6          </span></span>
 <span><span class="co">#&gt;  [85] evaluate_1.0.5         shiny_1.14.0           lattice_0.22-9        </span></span>
 <span><span class="co">#&gt;  [88] readr_2.2.0            rentrez_1.2.4          rbibutils_2.4.1       </span></span>
-<span><span class="co">#&gt;  [91] png_0.1-9              SnowballC_0.7.1        openxlsx_4.2.8.1      </span></span>
+<span><span class="co">#&gt;  [91] png_0.1-9              SnowballC_0.7.1        openxlsx_4.2.9        </span></span>
 <span><span class="co">#&gt;  [94] openalexR_3.1.0        httpuv_1.6.17          bslib_0.12.0          </span></span>
-<span><span class="co">#&gt;  [97] zip_3.0.2              Rcpp_1.1.2             bibliometrix_5.4.1    </span></span>
-<span><span class="co">#&gt; [100] dimensionsR_0.0.3      xfun_0.60              fs_2.1.0              </span></span>
-<span><span class="co">#&gt; [103] forcats_1.0.1          pdftools_3.9.0         pkgconfig_2.0.3</span></span></code></pre></div>
+<span><span class="co">#&gt;  [97] zip_3.0.2              Rcpp_1.1.2             bibliometrix_5.5.0    </span></span>
+<span><span class="co">#&gt; [100] dimensionsR_0.0.3      xfun_0.61              fs_2.1.0              </span></span>
+<span><span class="co">#&gt; [103] forcats_1.0.1          pdftools_3.9.1         pkgconfig_2.0.3</span></span></code></pre></div>
 <hr>
 <p><em>This vignette is part of the biblioIntegrator documentation
 (vignettes <code>v00</code> to <code>v09</code>). For the foundational

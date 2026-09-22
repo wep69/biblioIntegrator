@@ -387,9 +387,9 @@ corpus, as expected for the example data.
 # Build coauthorship network using the native engine (always available)
 g_coauthor <- bibliographic_network(x, "coauthor")
 g_coauthor
-#> IGRAPH f80cee4 UNW- 7 10 -- 
+#> IGRAPH 2ab8f3b UNW- 7 10 -- 
 #> + attr: name (v/c), weight (e/n)
-#> + edges from f80cee4 (vertex names):
+#> + edges from 2ab8f3b (vertex names):
 #>  [1] A000008c4--A00000621 A00000905--A000008ad A000008c4--A00000f4d
 #>  [4] A00000f4d--A00000f73 A00000f4d--A0000043f A000008c4--A0000043f
 #>  [7] A00000f73--A000008ad A00000f4d--A00000621 A00000905--A0000043f
@@ -497,9 +497,9 @@ head(data.frame(
 
 g_keyword <- bibliographic_network(x, "keyword", min_weight = 1)
 g_keyword
-#> IGRAPH e67cca5 UNW- 24 28 -- 
+#> IGRAPH 4cb95f1 UNW- 24 28 -- 
 #> + attr: name (v/c), weight (e/n)
-#> + edges from e67cca5 (vertex names):
+#> + edges from 4cb95f1 (vertex names):
 #>  [1] cover crops    --aggregation    cover crops    --soil carbon   
 #>  [3] silicon        --drought        maize          --efficiency    
 #>  [5] nitrogen       --efficiency     maize          --drought       
@@ -2000,7 +2000,7 @@ biblionetwork version (if used).
 sessionInfo()
 #> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 24.04.5 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
@@ -2022,11 +2022,11 @@ sessionInfo()
 #> [1] biblioIntegrator_0.3.0
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] vctrs_0.7.3         cli_3.6.6           knitr_1.51         
-#>  [4] rlang_1.3.0         xfun_0.60           otel_0.2.0         
-#>  [7] textshaping_1.0.5   data.table_1.18.4   jsonlite_2.0.0     
+#>  [1] vctrs_0.7.3         cli_3.6.6           knitr_1.52         
+#>  [4] rlang_1.3.0         xfun_0.61           otel_0.2.0         
+#>  [7] textshaping_1.0.5   data.table_1.18.6.1 jsonlite_2.0.0     
 #> [10] glue_1.8.1          htmltools_0.5.9     ragg_1.5.2         
-#> [13] sass_0.4.10         rmarkdown_2.31      grid_4.6.1         
+#> [13] sass_0.4.10         rmarkdown_2.32      grid_4.6.1         
 #> [16] evaluate_1.0.5      jquerylib_0.1.4     fastmap_1.2.0      
 #> [19] yaml_2.3.12         lifecycle_1.0.5     compiler_4.6.1     
 #> [22] igraph_2.3.3        fs_2.1.0            pkgconfig_2.0.3    
@@ -2178,7 +2178,7 @@ cat("\nDone.\n")
 sessionInfo()
 #> R version 4.6.1 (2026-06-24)
 #> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.4 LTS
+#> Running under: Ubuntu 24.04.5 LTS
 #> 
 #> Matrix products: default
 #> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
@@ -2200,11 +2200,11 @@ sessionInfo()
 #> [1] biblioIntegrator_0.3.0
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] vctrs_0.7.3         cli_3.6.6           knitr_1.51         
-#>  [4] rlang_1.3.0         xfun_0.60           otel_0.2.0         
-#>  [7] textshaping_1.0.5   data.table_1.18.4   jsonlite_2.0.0     
+#>  [1] vctrs_0.7.3         cli_3.6.6           knitr_1.52         
+#>  [4] rlang_1.3.0         xfun_0.61           otel_0.2.0         
+#>  [7] textshaping_1.0.5   data.table_1.18.6.1 jsonlite_2.0.0     
 #> [10] glue_1.8.1          htmltools_0.5.9     ragg_1.5.2         
-#> [13] sass_0.4.10         rmarkdown_2.31      grid_4.6.1         
+#> [13] sass_0.4.10         rmarkdown_2.32      grid_4.6.1         
 #> [16] evaluate_1.0.5      jquerylib_0.1.4     fastmap_1.2.0      
 #> [19] yaml_2.3.12         lifecycle_1.0.5     compiler_4.6.1     
 #> [22] igraph_2.3.3        fs_2.1.0            pkgconfig_2.0.3    

@@ -79,3 +79,50 @@ As afirmações do tutorial vêm de sondagens executadas e guardadas em
 `_auditoria/`, incluindo: inventário de `formals()` das 59 funções, verificação
 de que as receitas de chamada rodam sem erro, e o teste de que apenas as funções
 com argumento `seed` interferem no gerador aleatório do usuário.
+
+## Publicação no site do pacote (pkgdown)
+
+O tutorial também é um **artigo do site** do pacote, publicado em
+
+<https://wep69.github.io/biblioIntegrator/articles/biblioIntegrator-agronomia.html>
+
+A fonte do artigo no repositório é `vignettes/articles/biblioIntegrator-agronomia.qmd`
+(mesmo conteúdo do tutorial montado, com YAML próprio de artigo) e o cache de
+rede fica em `vignettes/articles/_cache/`. A pasta do artigo é excluída do
+tarball por `.Rbuildignore` (`^vignettes/articles$`), como manda a convenção do
+pkgdown para artigos que não são vinhetas.
+
+### Como o artigo é montado
+
+1. `_montar.R` gera `biblioIntegrator-agronomia.qmd` a partir de `_fragmentos/`.
+2. `_auditoria/_preparar_artigo.R` converte esse documento na versão de artigo
+   (YAML de artigo e cache dentro da pasta do artigo).
+3. O build do site roda `pkgdown::build_site()` com o remendo
+   `tools/pkgdown-patch.R` carregado antes.
+
+### Remendo obrigatório do pkgdown
+
+`tools/pkgdown-patch.R` corrige dois defeitos do pkgdown na renderização de
+artigos Quarto. Sem ele, qualquer artigo `.qmd` faz o build do site falhar, e a
+única pista é `System command 'quarto' failed`:
+
+| Defeito | Sintoma | Correção no remendo |
+|---|---|---|
+| Booleanos do YAML | `Aeson exception: Error in $: expected Bool, but encountered String` | `yaml::write_yaml()` emite `yes`/`no` (YAML 1.1) e o Quarto lê `yes`/`no` como texto; o remendo converte para `true`/`false` |
+| Caminho de saída | `os error 123: stat '...\vignettes\C:\Users\...'` (Windows) ou `No built file found` | o Quarto resolve `--output-dir` relativo à raiz do projeto; o remendo usa `<projeto>/.pkgdown-quarto-tmp` com caminho relativo e localiza o HTML gerado |
+
+### Requisito do Módulo 10
+
+O artigo executa o Módulo 10 de verdade, e para isso precisa de um interpretador
+Python com `biblium==2.16.0`. Configure antes do build:
+
+```bash
+set BIBLIOINTEGRATOR_PYTHON=C:\caminho\para\python.exe   # Windows
+export BIBLIOINTEGRATOR_PYTHON=/caminho/para/python      # Linux/macOS
+```
+
+Sem esse interpretador, o build do artigo PARA na chamada
+`biblium_compare_groups()` com a mensagem
+`Biblium 2.16 backend is unavailable or not importable.` — as demais vinhetas do
+site continuam sendo construídas normalmente.
+

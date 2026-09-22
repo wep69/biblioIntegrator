@@ -42,3 +42,7 @@
 
 # Projeto Quarto dos artigos do site (nao faz parte do pacote)
 ^vignettes/_quarto\.yaml$
+
+# Cache de execucao do Quarto: arquivos ocultos e caminhos longos, que geram
+# NOTE em "hidden files and directories" e "portable file names"
+^vignettes/\.quarto$

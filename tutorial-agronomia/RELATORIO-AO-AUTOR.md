@@ -198,4 +198,59 @@ provável no código e o teste de regressão sugerido.
 - `_auditoria/_check_inline.R` — avalia as expressões inline da prosa
 - `_auditoria/_anti_leak.R` — procura números de resultado digitados no texto
 - `_auditoria/_verifica_colisao.R` — reproduz e documenta a colisão de `work_id`
+- `_auditoria/_verifica_native_edges.R` — reproduz as arestas duplicadas do motor nativo
 - `_auditoria/_receitas.R` — executa as receitas de chamada de todos os módulos
+- `_auditoria/_replica_pkgdown_quarto.R` — replica a chamada do pkgdown ao Quarto
+
+---
+
+## Achados da cadeia de publicação (pkgdown + Quarto)
+
+Estes não são defeitos do `biblioIntegrator`, mas bloqueiam a publicação do site
+e foram resolvidos com o remendo `tools/pkgdown-patch.R`. Ficam registrados
+porque qualquer mantenedor que publique um artigo `.qmd` vai encontrá-los.
+
+### C1 (ALTA) — pkgdown grava booleanos `yes`/`no` e o Quarto recusa
+
+| Campo | Conteúdo |
+|---|---|
+| Sintoma | O build do site aborta na renderização do artigo com a única pista visível `! System command 'quarto' failed`, porque o pkgdown chama o Quarto em modo silencioso |
+| Evidência | Reproduzindo a chamada do pkgdown com `quiet = FALSE`: `Error parsing quarto-defaults....yml: Aeson exception: Error in $: expected Bool, but encountered String` |
+| Causa | `pkgdown:::quarto_render()` escreve o YAML de metadados com `yaml::write_yaml()`, que emite booleanos no estilo YAML 1.1 (`yes`/`no`); o parser do Quarto segue YAML 1.2, em que esses valores são texto |
+| Correção aplicada | o remendo substitui apenas a gravação do arquivo, convertendo `yes`/`no` em `true`/`false`, linha a linha (o `$` do `sub()` casa com o fim da string inteira, e não de cada linha) |
+| Efeito colateral | sem o remendo, **nenhum** artigo `.qmd` pode ser publicado |
+
+### C2 (MÉDIA) — `--output-dir` do Quarto é resolvido contra a raiz do projeto
+
+| Campo | Conteúdo |
+|---|---|
+| Sintoma | `No built file found for ...`, ou, no Windows, `os error 123: stat '...vignettes\C:\Users\...'` |
+| Causa | o pkgdown informa a pasta temporária da sessão (caminho absoluto) e o Quarto a resolve relativa à raiz do projeto, juntando os dois caminhos |
+| Correção aplicada | o remendo usa `<projeto>/.pkgdown-quarto-tmp` com caminho relativo e, após a renderização, procura o HTML nos dois locais possíveis, devolvendo ao pkgdown o diretório efetivamente usado |
+
+### C3 (MÉDIA) — `vignettes/_quarto.yaml` precisa declarar a subpasta `articles/`
+
+| Campo | Conteúdo |
+|---|---|
+| Sintoma | o projeto Quarto não encontra alvo e o `quarto render` falha |
+| Causa | quando o arquivo não existe, o pkgdown cria um temporário com `project.render: '*.qmd'`, glob que não alcança `vignettes/articles/` |
+| Correção aplicada | o repositório passa a versionar `vignettes/_quarto.yaml` com `- '*.qmd'` e `- 'articles/*.qmd'` |
+
+### C4 (MÉDIA) — `reticulate` e o virtualenv: instalação e sessão precisam coincidir
+
+| Campo | Conteúdo |
+|---|---|
+| Sintoma | `biblium importavel: FALSE` no CI, mesmo após `Successfully installed biblium-2.16.0` |
+| Causa | o reticulate cria e usa o virtualenv `~/.virtualenvs/r-reticulate` e é nele que o `py_install()` instala; exportar `RETICULATE_PYTHON` para o Python base faz a sessão R rodar no base e não enxergar o pacote instalado no virtualenv |
+| Correção aplicada | o workflow instala com `reticulate::py_install()` e aponta `BIBLIOINTEGRATOR_PYTHON` para o Python do virtualenv, sem definir `RETICULATE_PYTHON` |
+| Pendência declarada | no runner do GitHub Actions o `reticulate::py_module_available("biblium")` continuou devolvendo `FALSE` mesmo com o virtualenv alinhado; por isso o site foi publicado com o build local (mesmo pipeline, `pkgdown::build_site()` com o remendo) e o workflow do pkgdown permanece como está — a publicação automática depende de resolver a detecção do backend Python no runner |
+
+### C5 (BAIXA) — `pryr::mem_used()` na vinheta v08
+
+| Campo | Conteúdo |
+|---|---|
+| Sintoma | o build do site aborta ao processar a vinheta v08 com `unable to load shared object '.../pryr.dll'` |
+| Causa | `pryr` não estava declarado em `Imports` nem em `Suggests` (dependência não declarada) e a DLL instalada nesta máquina fora compilada sob outra versão do R; o `downlit`, que gera os links do site, carrega os pacotes citados no texto e aborta |
+| Correção aplicada | a medição de memória da vinheta passa a usar `gc()`, que é base R |
+| Recomendação | manter a regra de não citar pacotes que não estejam declarados no `DESCRIPTION` |
+

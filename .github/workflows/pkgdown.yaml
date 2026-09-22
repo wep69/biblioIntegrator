@@ -38,38 +38,30 @@ jobs:
           use-public-rspm: true
 
       # Python com o Biblium torna o Módulo 10 do tutorial reproducível no site.
-      # RETICULATE_PYTHON e o que o reticulate honra na INICIALIZACAO: o
-      # use_python() chamado depois (pelo pacote) e ignorado, porque as vinhetas
-      # de Python do site inicializam o interpretador antes do artigo.
+      # O reticulate cria e usa um virtualenv proprio (~/.virtualenvs/r-reticulate)
+      # e e NELE que o py_install instala. Definir RETICULATE_PYTHON para o Python
+      # base quebra o par: a sessao R roda no base, o pacote e instalado no
+      # virtualenv, e py_module_available() devolve FALSE mesmo com a instalacao
+      # bem-sucedida. Por isso o workflow NAO exporta RETICULATE_PYTHON e aponta
+      # BIBLIOINTEGRATOR_PYTHON para o Python do virtualenv.
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
-      - name: Instalar Biblium
-        run: |
-          python -m pip install --upgrade pip
-          PYEXE=$(python -c 'import sys; print(sys.executable)')
-          echo "BIBLIOINTEGRATOR_PYTHON=$PYEXE" >> $GITHUB_ENV
-          echo "RETICULATE_PYTHON=$PYEXE" >> $GITHUB_ENV
-          echo "interprete configurado: $PYEXE"
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           extra-packages: any::pkgdown, local::.
           needs: website
 
-      # Instala o Biblium pelo reticulate, isto e, exatamente no interpretador
-      # que as vinhetas e o artigo usam. O pip do sistema pode escrever em outro
-      # prefixo de site-packages, e nesse caso py_module_available() devolve
-      # FALSE mesmo com a instalacao bem-sucedida.
-      - name: Instalar Biblium no Python do reticulate
+      - name: Instalar Biblium no ambiente do reticulate
         run: |
           Rscript -e '
             reticulate::py_install("biblium==2.16.0", pip = TRUE)
-            cfg <- reticulate::py_config()
-            cat("python:", cfg$python, "\n")
-            cat("libpython:", cfg$libpython, "\n")
+            py <- reticulate::virtualenv_python("r-reticulate")
+            cat("python do virtualenv:", py, "\n")
             cat("biblium importavel:", reticulate::py_module_available("biblium"), "\n")
+            cat(paste0("BIBLIOINTEGRATOR_PYTHON=", py), "\n",
+                file = Sys.getenv("GITHUB_ENV"), append = TRUE)
           '
 
       # O pkgdown grava o YAML de metadados do Quarto com booleanos no estilo

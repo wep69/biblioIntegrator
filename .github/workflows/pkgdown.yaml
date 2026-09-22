@@ -54,8 +54,14 @@ jobs:
           extra-packages: any::pkgdown, local::.
           needs: website
 
+      # O pkgdown grava o YAML de metadados do Quarto com booleanos no estilo
+      # YAML 1.1 ("yes"/"no"), que o Quarto le como texto e recusa, abortando a
+      # renderizacao de qualquer artigo .qmd. O remendo converte para
+      # "true"/"false"; ver tools/pkgdown-patch.R para o diagnostico completo.
       - name: Build site
-        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+        run: |
+          source("tools/pkgdown-patch.R")
+          pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}
 
       - name: Deploy to GitHub pages 🚀

@@ -1,0 +1,716 @@
+# Módulo 6. Comparação de grupos com inferência por permutação
+
+## O problema agronômico
+
+Suponha que você fechou um levantamento sobre silício e estresse abiótico com 280
+obras publicadas entre 2010 e 2025 e queira responder a uma pergunta que a
+descritiva não responde: **o vocabulário da área mudou depois de 2020?** A
+resposta importa para quem escreve a introdução de um projeto. Se os termos de
+automação e aprendizado de máquina aparecem mais nas obras recentes, o projeto
+precisa de uma frente de fenotipagem e análise de imagem; se aparecem igualmente
+nos dois períodos, essa frente é opcional. Note que a pergunta não é sobre
+contagem absoluta — os períodos nem têm o mesmo número de obras — e sim sobre o
+**padrão de associação** entre pertencer a um período e empregar um termo.
+
+O obstáculo é que a inferência clássica sobre tabelas de contingência pressupõe
+casos independentes e frequências esperadas razoáveis em cada célula. Aqui as
+unidades não são independentes: uma obra traz quatro ou cinco palavras-chave
+ligadas ao mesmo tema, o mesmo autor assina várias obras, e os grupos que
+interessam ao agrônomo raramente são disjuntos. Um trabalho sobre silício
+aplicado por sensoriamento remoto pertence a dois temas ao mesmo tempo. O teste
+de qui-quadrado assintótico, além disso, não foi desenhado para um desenho de
+observação em que os rótulos dos grupos foram atribuídos pelo pesquisador e
+poderiam, em princípio, ter caído em qualquer outra obra do acervo.
+
+A saída que o `biblioIntegrator` adota é a **inferência por permutação**. Em vez
+de comparar a estatística observada a uma distribuição teórica, o pacote
+reembaralha os rótulos de grupo entre as obras centenas de vezes, recalcula a
+estatística em cada reembaralhamento e mede com que frequência o acaso produz
+associação tão forte quanto a observada. Esse desenho não exige normalidade nem
+células grandes, e o p-valor passa a significar exatamente o que o agrônomo
+imagina que ele significa: a proporção de reordenamentos do acervo em que a
+associação seria tão forte quanto a encontrada. Este módulo ensina a construir
+os grupos, a rodar o teste, a interpretar os resíduos célula por célula e a
+medir o tamanho do efeito — porque p-valor pequeno não é sinônimo de achado
+importante.
+
+## Grupos sobrepostos: a matriz de pertencimento
+
+A função `form_groups()` não devolve uma lista: ela devolve uma **matriz de
+pertencimento** com uma linha por obra e uma coluna por grupo, valendo `1` quando
+a obra pertence ao grupo e `0` quando não pertence. É essa matriz que todas as
+funções do módulo recebem, e é ela que explica por que o pacote consegue lidar
+com grupos que se cruzam.
+
+```{r m6-grupos}
+# dplyr::between faz a mesma coisa, mas aqui basta comparar
+g_per <- form_groups(x_analise, ifelse(x_analise$works$year >= 2020, "2020-2025", "2010-2019"))
+tema_B <- ifelse(grepl("^Silício", x_analise$works$title), "silicio",
+                 ifelse(grepl("^Carbono", x_analise$works$title), "carbono", "remoto"))
+g_tema <- form_groups(x_analise, tema_B)
+
+# a classe do objeto e a dimensao sao a primeira coisa a conferir
+cat("classe de g_per:", paste(class(g_per), collapse = "/"), "\n")
+cat("dimensoes:", paste(dim(g_per), collapse = " x "), "\n")
+cat("dimensoes de g_tema:", paste(dim(g_tema), collapse = " x "), "\n")
+# rownames sao os identificadores das obras: a matriz fica amarrada ao acervo
+cat("primeiras obras:", paste(head(rownames(g_per), 3), collapse = ", "), "\n")
+# a soma de cada coluna e o tamanho do grupo
+tamanhos <- data.frame(
+  matriz = c(rep("periodo", ncol(g_per)), rep("tema", ncol(g_tema))),
+  grupo = c(colnames(g_per), colnames(g_tema)),
+  trabalhos = c(colSums(g_per), colSums(g_tema)))
+knitr::kable(tamanhos, row.names = FALSE,
+             caption = "Grupos construídos por form_groups() e o tamanho de cada um nos 280 trabalhos do acervo analítico.")
+```
+
+O objeto tem `r nrow(g_per)` linhas (uma por obra) e `r ncol(g_per)` colunas no
+caso do período e `r ncol(g_tema)` colunas no caso do tema. Note os nomes das
+colunas: `form_groups()` gera `factor(groups)2010-2019` e `factor(groups)carbono`
+porque converte o vetor de rótulos em fator antes de montar a matriz. São nomes
+feios, e a partir daqui a convenção do tutorial é limpá-los na exibição e nunca
+reescrever a matriz, porque a ordem das colunas é a ordem em que as linhas das
+tabelas de saída aparecem. Os períodos ficaram desbalanceados —
+`r tamanhos$trabalhos[1]` obras antes de 2020 e `r tamanhos$trabalhos[2]` a
+partir de 2020 — e os temas mais ainda, com
+`r tamanhos$trabalhos[tamanhos$grupo == "factor(groups)silicio"]` obras de
+silício contra `r tamanhos$trabalhos[tamanhos$grupo == "factor(groups)remoto"]`
+de sensoriamento remoto. O desbalanceamento é a regra em levantamentos
+bibliográficos, e é uma das razões para não confiar apenas no teste assintótico.
+
+::: {.callout-note}
+## Por que a matriz e não um vetor
+Um vetor de rótulos só admite grupos mutuamente exclusivos: cada obra pertence a
+um período ou a um tema. A matriz admite a obra de sensoriamento remoto que
+também é de silício. Todas as funções deste módulo aceitam as duas formas, e a
+diferença aparece no campo `$overlap` do resultado, que comentamos adiante.
+:::
+
+## O que está associado a quê: a tabela de contingência
+
+Antes de testar, vale olhar a tabela. O objeto devolvido por `compare_groups()`
+guarda a matriz observada, a esperada sob independência e os resíduos, e o
+contraste entre as duas primeiras é toda a matéria-prima da inferência.
+
+```{r tbl-m6-contingencia}
+cmp_per <- compare_groups(x_analise, g_per, entity = "keyword",
+                          permutations = 499, seed = SEED)
+
+# a matriz observada tem uma linha por grupo e uma coluna por termo
+obs <- cmp_per$observed
+# para caber na pagina, mostramos os oito termos mais frequentes
+top8 <- names(sort(colSums(obs), decreasing = TRUE))[1:8]
+tab_obs <- data.frame(grupo = rownames(obs), obs[, top8, drop = FALSE], check.names = FALSE)
+tab_esp <- data.frame(grupo = rownames(obs), round(cmp_per$expected[, top8, drop = FALSE], 1),
+                      check.names = FALSE)
+knitr::kable(tab_obs, row.names = FALSE, digits = 0,
+             caption = "Tabela de contingência observada: número de obras de cada período que empregam cada um dos oito termos mais frequentes.")
+knitr::kable(tab_esp, row.names = FALSE, digits = 1,
+             caption = "A mesma tabela sob independência: o que se esperaria se período e vocabulário nada tivessem a ver um com o outro.")
+```
+
+A obra analítica tem `r nrow(x_analise$works)` registros,
+`r length(unique(x_analise$keywords$keyword))` termos distintos e
+`r nrow(x_analise$authors)` autores. A tabela observada soma
+`r sum(cmp_per$observed)` pares obra-termo, e essa soma é o `n` de todos os
+cálculos que vêm a seguir. A leitura das duas tabelas lado a lado é a chave do
+módulo: onde o observado supera o esperado há associação positiva, onde fica
+abaixo há associação negativa, e a pergunta que a inferência responde é se essas
+diferenças são maiores do que o reembaralhamento produziria.
+
+## Inferência por permutação: dois contrastes, dois tamanhos de efeito
+
+Agora rodamos o teste nos dois agrupamentos. O contraste entre os resultados é o
+ensinamento mais importante do módulo, e ele não aparece se você olhar apenas o
+p-valor.
+
+```{r m6-comparacoes}
+cmp_tema <- compare_groups(x_analise, g_tema, entity = "keyword",
+                           permutations = 499, seed = SEED)
+# 499 permutacoes fixam o menor p-valor possivel em 1/(499+1)
+cat("p-valor minimo alcancavel com 499 permutacoes:", 1 / (499 + 1), "\n\n")
+resumo <- data.frame(
+  contraste = c("periodo (2 grupos)", "tema (3 grupos)"),
+  grupos = c(nrow(cmp_per$observed), nrow(cmp_tema$observed)),
+  qui_quadrado = round(c(cmp_per$chi_square, cmp_tema$chi_square), 1),
+  graus_de_liberdade = c((nrow(cmp_per$observed) - 1) * (ncol(cmp_per$observed) - 1),
+                         (nrow(cmp_tema$observed) - 1) * (ncol(cmp_tema$observed) - 1)),
+  p_valor = c(cmp_per$p_value, cmp_tema$p_value),
+  V_de_Cramer = round(c(cmp_per$cramers_v, cmp_tema$cramers_v), 3),
+  sobrepostos = c(cmp_per$overlap, cmp_tema$overlap))
+knitr::kable(resumo, row.names = FALSE,
+             caption = "Resultado da inferência por permutação nos dois contrastes: mesmo número de permutações e mesma semente, tamanhos de efeito muito diferentes.")
+```
+
+O primeiro contraste compara os dois períodos. A estatística de qui-quadrado vale
+`r round(cmp_per$chi_square, 1)` e o p-valor é `r cmp_per$p_value`. Esse número
+não deve ser lido como "`r format(cmp_per$p_value, decimal.mark = ",")` exato": com `r cmp_per$permutations` permutações, o
+p-valor é `(1 + número de permutações tão extremas quanto) / (permutações + 1)`,
+de modo que `r 1 / (499 + 1)` é o menor valor alcançável. O que a saída diz é que
+**nenhum** dos `r cmp_per$permutations` reembaralhamentos produziu associação tão
+forte quanto a observada. Para refinar, aumente `permutations` — a conclusão não
+muda, apenas a resolução do número.
+
+O achado substantivo está no tamanho do efeito. O V de Cramér vale
+`r round(cmp_per$cramers_v, 3)`, que é associação **moderada e fraca**. Traduzindo
+para a pergunta agronômica: os termos de automação aparecem mais no período
+recente, e a diferença é grande demais para ser atribuída ao acaso, mas está
+longe de ser uma regra. A maioria das obras de qualquer período usa o vocabulário
+comum da área.
+
+O segundo contraste compara os três temas derivados do título. O qui-quadrado
+salta para `r round(cmp_tema$chi_square, 1)` — cerca de
+`r round(cmp_tema$chi_square / cmp_per$chi_square)` vezes o primeiro — e o V de
+Cramér vai a `r round(cmp_tema$cramers_v, 3)`, associação muito forte. O que isso
+significa em termos de campo é quase trivial: cada frente de pesquisa usa o seu
+próprio vocabulário, e uma obra sobre carbono do solo fala de plantio direto e
+não de silício. É o resultado esperado e não é uma descoberta.
+
+Vale medir essa diferença de um terceiro modo, porque o tamanho do efeito
+moderado merece uma noção de incerteza. O argumento `bootstrap` acrescenta um
+intervalo de confiança ao V de Cramér, obtido por reamostragem das obras.
+
+```{r m6-bootstrap}
+cmp_per_ic <- compare_groups(x_analise, g_per, entity = "keyword",
+                             permutations = 499, bootstrap = 50, seed = SEED)
+cmp_tema_ic <- compare_groups(x_analise, g_tema, entity = "keyword",
+                              permutations = 499, bootstrap = 50, seed = SEED)
+ic <- data.frame(
+  contraste = c("periodo", "tema"),
+  V = round(c(cmp_per_ic$cramers_v, cmp_tema_ic$cramers_v), 3),
+  inferior = round(c(cmp_per_ic$cramers_v_ci[1], cmp_tema_ic$cramers_v_ci[1]), 3),
+  superior = round(c(cmp_per_ic$cramers_v_ci[2], cmp_tema_ic$cramers_v_ci[2]), 3))
+knitr::kable(ic, row.names = FALSE,
+             caption = "V de Cramér com intervalo de confiança de 95% obtido por reamostragem das obras (bootstrap = 50), nos dois contrastes.")
+```
+
+O contraste por período tem V de `r ic$V[1]` com intervalo de
+`r ic$inferior[1]` a `r ic$superior[1]`; o contraste por tema, V de
+`r ic$V[2]` com intervalo de `r ic$inferior[2]` a `r ic$superior[2]`. Os dois
+intervalos não se tocam, o que confirma em outra escala o que o V já dizia: são
+associações de ordens de grandeza diferentes. O intervalo do primeiro contraste
+não chega a zero: mesmo no limite inferior da reamostragem, a associação entre
+período e vocabulário é real, apenas modesta.
+
+A lição metodológica é o contraste. Os dois contrastes têm
+p = `r cmp_per$p_value` e p = `r cmp_tema$p_value`: **o p-valor não distingue um
+achado de uma trivialidade**. Ele mede apenas se o acaso, sozinho, explicaria o
+padrão, e com 280 obras o acaso raramente explica qualquer coisa. Quem mede a
+importância é o V de Cramér, que varia de 0 a 1 e é comparável entre tabelas de
+tamanhos diferentes. Escrever "associação altamente significativa (p < 0,01)"
+para o contraste por período, sem informar o V, comunica ao leitor que existe um
+achado forte quando o que existe é um achado moderado.
+
+## Resíduos: quais células fogem do esperado
+
+Saber que existe associação não diz **onde** ela está. A função
+`association_residuals()` devolve uma linha por célula da tabela, com o valor
+observado, o esperado e o resíduo padronizado de Pearson. A convenção de leitura
+é direta: sob independência, os resíduos têm desvio-padrão próximo de 1, de modo
+que valores além de `2` em módulo marcam células que fogem do esperado.
+
+```{r tbl-m6-residuos}
+res_per <- association_residuals(cmp_per)
+res_tema <- association_residuals(cmp_tema)
+cat("celulas na tabela de periodo:", nrow(res_per), "\n")
+cat("celulas na tabela de tema:", nrow(res_tema), "\n")
+cat("residuos alem de 2 em modulo, periodo:", sum(abs(res_per$residual) > 2), "\n")
+cat("residuos alem de 2 em modulo, tema:", sum(abs(res_tema$residual) > 2), "\n\n")
+# min_abs e um filtro de conveniencia: nao recalcula nada, so seleciona linhas
+fortes <- association_residuals(cmp_per, min_abs = 2)
+fortes <- fortes[order(-abs(fortes$residual)), ]
+fortes$grupo <- sub("^factor\\(groups\\)", "", fortes$group)
+knitr::kable(fortes[, c("grupo", "entity", "obs" = "observed", "esp" = "expected", "residuo" = "residual")],
+             row.names = FALSE, digits = c(0, 0, 0, 1, 2),
+             caption = "Células cujo resíduo padronizado de Pearson excede 2 em módulo no contraste por período: são estas, e não outras, que sustentam a associação.")
+```
+
+No contraste por período, `r sum(abs(res_per$residual) > 2)` das
+`r nrow(res_per)` células passam do limiar de 2, todas elas concentradas na
+família de automação: os termos `deep learning`, `hyperspectral` e
+`machine learning` aparecem **menos** que o esperado antes de 2020 e **mais** que
+o esperado depois. O sinal acompanha o sinal do resíduo, e é isso que a coluna
+`residuo` informa. Como o teste de permutação é de duas caudas, o sinal do
+resíduo é o que transforma "há associação" em "a automação cresceu, não recuou".
+
+No contraste por tema o quadro é outro:
+`r sum(abs(res_tema$residual) > 2)` das `r nrow(res_tema)` células passam do
+limiar. Isso não significa que o segundo resultado seja mais confiável, e sim que
+a associação por tema é forte em quase todas as células, o que é exatamente o
+comportamento de um vocabulário que acompanha a frente de pesquisa.
+
+A figura @fig-m6-residuos mostra os dois conjuntos de resíduos no mesmo painel, com as linhas de
+referência em ±2.
+
+```{r}
+#| label: fig-m6-residuos
+#| fig-cap: "Resíduos padronizados de Pearson por termo, nos dois contrastes. As linhas tracejadas marcam ±2, o limiar convencional para uma célula que foge do esperado sob independência. Termos ordenados pelo resíduo do contraste por período."
+#| fig-alt: "Dois painéis de barras horizontais divergentes. No painel do período, os termos de aprendizado de máquina têm resíduo positivo grande e os demais resíduos próximos de zero. No painel do tema, quase todos os termos têm resíduos acima de 2 em módulo, com sinal oposto entre os temas."
+#| fig-height: 5.6
+# junta os dois contrastes e escolhe a ordem dos termos pelo contraste por periodo
+dr <- rbind(
+  data.frame(contraste = "Período (2010-2019 vs 2020-2025)", res_per),
+  data.frame(contraste = "Tema (silício, carbono, remoto)", res_tema))
+dr$grupo <- sub("^factor\\(groups\\)", "", dr$group)
+# ordem dos termos pelo residuo do primeiro periodo, para as barras ficarem legiveis
+primeiro <- res_per$group[1]
+ordem_termos <- res_per$entity[res_per$group == primeiro][order(res_per$residual[res_per$group == primeiro])]
+dr$entity <- factor(dr$entity, levels = ordem_termos)
+ggplot(dr, aes(x = entity, y = residual, fill = grupo)) +
+  geom_col(position = position_dodge(width = .78), width = .72) +
+  geom_hline(yintercept = c(-2, 2), linetype = "dashed", colour = "grey30") +
+  geom_hline(yintercept = 0, colour = "grey20", linewidth = .3) +
+  coord_flip() +
+  facet_wrap(~ contraste, ncol = 2) +
+  scale_fill_manual(values = pal_agri) +
+  labs(x = NULL, y = "Resíduo padronizado de Pearson",
+       title = "Onde a associação está, célula por célula",
+       subtitle = "Barras além de ±2 fogem do esperado sob independência",
+       fill = NULL) +
+  theme(legend.position = "bottom")
+```
+
+A leitura da figura @fig-m6-residuos é o que se leva para a redação do artigo. No painel da
+esquerda, três barras atravessam as linhas tracejadas e as outras vinte e uma
+ficam dentro do ruído: o achado sobre automação **não** é "o vocabulário mudou",
+é "três termos de automação migraram de um período para o outro". No painel da
+direita, praticamente todas as barras atravessam ou beiram as linhas, com sinais
+opostos entre temas: silício puxa os termos de salinidade e nutrição para cima,
+carbono puxa os de matéria orgânica, remoto puxa os de sensoriamento. É a
+assinatura de três vocabulários separados.
+
+## Análise de correspondência: grupos e termos no mesmo plano
+
+A tabela de resíduos responde "onde", mas não responde "quão perto". A análise de
+correspondência resolve isso projetando grupos e termos em um mesmo plano, de
+modo que a proximidade entre um grupo e um termo signifique que o termo é
+característico daquele grupo.
+
+```{r m6-ca}
+ca <- group_ca(cmp_tema)
+cat("linhas (grupos):", nrow(ca$rows), " colunas (termos):", nrow(ca$columns), "\n")
+cat("valores singulares:", paste(round(ca$singular_values, 4), collapse = ", "), "\n")
+cat("inercia total:", round(sum(ca$singular_values^2), 4), "\n")
+# projecao dos grupos: a posicao e o centroide das obras daquele grupo
+proj_grupos <- data.frame(
+  nome = sub("^factor\\(groups\\)", "", rownames(ca$rows)),
+  dim1 = ca$rows[, 1], dim2 = ca$rows[, 2])
+knitr::kable(proj_grupos, row.names = FALSE, digits = 3,
+             caption = "Coordenadas dos três temas no plano da análise de correspondência (dimensões 1 e 2 da tabela de contingência tema por termo).")
+```
+
+A figura @fig-m6-ca projeta grupos e termos juntos. Como os valores singulares decrescem
+(`r paste(round(ca$singular_values[1:2], 3), collapse = " e ")`) mas o terceiro é
+praticamente nulo, dois eixos bastam para representar a estrutura: com três
+grupos, a tabela tem no máximo duas dimensões de associação genuína, e a terceira
+é ruído numérico.
+
+```{r}
+#| label: fig-m6-ca
+#| fig-cap: "Mapa de correspondência do contraste por tema: os três grupos (losangos) e os 24 termos (círculos) no mesmo plano. Só os termos mais extremos estão rotulados, para não sobrecarregar a figura. A proximidade entre grupo e termo indica vocabulário característico."
+#| fig-alt: "Gráfico de dispersão com três losangos rotulados carbono, remoto e silício, cercados por agrupamentos distintos de termos. Os termos de matéria orgânica ficam junto de carbono, os de sensoriamento junto de remoto e os de salinidade junto de silício."
+#| fig-height: 5.8
+termos_plano <- data.frame(
+  nome = rownames(ca$columns), dim1 = ca$columns[, 1], dim2 = ca$columns[, 2],
+  dist = sqrt(ca$columns[, 1]^2 + ca$columns[, 2]^2))
+# rotula os doze termos mais distantes da origem, que sao os que caracterizam os grupos
+rotular <- termos_plano$nome[order(-termos_plano$dist)][1:12]
+termos_plano$rotulo <- ifelse(termos_plano$nome %in% rotular, termos_plano$nome, NA)
+ggplot() +
+  geom_hline(yintercept = 0, colour = "grey85") +
+  geom_vline(xintercept = 0, colour = "grey85") +
+  geom_point(data = termos_plano, aes(x = dim1, y = dim2), colour = "grey35", size = 1.7) +
+  ggrepel::geom_text_repel(data = termos_plano, aes(x = dim1, y = dim2, label = rotulo),
+                           size = 2.6, colour = "grey25", na.rm = TRUE,
+                           seed = SEED, max.overlaps = 30, min.segment.length = 0) +
+  geom_point(data = proj_grupos, aes(x = dim1, y = dim2, colour = nome),
+             shape = 18, size = 5) +
+  ggrepel::geom_text_repel(data = proj_grupos, aes(x = dim1, y = dim2, label = nome, colour = nome),
+                           size = 3.5, fontface = "bold", seed = SEED) +
+  scale_colour_manual(values = pal_agri) +
+  labs(x = "Dimensão 1", y = "Dimensão 2", colour = NULL,
+       title = "Grupos e termos no mesmo plano",
+       subtitle = "Análise de correspondência da tabela tema por termo") +
+  coord_equal()
+```
+
+A leitura da figura @fig-m6-ca é imediata e vale como teste visual do que os
+resíduos já disseram. Os três losangos formam um triângulo no plano, e cada um
+atrai os seus próprios termos: `soil carbon`, `soil organic matter` e
+`green manure` pousam à esquerda, junto do losango de carbono; `remote sensing`,
+`vegetation index` e `yield prediction` descem para a base do gráfico, junto do
+losango de remoto; e o losango de silício fica isolado à direita, com os seus
+termos. Note que o eixo vertical é que separa remoto dos demais: os termos de
+sensoriamento têm coordenada 2 fortemente negativa, e é essa a dimensão de
+contraste que o algoritmo encontrou. Os termos de silício e de carbono, por sua
+vez, separam-se na horizontal.
+
+A distância entre os centros dos grupos é a versão gráfica do V de Cramér de
+`r round(cmp_tema$cramers_v, 3)`: grupos distantes no plano produzem associação
+forte. Faça o mesmo exercício com `group_ca(cmp_per)` e você verá os dois períodos
+praticamente sobrepostos, com os termos de automação como a única estrutura
+visível — o V de `r round(cmp_per$cramers_v, 3)` desenhado.
+
+## Quantas dimensões a estrutura tem: MCA e a leitura do scree
+
+A análise de correspondência múltipla (MCA) generaliza o exercício anterior para
+várias variáveis ao mesmo tempo: em vez de uma tabela de grupos por termos, ela
+trata cada termo como uma variável binária e mede quanta estrutura existe em cada
+dimensão. O valor diagnóstico está na **distribuição** da variância, não no
+primeiro componente.
+
+```{r tbl-m6-mca}
+mca_tema <- group_mca(x_analise, g_tema, entity = "keyword")
+mca_per <- group_mca(x_analise, g_per, entity = "keyword", ncp = 3)
+eig_tema <- as.data.frame(mca_tema$eig)
+# os nomes das colunas vem do FactoMineR e tem espacos: guardamos os valores
+# em vetores de nome simples para poder interpolar na prosa
+mca_var   <- eig_tema[["percentage of variance"]]
+mca_var_cum <- eig_tema[["cumulative percentage of variance"]]
+eig_tema$dimensao <- rownames(mca_tema$eig)
+knitr::kable(eig_tema[, c("dimensao", "eigenvalue", "percentage of variance", "cumulative percentage of variance")],
+             row.names = FALSE, digits = 2,
+             caption = "Autovalores da análise de correspondência múltipla do contraste por tema: variância explicada por dimensão e acumulada.")
+cat("MCA do contraste por periodo, dimensoes 1 a", nrow(mca_per$eig), ":\n")
+print(round(as.data.frame(mca_per$eig)[, c("eigenvalue", "percentage of variance")], 3))
+```
+
+A dimensão 1 explica `r round(mca_var[1], 1)`% da
+variância e a dimensão 2, `r round(mca_var[2], 1)`%, somando
+`r round(mca_var_cum[2], 1)`% nas duas
+primeiras. Esse número é o que surpreende quem espera encontrar muita estrutura
+num acervo de 280 obras: menos da metade da variância cabe em duas dimensões.
+A interpretação correta **não** é que a análise fracassou. Como todas as
+variáveis são termos raros (a maioria aparece em menos de 30% das obras), a MCA
+tem muitas dimensões com pouca variância cada uma, e isso é a assinatura de um
+conjunto de variáveis binárias esparsas. A estrutura real está na cauda curta:
+as primeiras dimensões concentram a associação entre temas e vocabulário, e a
+cauda longa é ruído de termos que aparecem em poucas obras.
+
+```{r}
+#| label: fig-m6-mca
+#| fig-cap: "Percentual de variância explicada por dimensão na análise de correspondência múltipla, nos contrastes por tema e por período. A leitura correta é pela forma da distribuição, não pelo valor da primeira barra."
+#| fig-alt: "Gráfico de barras agrupadas por dimensão da análise de correspondência múltipla, mostrando o percentual de variância explicada em cada dimensão para os contrastes por tema e por período."
+dados_mca <- rbind(
+  data.frame(contraste = "Tema (3 grupos)", dimensao = seq_len(nrow(mca_tema$eig)),
+             variancia = mca_tema$eig[, "percentage of variance"]),
+  data.frame(contraste = "Período (2 grupos)", dimensao = seq_len(nrow(mca_per$eig)),
+             variancia = mca_per$eig[, "percentage of variance"]))
+ggplot(dados_mca, aes(x = factor(dimensao), y = variancia, fill = contraste)) +
+  geom_col(position = position_dodge(width = .8), width = .72) +
+  geom_text(aes(label = sprintf("%.1f", variancia)),
+            position = position_dodge(width = .8), vjust = -0.4, size = 2.6) +
+  scale_fill_manual(values = pal_agri) +
+  labs(x = "Dimensão", y = "Variância explicada (%)", fill = NULL,
+       title = "Mais dimensões não significam mais estrutura",
+       subtitle = "Concentração nas primeiras dimensões separa sinal de ruído") +
+  theme(legend.position = "bottom")
+```
+
+A figura @fig-m6-mca pede uma leitura em duas etapas. Primeiro, a concentração: a dimensão
+1 do contraste por tema explica `r round(mca_var[1], 1)`%
+contra `r round(mca_var[length(mca_var)], 1)`% da última
+dimensão mostrada — há hierarquia clara. Segundo, a comparação entre contrastes:
+o contraste por período tem dimensões iniciais **mais fracas** que o contraste por
+tema, o que é a mesma informação do V de Cramér lida de outro ângulo. A armadilha
+que a figura previne é a leitura ingênua de "a análise só explicou 25%", que
+levaria o leitor a descartar um resultado real: em MCA de variáveis binárias
+esparsas, 25% na primeira dimensão é bastante.
+
+## Sensibilidade: o resultado sobrevive a outras regras de corte
+
+Um achado só merece crédito se não depender de uma decisão arbitrária do
+pesquisador. No vocabulário, a decisão arbitrária óbvia é **quanto um termo
+precisa ser frequente para entrar na análise**. `sensitivity_analysis()` repete a
+inferência com limiares crescentes e devolve, para cada limiar, quantos termos
+sobraram, o V de Cramér e o p-valor.
+
+```{r tbl-m6-sensibilidade}
+sens <- sensitivity_analysis(x_analise, g_per, thresholds = 1:3,
+                             permutations = 199, seed = SEED)
+# limiar extremo: serve para medir o limite do proprio metodo de sensibilidade
+sens_extremo <- sensitivity_analysis(x_analise, g_per, thresholds = 50,
+                                     permutations = 199, seed = SEED)
+# a mesma grade com mais permutacoes, para mostrar o que o p-valor faz quando
+# ele deixa de empatar no minimo alcancavel
+sens_499 <- sensitivity_analysis(x_analise, g_per, thresholds = 1:3,
+                                 permutations = 499, seed = SEED)
+knitr::kable(sens, row.names = FALSE, digits = 4,
+             caption = "Sensibilidade do contraste por período ao limiar de frequência mínima do termo: número de termos restantes, V de Cramér e p-valor por permutação.")
+```
+
+Os três limiares testados deixam `r paste(unique(sens$entities), collapse = " e ")`
+termos — ou seja, todos os `r ncol(cmp_per$observed)` sobrevivem a um corte de três
+obras —, o V é exatamente `r round(unique(sens$cramers_v), 4)` nos três, e o
+p-valor também não se move: `r min(sens$p_value)` em toda a grade. Como esse é
+justamente o menor p-valor alcançável com `r sens$permutations[1]` permutações, a
+leitura correta é que o acaso não produziu, em nenhum dos três testes, associação
+tão forte quanto a observada. A **estabilidade** desses números é a informação que
+se procura: quando o resultado não se move ao longo de uma grade razoável de
+limiares, ele é uma propriedade do acervo, não do ponto de corte escolhido.
+
+A instabilidade significaria o contrário, e vale saber reconhecê-la. Se o V
+oscilasse de 0,10 a 0,40 entre limiares, a conclusão dependeria de uma decisão que o
+autor tomou sem justificar, e o achado deveria ser rebaixado a "exploratório" até
+que uma regra fosse fixada **a priori**. Vale notar também um detalhe de leitura dos
+p-valores: eles são os mesmos nos três limiares porque o qui-quadrado observado é o
+mesmo e nenhum dos reembaralhamentos o alcançou. Repetindo a análise com mais
+permutações, os três p-valores deixam de ser idênticos — com
+`permutations = 499` eles passam a
+`r paste(sens_499$p_value, collapse = ", ")`
+—, e a diferença entre eles é ruído de reamostragem, não sinal.
+
+O teste tem limites, e é honesto medi-los. Empurrando o limiar até o extremo,
+o número de termos cai: com `thresholds = 50` restam
+`r sens_extremo$entities` termos e o V passa a
+`r round(sens_extremo$cramers_v, 4)`.
+Com um limiar alto demais o que se testa é outro contraste, sobre outro
+vocabulário, e a estabilidade deixa de ser uma notícia. A regra prática é varrer
+limiares que ainda preservem os termos substantivos da pergunta.
+
+```{r}
+#| label: fig-m6-sensibilidade
+#| fig-cap: "V de Cramér e p-valor do contraste por período ao longo da grade de limiares de frequência mínima dos termos. A linha horizontal marca o V observado no limiar 1; a faixa sombreada é o erro-padrão aproximado do V sob independência."
+#| fig-alt: "Dois painéis: no primeiro, pontos de V de Cramér praticamente sobrepostos ao longo dos limiares 1, 2 e 3; no segundo, p-valores também estáveis, todos abaixo de 0,01."
+#| fig-height: 4.2
+sens_longo <- rbind(
+  data.frame(limiar = sens$threshold, medida = "V de Cramér", valor = sens$cramers_v),
+  data.frame(limiar = sens$threshold, medida = "p-valor", valor = sens$p_value))
+sens_longo$medida <- factor(sens_longo$medida, levels = c("V de Cramér", "p-valor"))
+ggplot(sens_longo, aes(x = factor(limiar), y = valor)) +
+  geom_col(fill = pal_agri[1], width = .55) +
+  geom_text(aes(label = sprintf("%.4f", valor)), vjust = -0.45, size = 2.8) +
+  facet_wrap(~ medida, scales = "free_y") +
+  labs(x = "Limiar de frequência mínima do termo (obras)",
+       y = NULL,
+       title = "O resultado não depende do ponto de corte",
+       subtitle = "Mesmo contraste, mesma semente, três regras de seleção de termos")
+```
+
+A figura @fig-m6-sensibilidade é o que se põe no material suplementar de um artigo.
+A leitura é que as três barras de cada painel são indistinguíveis entre si e também
+indistinguíveis do valor pontual do contraste completo. No caso do V, a precisão do
+método é o erro-padrão aproximado de
+`r round(1 / sqrt(sum(cmp_per$observed) * min(nrow(cmp_per$observed) - 1, ncol(cmp_per$observed) - 1)), 4)`
+calculado para `r sum(cmp_per$observed)` pares obra-termo, e as três barras cabem
+dentro dessa precisão. Não há tendência sistemática de alta ou queda ao longo dos
+limiares, e é a ausência de tendência, e não a igualdade exata, que constitui a
+evidência de robustez — a igualdade exata das barras é consequência de o limiar não
+ter removido nenhum termo, como discutimos.
+
+## Cobertura e sobreposição entre bases
+
+O último uso da comparação de grupos não é entre temas, e sim entre **fontes**.
+Quem faz revisão sistemática exporta o mesmo acervo de três bases diferentes e
+precisa responder quanto cada base cobre e quanto elas se sobrepõem, porque é
+desse número que sai a justificativa do esforço de busca.
+
+```{r tbl-m6-fontes}
+cs <- compare_sources(corpus_analitico = x_analise, acervo_didatico = x_did)
+knitr::kable(cs$coverage, row.names = FALSE,
+             caption = "Cobertura de cada base: total de registros e registros distintos segundo a chave de identificação do pacote.")
+knitr::kable(cs$overlap, row.names = FALSE,
+             caption = "Sobreposição entre as bases: número de obras presentes simultaneamente nas duas.")
+```
+
+A tabela de cobertura mostra `r cs$coverage$records[1]` registros na primeira base
+e `r cs$coverage$records[2]` na segunda, todos distintos dentro de cada base
+(`unique` igual a `records`). A sobreposição é de
+`r cs$overlap$intersection[1]` obra — as duas bases não compartilham nada, o que
+faz sentido aqui porque uma é simulada e a outra é o acervo didático do pacote.
+O exercício ganha sentido quando as bases vêm do mesmo domínio: rode
+`compare_sources(scopus = ..., wos = ..., openalex = ...)` com as suas exportações
+e a coluna `intersection` dirá quantas obras você encontraria buscando só numa
+delas. Para revisão sistemática, essa é a evidência de que a segunda base
+acrescenta material novo e não apenas trabalho de triagem.
+
+O nome das bases vem do nome dos argumentos, e é por isso que a chamada acima
+usa nomes em vez de posições. Sem nomes, o pacote rotula as colunas como
+`source1` e `source2`, e a tabela deixa de ser autoexplicativa. Vale também
+registrar um comportamento que surpreende: a função foi escrita para comparar
+**pelo menos duas** bases, e a chamada com uma só falha.
+
+```{r m6-fontes-erro}
+erro_mensagem <- function(expr) {
+  # helper local: devolve a mensagem de erro como texto, para poder imprimi-la
+  tryCatch({ force(expr); "(nenhum erro)" }, error = function(e) conditionMessage(e))
+}
+cat("compare_sources com uma base apenas:\n")
+cat("  ", erro_mensagem(compare_sources(apenas_uma = x_analise)), "\n")
+```
+
+A mensagem `n < m` vem de dentro do `combn()` que enumera os pares, e não diz nada
+ao usuário sobre o que fazer. A consequência prática é pequena — comparar uma
+base com nada não é uma análise —, mas quem tenta usar a função para conferir a
+contagem de registros de um único acervo perde tempo até perceber. A conferência
+de um acervo só se faz por outras vias, como `nrow(x$works)`.
+
+## Grupos que se cruzam: o que `$overlap` significa
+
+Toda a discussão anterior usou grupos disjuntos: cada obra pertence a um período
+e a um tema, e a nenhum outro. Mas os grupos que interessam em agronomia
+raramente são assim. Uma obra pode estar publicada em uma revista de solo **e**
+tratar de silício; um experimento pode ser de sequeiro **e** de cobertura morta.
+Construa dois grupos que se cruzam de fato, um definido pelo periódico e outro
+pelo tema do título.
+
+```{r m6-sobrepostos}
+# grupo A: obras nas duas revistas que o corpus B trata com bonus de citacao
+fonte_bonus <- x_analise$works$source %in%
+  c("Field Crops Research", "Soil Biology & Biochemistry")
+# grupo B: obras cujo titulo e da frente de silicio
+silicio <- grepl("^Silício", x_analise$works$title)
+g_cruz <- form_groups(x_analise, cbind(revista_bonus = fonte_bonus, silicio = silicio))
+
+cat("obras nas revistas A:", sum(fonte_bonus), "\n")
+cat("obras no tema silicio:", sum(silicio), "\n")
+cat("obras nos DOIS grupos:", sum(fonte_bonus & silicio), "\n")
+cat("obras so em A:", sum(fonte_bonus & !silicio), "| so em B:", sum(silicio & !fonte_bonus),
+    "| em nenhum:", sum(!fonte_bonus & !silicio), "\n")
+cat("linhas com mais de um grupo:", sum(rowSums(g_cruz) > 1), "\n\n")
+
+cmp_cruz <- compare_groups(x_analise, g_cruz, entity = "keyword",
+                           permutations = 499, seed = SEED)
+cat("campo overlap do resultado:", cmp_cruz$overlap, "\n")
+cat("qui-quadrado:", round(cmp_cruz$chi_square, 1), "| p:", cmp_cruz$p_value,
+    "| V:", round(cmp_cruz$cramers_v, 3), "\n")
+cat("linhas da tabela observada:", paste(rownames(cmp_cruz$observed), collapse = " | "), "\n")
+```
+
+Aqui `r sum(fonte_bonus & silicio)` obras pertencem aos dois grupos ao mesmo
+tempo: publicadas nas revistas de bônus e sobre silício. É esse o sentido do
+campo `$overlap = TRUE` — existe pelo menos uma obra com mais de um rótulo. Nos
+contrastes por período e por tema, o campo devolveu `FALSE` porque cada obra
+recebia exatamente um rótulo. Nem sempre é assim, e o pacote não trata a
+sobreposição como erro: trata como a situação normal.
+
+O cruzamento não invalida a inferência, mas obriga a escolher a hipótese nula
+com cuidado. Se a obra que está nos dois grupos fosse contada duas vezes, ela
+entraria duas vezes na estatística e inflaria a associação. O pacote evita isso
+montando **uma linha por obra** com todas as suas colunas de pertencimento, de
+modo que cada obra pesa uma vez em cada grupo, e nunca duas vezes no total. A
+figura seguinte decompõe os grupos.
+
+```{r}
+#| label: fig-m6-sobreposicao
+#| fig-cap: "Decomposição dos dois grupos que se cruzam. Cada par de barras mostra quantas obras do grupo são exclusivas dele e quantas são compartilhadas com o outro grupo."
+#| fig-alt: "Quatro barras agrupadas duas a duas, uma para o grupo de revistas com bônus e outra para o grupo de silício. Em cada grupo, a barra das obras compartilhadas com o outro grupo tem altura parecida com a barra das obras exclusivas do grupo."
+#| fig-height: 4.2
+# o que a independencia entre os dois rotulos preveria para a intersecao
+esperado_cruz <- sum(fonte_bonus) * sum(silicio) / nrow(g_cruz)
+estrutura <- data.frame(
+  grupo = rep(c("Revistas com bônus", "Tema silício"), each = 2),
+  parte = rep(c("Exclusivas do grupo", "Compartilhadas com o outro"), 2),
+  trabalhos = c(sum(fonte_bonus & !silicio), sum(fonte_bonus & silicio),
+                sum(silicio & !fonte_bonus), sum(silicio & fonte_bonus)))
+ggplot(estrutura, aes(x = grupo, y = trabalhos, fill = parte)) +
+  geom_col(position = position_dodge(width = .62), width = .58) +
+  geom_text(aes(label = trabalhos), position = position_dodge(width = .62),
+            vjust = -0.45, size = 3.1) +
+  annotate("text", x = 1.5, y = Inf, vjust = 2, size = 3, colour = "grey30",
+           label = sprintf("interseção esperada sob independência: %.1f trabalhos", esperado_cruz)) +
+  scale_fill_manual(values = c(pal_agri[3], pal_agri[1])) +
+  scale_y_continuous(expand = expansion(mult = c(0, .18))) +
+  labs(x = NULL, y = "Trabalhos", fill = NULL,
+       title = "Grupos que se cruzam são a regra, não a exceção",
+       subtitle = "As obras compartilhadas aparecem nos dois grupos, e por isso são contadas uma vez em cada") +
+  theme(legend.position = "bottom")
+```
+
+A figura @fig-m6-sobreposicao fecha o argumento, e a leitura tem duas partes. A primeira é a
+existência da interseção: `r sum(fonte_bonus & silicio)` obras aparecem nas duas
+barras, e é isso que o campo `$overlap` sinaliza. A segunda é a magnitude, e aqui
+o resultado desmente a expectativa. A razão entre a interseção observada e a
+esperada sob independência é de `r round(sum(fonte_bonus & silicio) / esperado_cruz, 2)`
+— ou seja, **exatamente o que o azar produziria**. A conta fica evidente quando
+escrita como proporção: `r round(100 * mean(fonte_bonus), 1)`% do acervo está nas
+duas revistas com bônus e `r round(100 * mean(silicio), 1)`% é de silício; se os
+dois rótulos fossem independentes, a interseção esperada seria o produto dessas duas
+proporções, `r round(100 * mean(fonte_bonus) * mean(silicio), 2)`% do acervo,
+ou `r round(esperado_cruz, 1)` obras. A interseção observada é de
+`r round(100 * mean(fonte_bonus & silicio), 1)`% do acervo. A figura mostra as duas
+barras de cada grupo lado a lado, e o valor de referência no alto do gráfico é o que
+a independência previria.
+
+O que isso ensina é a separar três perguntas que se confundem com facilidade.
+A primeira, "os dois rótulos se cruzam?", se responde com
+`r sum(fonte_bonus & silicio)` obras e com o campo `$overlap`. A segunda, "o
+cruzamento é maior que o esperado?", se responde comparando a interseção com
+`r round(esperado_cruz, 1)` e, aqui, a resposta é não. A terceira, "o vocabulário
+depende dos grupos?", se responde com o V de Cramér, que neste contraste vale
+`r round(cmp_cruz$cramers_v, 3)` e é forte — e essa associação forte **não** vem do
+cruzamento, e sim da composição temática das duas revistas, que publicam sobretudo
+trabalho de solo. Um leitor apressado olharia o V de
+`r round(cmp_cruz$cramers_v, 3)`, veria `$overlap = TRUE` e escreveria que a
+sobreposição entre periódico e tema explica o vocabulário. A conferência da
+interseção contra o valor esperado mostra que a explicação está na composição de
+cada grupo, e não no cruzamento.
+
+O ponto final é **o que o pacote faz com a sobreposição na hora de reembaralhar**,
+e a resposta está no código de `compare_groups()`: o reembaralhamento permuta
+**linhas inteiras** da matriz de pertencimento.
+
+```{r m6-permutacao-linhas}
+# reconstruimos o mecanismo do pacote para ele ficar visivel
+# a semente fixa garante que o passo a passo a seguir seja sempre o mesmo
+set.seed(SEED)
+# o numero de obras com os dois rotulos no acervo inteiro, antes de reembaralhar
+cat("obras com os dois rotulos no acervo:", sum(rowSums(g_cruz) > 1), "\n\n")
+
+# um reembaralhamento unico, completo, como o pacote faz em cada permutacao
+gp <- g_cruz[sample.int(nrow(g_cruz)), , drop = FALSE]
+cat("obras com os dois rotulos depois de reembaralhar:", sum(rowSums(gp) > 1), "\n")
+cat("tamanho dos grupos antes:", paste(colSums(g_cruz), collapse = " e "),
+    "| depois:", paste(colSums(gp), collapse = " e "), "\n\n")
+
+# a assinatura do mecanismo esta na frequencia dos quatro padroes de pertencimento
+padroes <- function(m) table(apply(m, 1, paste, collapse = ""))
+cat("frequencia dos padroes de pertencimento (0/1 por grupo):\n")
+cat("antes do reembaralhamento:", paste(names(padroes(g_cruz)), padroes(g_cruz), sep = "=", collapse = "  "), "\n")
+cat("depois do reembaralhamento:", paste(names(padroes(gp)), padroes(gp), sep = "=", collapse = "  "), "\n\n")
+
+# e o detalhe que explica por que isso acontece: cada linha viaja inteira
+cat("as seis primeiras posicoes do acervo, antes:\n")
+print(unname(g_cruz[1:6, , drop = FALSE]))
+cat("as mesmas seis posicoes, depois do reembaralhamento:\n")
+print(unname(gp[1:6, , drop = FALSE]))
+```
+
+A saída mostra a propriedade que a implementação preserva, e ela é exatamente a
+que se quer. A frequência dos quatro padrões de pertencimento é idêntica antes e
+depois: `r paste(names(padroes(g_cruz)), padroes(g_cruz), sep = "=", collapse = "  ")`.
+O número de obras com os dois rótulos continua
+`r sum(rowSums(g_cruz) > 1)` depois de reembaralhar, e os tamanhos dos dois grupos
+também não mudam: `r paste(colSums(g_cruz), collapse = " e ")` antes, os mesmos
+valores depois. Permutar linhas inteiras mantém cada obra com o seu **conjunto**
+de rótulos — a linha `1 1` continua sendo `1 1`, apenas atribuída a outra posição
+do acervo, e por isso o padrão de sobreposição sobrevive intacto.
+
+A alternativa ingênua seria permutar cada coluna de forma independente. Duas
+coisas mudariam, e as duas são graves. Primeiro, o número de obras pertencentes
+aos dois grupos deixaria de ser `r sum(rowSums(g_cruz) > 1)` e passaria a variar
+a cada permutação, de modo que o mecanismo testado seria outro — não mais
+"reorganize estas obras entre os grupos que elas já formam", e sim "sorteie
+rótulos do zero". Segundo, e pior para a interpretação, a dependência entre os
+grupos seria destruída: o teste perderia poder justamente quando a sobreposição é
+a informação de interesse. Com linhas inteiras, a hipótese nula que se testa é
+precisa e defensável: **os grupos têm os tamanhos e as sobreposições que têm, e o
+que se reembaralha é a ligação entre pertencer a um grupo e empregar um
+vocabulário**. É essa ligação, e só ela, que a permutação coloca à prova.
+
+## Tarefas do Módulo 6
+
+**Tarefa 6.1 (aplicar).** O acervo analítico traz obras em nove periódicos. Rode
+`table(x_analise$works$source)` para ver a distribuição e construa **dois** grupos
+de periódico cujos nomes contenham `"Soil"` e `"Agronomy"`, mantendo as demais
+obras fora dos dois grupos. Forme a matriz com `form_groups()`, rode
+`compare_groups()` com `entity = "keyword"`, `permutations = 499` e `seed = SEED`
+e informe o V de Cramér. Depois use `association_residuals()` com `min_abs = 2` e
+relate quais termos caracterizam cada grupo de periódico.
+
+**Tarefa 6.2 (analisar).** Rode `sensitivity_analysis()` sobre o contraste por
+**tema** com `thresholds = c(1, 2, 5, 10)` e `permutations = 199`. Compare o
+comportamento das colunas `cramers_v`, `p_value` e `entities` com o que foi
+observado no contraste por período. Em um parágrafo, responda a duas perguntas:
+o limiar filtra **termos** ou filtra **obras**, e por que a coluna `entities`
+quase não se move neste acervo mesmo com o limiar em 10?

@@ -1,0 +1,791 @@
+# Módulo 10. Python e Biblium: validação cruzada de motores
+
+## O problema agronômico
+
+Um grupo de pesquisa em fertilidade do solo e nutrição de plantas encerrou a
+coleta de um acervo sobre silício e tolerância a estresses abióticos: `r nrow(x_analise$works)`
+publicações organizadas por período, com palavras-chave de autor padronizadas. A
+pergunta que o grupo precisa responder ao revisor é modesta e desconfortável: a
+associação entre o vocabulário de cada trabalho e o período em que ele foi
+publicado é real ou é artefato do software com que foi calculada? Todo
+bibliometricista já ouviu essa objeção. Quando duas implementações independentes
+do mesmo teste discordam, o revisor tem razão de desconfiar; quando concordam, a
+evidência ganha uma robustez que nenhuma delas isolada oferece.
+
+Na prática agronômica essa dúvida não é filosófica. Ao comparar um acervo de
+2010-2019 com outro de 2020-2025, o leitor vai querer saber se o deslocamento do
+vocabulário rumo ao sensoriamento remoto e ao aprendizado de máquina reflete
+mudança real de linha de pesquisa ou apenas o aumento do volume de publicações
+recentes. A estatística que responde a isso é uma medida de associação entre a
+tabela de grupos e a tabela de entidades — chi-quadrado, V de Cramér e o p-valor
+por permutação. Se o mesmo acervo, entregue a outro motor, devolve o mesmo
+chi-quadrado e a mesma V, o número publicado deixa de depender da escolha do
+software. Esse é o tipo de garantia que sustenta uma afirmação no capítulo de
+Resultados.
+
+O `biblioIntegrator` foi construído para ter duas implementações do mesmo
+caminho analítico: uma nativa, escrita em R, e uma delegada ao **Biblium**,
+biblioteca Python de análise bibliométrica. Neste módulo você não vai escolher
+entre elas por preferência estética. Você vai usar a função `validate_biblium()`
+para confrontar as duas e aprender a ler o resultado do confronto: o que a
+concordância prova, o que ela não prova, quanto de divergência é aceitável e como
+investigar quando a divergência tem uma causa identificável no próprio acervo.
+
+## O que o motor Python acrescenta
+
+A arquitetura do pacote é explícita: todo motor opcional é detectado em tempo de
+execução. Se o Biblium estiver acessível, o caminho Python fica disponível; se
+não estiver, as funções nativas continuam funcionando e o documento não quebra.
+A primeira tarefa, portanto, é saber com que instrumento se está trabalhando.
+
+```{r m10-status-python}
+#| tbl-cap: "Estado do backend Python e da biblioteca Biblium nesta máquina."
+pbs10 <- python_backend_status()
+bbs10 <- biblium_backend_status()
+status10 <- data.frame(
+  campo = c("available", "python", "version", "reason"),
+  python_backend_status = c(as.character(pbs10$available), pbs10$python,
+                            pbs10$version, pbs10$reason),
+  biblium_backend_status = c(as.character(bbs10$available), bbs10$python,
+                             bbs10$version, bbs10$reason),
+  stringsAsFactors = FALSE)
+knitr::kable(status10, row.names = FALSE)
+```
+
+As duas funções são sinônimas: `python_backend_status()` chama
+`biblium_backend_status()`. O campo `available` responde se o módulo `biblium`
+pôde ser importado; `version` devolve a versão da biblioteca; `reason` traz
+`"ok"` quando tudo funcionou e uma explicação curta quando não. O campo que
+merece atenção é `python`: ele mostra o **interpretador efetivamente em uso**,
+não o que você pediu. Nesta máquina, o backend responde
+`available = `r pbs10$available`` com a versão `r pbs10$version`, obtida do
+interpretador registrado em
+
+```{r m10-caminho-python}
+#| echo: true
+cat(pbs10$python, "\n")
+```
+
+Guardar esse caminho é parte da reprodutibilidade. Duas pessoas com o mesmo
+`biblioIntegrator` e o mesmo acervo podem obter resultados diferentes se estiverem
+apontando para ambientes Python diferentes, com versões diferentes do Biblium. A
+linha acima é o que você cola no Material e Métodos quando o revisor pergunta
+qual software foi usado.
+
+## Duas rotas de instalação
+
+Existem duas maneiras de colocar o Biblium à disposição do R, e elas servem a
+situações distintas.
+
+A primeira cria um ambiente virtual isolado, com as dependências resolvidas pelo
+próprio pacote. É a rota de quem parte de uma máquina limpa. O bloco abaixo não
+é executado na renderização deste tutorial porque baixa pacotes da internet e
+leva alguns minutos; o código está completo para você rodar no seu terminal.
+
+```{r m10-install-biblium}
+#| eval: false
+# Rota (a): ambiente virtual isolado, criado e populado pelo pacote.
+# - envname: nome do ambiente virtual do Python (nao colide com outros projetos)
+# - version: versao exata do Biblium, fixada para reprodutibilidade
+# - a funcao instala biblium, huggingface_hub e plotly dentro do ambiente
+# - ao final, ela emite a mensagem com o caminho do interpretador criado
+caminho_novo <- install_biblium_backend(
+  envname = "r-bibliointegrator",
+  version = "2.16.0"
+)
+
+# A propria funcao avisa o que fazer em seguida:
+#   Set options(biblioIntegrator.python = "...") before initializing Python.
+options(biblioIntegrator.python = caminho_novo)
+
+# Confirme. Se available vier FALSE, o problema esta no ambiente, nao no acervo.
+python_backend_status()
+```
+
+A segunda rota aponta para um interpretador que **já** tem o Biblium instalado —
+por exemplo, um ambiente gerenciado com `uv`, um `conda env` do laboratório ou o
+Python do servidor de cálculo do departamento. Não há download, só registro.
+
+```{r m10-enable-python}
+# Rota (b): registrar um interpretador ja existente.
+# A funcao grava a opcao E devolve o status, para que voce confira na mesma linha.
+status_rotab <- enable_python_backend(pbs10$python)
+status_rotab[c("available", "version", "python")]
+```
+
+### Como o pacote resolve o interpretador
+
+Vale conhecer a ordem de precedência, porque ela é contraintuitiva e é a origem
+da maior parte dos problemas de "instalei mas não funciona". A função interna
+`.bi_python()` decide na seguinte sequência:
+
+1. o argumento `python` passado diretamente à função, se houver;
+2. a variável de ambiente `BIBLIOINTEGRATOR_PYTHON`, se estiver definida e não vazia;
+3. a opção `options(biblioIntegrator.python)`;
+4. se nenhuma das anteriores existir, o interpretador padrão do `reticulate`.
+
+A consequência prática é que **a variável de ambiente ganha da opção**. Quem
+define `BIBLIOINTEGRATOR_PYTHON` no `.Renviron` e depois tenta corrigir o caminho
+com `options()` não vai ver efeito nenhum. O experimento abaixo demonstra a
+precedência; ele é executado em um processo R separado para não contaminar o
+ambiente deste documento.
+
+```{r m10-precedencia}
+# Demonstracao da ordem de resolucao em dois processos R independentes.
+# Cada cenario precisa de um processo novo: dentro de uma mesma sessao o
+# reticulate fixa o interpretador na primeira chamada e o cache de status
+# devolve o resultado anterior, mascarando o efeito que queremos mostrar.
+dir_tmp10 <- tempdir()
+script10 <- file.path(dir_tmp10, "_m10_precedencia.R")
+caminho_bom10 <- pbs10$python
+caminho_ruim10 <- "C:/caminho/que/nao/existe/python.exe"
+# Os caminhos entram no script por substituicao literal de marcador, e nao por
+# sprintf vetorizado: com um vetor de formatos, o R casa formato e argumento por
+# posicao e reaproveita o mesmo argumento, silenciosamente, nas duas linhas.
+linhas10 <- c(
+  'ck <- "D:/RLibrary"; if (dir.exists(ck)) .libPaths(c(ck, .libPaths()))',
+  'suppressPackageStartupMessages(library(biblioIntegrator))',
+  'cenario <- commandArgs(trailingOnly = TRUE)[1]',
+  'bom  <- "@BOM@"',
+  'ruim <- "@RUIM@"',
+  'if (cenario == "env contra option") {',
+  '  Sys.setenv(BIBLIOINTEGRATOR_PYTHON = bom)',
+  '  options(biblioIntegrator.python = ruim)',
+  '} else {',
+  '  Sys.setenv(BIBLIOINTEGRATOR_PYTHON = ruim)',
+  '  options(biblioIntegrator.python = bom)',
+  '}',
+  's <- python_backend_status()',
+  'cat(sprintf("available=%-5s version=%-8s reason=%s",',
+  '            s$available, s$version, s$reason))')
+linhas10 <- gsub("@BOM@", caminho_bom10, linhas10, fixed = TRUE)
+linhas10 <- gsub("@RUIM@", caminho_ruim10, linhas10, fixed = TRUE)
+writeLines(linhas10, script10)
+
+rscript10 <- file.path(R.home("bin"), "Rscript")
+saida10 <- do.call(rbind, lapply(c("env contra option", "option contra env"), function(ce) {
+  out <- system2(rscript10, c(shQuote(script10), shQuote(ce)),
+                 stdout = TRUE, stderr = TRUE)
+  data.frame(cenario = ce, resultado = out[grepl("available=", out)],
+             stringsAsFactors = FALSE)
+}))
+# Desfecho do cenario em que a variavel de ambiente aponta para o caminho errado.
+desfecho_ruim10 <- saida10$resultado[saida10$cenario == "option contra env"]
+```
+
+```{r tbl-m10-precedencia}
+#| tbl-cap: "Ordem de resolucao do interpretador Python: a variavel de ambiente BIBLIOINTEGRATOR_PYTHON tem precedencia sobre a opcao biblioIntegrator.python."
+knitr::kable(saida10, row.names = FALSE,
+             col.names = c("Cenario", "python_backend_status()"))
+```
+
+O primeiro cenário mostra o ambiente válido vencendo a opção inválida. O segundo
+mostra o efeito mais importante: com a variável de ambiente apontando para um
+caminho inexistente, o resultado deixa de ser `available = TRUE` e passa a ser
+`r desfecho_ruim10`. Duas coisas acontecem aí. A opção válida é simplesmente
+ignorada, porque o ambiente tem precedência. E o `reticulate`, ao receber um
+caminho que não existe, **cai silenciosamente para o interpretador padrão dele**,
+em vez de acusar erro de caminho. O `reason` não diz "caminho não encontrado";
+diz `"Biblium could not be imported"`. Um `available = FALSE` com essa razão
+quase sempre significa "o interpretador certo não foi escolhido", não "o Biblium
+está quebrado".
+
+Há um segundo detalhe, ainda mais traiçoeiro: **a escolha do interpretador só tem
+efeito antes da primeira chamada ao Python na sessão R**. Depois que o
+`reticulate` inicializou um interpretador, ele permanece fixado até o fim da
+sessão; chamadas posteriores a `enable_python_backend()` gravam a opção mas não
+trocam o processo em execução. É por isso que a mensagem de
+`install_biblium_backend()` insiste em "before initializing Python". Em um script
+de análise, a ordem correta é: definir o caminho, depois carregar os dados,
+depois chamar qualquer função de Python.
+
+## A ponte de formato: por que `to_biblium()` existe
+
+O Biblium é uma biblioteca Python e espera um `pandas.DataFrame` com nomes de
+coluna próprios, herdados da convenção do `bibliometrix`: `Title`, `Year`,
+`Authors` e `Author Keywords`, com autores e palavras-chave concatenados por
+ponto e vírgula em uma única célula. O objeto do `biblioIntegrator`, por outro
+lado, é relacional: as palavras-chave vivem em uma tabela própria, ligadas às
+obras por `work_id`. A função `to_biblium()` faz essa tradução.
+
+```{r m10-to-biblium}
+# A ponte converte o objeto relacional no formato canonico do Biblium.
+# Os nomes de coluna sao exatamente os que a biblioteca Python espera:
+# Title, Year, Authors e Author Keywords.
+tb10 <- to_biblium(x_analise)
+```
+
+```{r tbl-m10-canonico}
+#| tbl-cap: "Primeiras linhas do data.frame canonico entregue ao Biblium: autores e palavras-chave colapsados por ponto e virgula, uma linha por obra."
+knitr::kable(utils::head(tb10, 3), row.names = FALSE)
+```
+
+```{r m10-comparar-formatos}
+# Formato canonico (o que o Python recebe)
+canonico10 <- data.frame(
+  coluna = names(tb10),
+  tipo = vapply(tb10, function(v) class(v)[1], character(1)),
+  exemplo = vapply(tb10, function(v) substr(as.character(v[1]), 1, 46), character(1)),
+  stringsAsFactors = FALSE)
+
+# Formato interno (o que o R usa)
+interno10 <- data.frame(
+  coluna = c(names(x_analise$works), paste0("keywords: ", names(x_analise$keywords))),
+  tipo = c(vapply(x_analise$works, function(v) class(v)[1], character(1)),
+           vapply(x_analise$keywords, function(v) class(v)[1], character(1))),
+  exemplo = c(vapply(x_analise$works, function(v) substr(as.character(v[1]), 1, 46), character(1)),
+              vapply(x_analise$keywords, function(v) substr(as.character(v[1]), 1, 46), character(1))),
+  stringsAsFactors = FALSE)
+```
+
+```{r tbl-m10-formato}
+#| tbl-cap: "A ponte de formato: de um lado as colunas canonicas que o Biblium exige; de outro, as tabelas relacionais que o biblioIntegrator usa."
+ponte10 <- rbind(
+  data.frame(lado = "canonico (to_biblium)",
+             tabela = paste0("data.frame ", nrow(tb10), " x ", ncol(tb10)),
+             coluna = canonico10$coluna, exemplo = canonico10$exemplo,
+             stringsAsFactors = FALSE),
+  data.frame(lado = "interno (biblio_project)",
+             tabela = c(rep(paste0("works ", nrow(x_analise$works), " x ",
+                                   ncol(x_analise$works)), ncol(x_analise$works)),
+                        rep(paste0("keywords ", nrow(x_analise$keywords), " x ",
+                                   ncol(x_analise$keywords)), ncol(x_analise$keywords))),
+             coluna = interno10$coluna, exemplo = interno10$exemplo,
+             stringsAsFactors = FALSE))
+knitr::kable(ponte10, row.names = FALSE)
+```
+
+A leitura da tabela é direta. Do lado canônico há `r ncol(tb10)` colunas e
+`r nrow(tb10)` linhas: uma linha por obra, com autores e palavras-chave já
+colapsados em texto. Do lado interno há uma tabela de obras com
+`r ncol(x_analise$works)` colunas e uma tabela de palavras-chave com
+`r nrow(x_analise$keywords)` linhas. A palavra-chave `r x_analise$keywords$keyword[1]`,
+por exemplo, aparece como célula dentro de `Author Keywords`, e não como registro
+indexado. A ponte é necessária porque os dois desenhos são incompatíveis: o
+Python quer uma tabela larga, pronta para contagem de ocorrências; o R quer uma
+tabela longa, pronta para junções. Note que a ponte é **de mão única**: não
+existe `from_biblium()`, porque o resultado do Biblium sempre volta como
+estrutura de comparação já interpretada, nunca como acervo.
+
+## Comparação de grupos no motor Biblium
+
+Com a ponte pronta, a comparação de grupos pode ser delegada ao Python. Os grupos
+por período do nosso acervo são: `r paste(sort(unique(per_B)), collapse = " e ")`,
+formados por `form_groups()`.
+
+```{r m10-biblium-compare}
+# O aviso do Biblium nao chega ao R como condicao: o reticulate imprime a
+# mensagem do modulo `warnings` do Python como texto. Interceptar com
+# withCallingHandlers() captura zero condicoes. A forma correta e capturar a
+# saida do proprio Python com py_capture_output().
+saida_py10 <- reticulate::py_capture_output(
+  bcg10 <- biblium_compare_groups(x_analise, g_per, entity = "keyword",
+                                  permutations = 499, seed = SEED))
+
+# Extrai a frase do aviso, descartando o caminho do arquivo Python e o
+# trecho de codigo-fonte que o modulo de avisos imprime na linha seguinte.
+frase_aviso10 <- if (nzchar(saida_py10)[1] && grepl("UserWarning", saida_py10)) {
+  trimws(sub("^.*UserWarning: ", "", strsplit(saida_py10, "\n")[[1]][1]))
+} else "nenhum aviso"
+cat(frase_aviso10, "\n")
+```
+
+O aviso não é um erro e não impede o resultado. Ele diz que os grupos são
+**disjuntos**: cada obra pertence a exatamente um período, de modo que as
+contagens marginais dos grupos são fixas por construção e o chi-quadrado
+assintótico tem distribuição de referência válida. Nesse cenário, permutar os
+rótulos dos grupos não acrescenta informação sobre a hipótese nula — só
+redistribui contagens que já estavam determinadas. O p-valor por permutação
+continua sendo calculado e reportado, mas o próprio autor da biblioteca o
+qualifica como "for completeness only".
+
+A regra que fica é esta: com grupos disjuntos, **cite o teste assintótico**; com
+grupos sobrepostos (uma obra em dois grupos), o assintótico deixa de valer e a
+permutação passa a ser o teste principal. Para ver a diferença, vale construir um
+agrupamento sobreposto com o mesmo acervo: de um lado os trabalhos cujo
+vocabulário inclui termos de sensoriamento remoto e aprendizado de máquina, de
+outro os publicados em periódico brasileiro. As duas condições podem ocorrer na
+mesma obra.
+
+```{r m10-grupos-sobrepostos}
+# Agrupamento sobreposto: uma obra pode estar nos dois grupos.
+kw_ia <- c("machine learning", "deep learning", "uav", "hyperspectral")
+tem_ia <- vapply(seq_len(nrow(x_analise$works)), function(i) {
+  any(x_analise$keywords$keyword[x_analise$keywords$work_id ==
+                                x_analise$works$work_id[i]] %in% kw_ia)
+}, logical(1))
+rev_br <- grepl("Brasileira|Scientia|Agropecu", x_analise$works$source)
+G10 <- cbind(ia = as.integer(tem_ia), br = as.integer(rev_br))
+
+# O mesmo monitoramento, agora no cenario sobreposto.
+saida_py_sob10 <- reticulate::py_capture_output(
+  bcg_sob <- biblium_compare_groups(x_analise, G10, entity = "keyword",
+                                    permutations = 499, seed = SEED))
+tem_aviso_sob10 <- grepl("disjoint", saida_py_sob10)
+
+overlap10 <- data.frame(
+  cenario = c("grupos por periodo", "grupos por tema e veiculo"),
+  obras_no_grupo_1 = c(sum(g_per[, 1]), sum(G10[, 1])),
+  obras_no_grupo_2 = c(sum(g_per[, 2]), sum(G10[, 2])),
+  obras_em_dois_grupos = c(sum(rowSums(g_per) > 1), sum(rowSums(G10) > 1)),
+  aviso_do_biblium = c(if (grepl("disjoint", saida_py10)) "presente" else "ausente",
+                       if (tem_aviso_sob10) "presente" else "ausente"),
+  stringsAsFactors = FALSE)
+```
+
+```{r tbl-m10-disjuncao}
+#| tbl-cap: "Grupos disjuntos contra grupos sobrepostos: quando o Biblium alerta que o teste assintotico e o referencial correto."
+knitr::kable(overlap10, row.names = FALSE,
+             col.names = c("Cenario de agrupamento", "Grupo 1", "Grupo 2",
+                           "Em dois grupos", "Aviso do Biblium"))
+```
+
+No cenário sobreposto o aviso desaparece, porque a premissa que o motivava
+também desapareceu: `r sum(rowSums(G10) > 1)` obras pertencem simultaneamente aos
+dois grupos. Aqui a permutação é o teste adequado, e o p-valor assintótico
+deixaria de ser uma aproximação conservadora para se tornar simplesmente inválido.
+
+## Validação cruzada: o que ela prova e o que ela não prova
+
+A função `validate_biblium()` roda as duas implementações sobre o mesmo acervo,
+com os mesmos grupos, a mesma entidade e a mesma semente, e devolve as três
+métricas lado a lado.
+
+```{r m10-validate}
+# Roda native e biblium e devolve a comparacao das tres metricas.
+# A funcao auxiliar captura a saida textual do Python (o aviso de grupos
+# disjuntos, ja discutido) e devolve o objeto de comparacao, para que o
+# documento nao fique poluido com a mesma mensagem repetida a cada chamada.
+validar_sem_ruido <- function(x, grupos, entity = "keyword",
+                              permutations = 499, seed = NULL) {
+  reticulate::py_capture_output(
+    v <- validate_biblium(x, grupos, entity = entity,
+                          permutations = permutations, seed = seed))
+  v
+}
+
+vb10 <- validar_sem_ruido(x_analise, g_per, entity = "keyword",
+                          permutations = 499, seed = SEED)
+cmp10 <- vb10$comparison
+cmp10$diferenca_relativa_pct <- 100 * abs(cmp10$difference) /
+  pmax(abs(cmp10$native), .Machine$double.eps)
+```
+
+```{r tbl-m10-validacao}
+#| tbl-cap: "Resultado de validate_biblium: as tres metricas calculadas pelo motor nativo (R) e pelo motor Biblium (Python), com a diferenca absoluta e relativa."
+rotulos_metrica10 <- c(chi_square = "chi-quadrado", p_value = "p-valor (permutacao)",
+                       cramers_v = "V de Cramer")
+tab_validacao10 <- data.frame(
+  metrica = unname(rotulos_metrica10[cmp10$metric]),
+  nativo = formatC(cmp10$native, format = "f", digits = 7),
+  biblium = formatC(cmp10$biblium, format = "f", digits = 7),
+  diferenca = formatC(cmp10$difference, format = "f", digits = 7),
+  dif_relativa = sprintf("%.3f%%", cmp10$diferenca_relativa_pct),
+  stringsAsFactors = FALSE)
+knitr::kable(tab_validacao10, row.names = FALSE,
+             col.names = c("Metrica", "Nativo (R)", "Biblium (Python)",
+                           "Diferenca", "Diferenca relativa"))
+```
+
+A leitura da tabela acima é o coração do módulo, e começa pelo que **não** deve
+ser lido nela. A coluna de diferença relativa atribui
+`r sprintf("%.1f", cmp10$diferenca_relativa_pct[2])`% de divergência ao p-valor.
+Isso não quer dizer que os motores discordem sobre a evidência: significa apenas
+que `r sprintf("%.3f", cmp10$native[2])` e `r sprintf("%.3f", cmp10$biblium[2])`
+são múltiplos de `r sprintf("%.3f", 1/(499 + 1))`, o menor p-valor que uma
+distribuição de permutação com `permutations = 499` consegue produzir. No piso da
+escala, a diferença relativa explode sem que nada de substantivo tenha mudado.
+Chi-quadrado e V de Cramér divergem em
+`r sprintf("%.3f", cmp10$diferenca_relativa_pct[1])`% e
+`r sprintf("%.3f", cmp10$diferenca_relativa_pct[3])`% — patamares pequenos, mas
+não desprezíveis, e a seção sobre causas identificáveis mostra de onde eles vêm.
+
+```{r}
+#| label: fig-m10-metricas
+#| fig-cap: "As tres metricas de associacao calculadas pelos dois motores. Cada painel tem escala propria, porque chi-quadrado, p-valor e V de Cramer vivem em ordens de grandeza diferentes."
+#| fig-alt: "Tres paineis de barras; em cada painel, uma barra para o motor nativo e outra para o motor Biblium."
+cmp_longo10 <- rbind(
+  data.frame(metrica = cmp10$metric, motor = "nativo (R)", valor = cmp10$native),
+  data.frame(metrica = cmp10$metric, motor = "Biblium (Python)", valor = cmp10$biblium))
+rotulos10 <- c(chi_square = "chi-quadrado", p_value = "p-valor (permutacao)",
+               cramers_v = "V de Cramer")
+cmp_longo10$metrica <- factor(rotulos10[cmp_longo10$metrica],
+                              levels = unname(rotulos10))
+cmp_longo10$motor <- factor(cmp_longo10$motor,
+                            levels = c("nativo (R)", "Biblium (Python)"))
+ggplot(cmp_longo10, aes(x = motor, y = valor, fill = motor)) +
+  geom_col(width = .6) +
+  geom_text(aes(label = formatC(valor, format = "f", digits = 3)),
+            vjust = -.35, size = 3) +
+  facet_wrap(~ metrica, scales = "free_y") +
+  scale_fill_manual(values = c("nativo (R)" = pal_agri[1],
+                               "Biblium (Python)" = pal_agri[2]),
+                    guide = "none") +
+  scale_y_continuous(expand = expansion(mult = c(0, .18))) +
+  labs(x = NULL, y = NULL,
+       title = "Concordancia entre motores",
+       subtitle = paste0("Mesmo acervo, mesmos grupos, mesma semente (",
+                         SEED, ")"))
+```
+
+@fig-m10-metricas mostra o padrão típico de uma validação
+cruzada bem-sucedida: as barras de chi-quadrado e de V de Cramér praticamente se
+sobrepõem, e apenas o p-valor por permutação oscila. Essa oscilação é
+**esperada**, não é defeito. Os dois motores geram sequências de permutação
+independentes: o R embaralha os rótulos com o gerador do R a partir da semente
+`r SEED`, o Python embaralha com o gerador do NumPy a partir da mesma semente
+inteira. Sementes iguais não produzem sorteios iguais quando os geradores são
+diferentes. O que se compara, então, não é o p-valor exato, e sim a ordem de
+grandeza da evidência.
+
+O painel mais informativo é o do centro. Com `permutations = 499`, o menor
+p-valor possível é `r sprintf("%.4f", 1/500)`, e os valores observados estão no
+piso da escala. Quando a evidência é tão forte que o p-valor bate no mínimo
+resolvível, diferenças entre motores viram ruído de discretização — e é
+justamente aí que a comparação de p-valores perde utilidade. Para tirar proveito
+da validação, olhe primeiro chi-quadrado e V.
+
+### Estabilidade entre sementes: o critério para decidir se a divergência é aceitável
+
+Um único confronto não diz se a divergência de p-valor é própria daquele sorteio
+ou se há um problema maior. O teste correto é repetir a validação sob várias
+sementes e observar a **faixa** de cada métrica.
+
+```{r m10-estabilidade}
+# Repeticao sob varias sementes: chi e V devem ser invariantes;
+# p deve oscilar dentro de uma faixa estreita e previsivel.
+est10 <- do.call(rbind, lapply(1:8, function(s) {
+  v <- validar_sem_ruido(x_analise, g_per, entity = "keyword",
+                         permutations = 499, seed = s)$comparison
+  data.frame(semente = s,
+             chi_nativo = v$native[v$metric == "chi_square"],
+             chi_biblium = v$biblium[v$metric == "chi_square"],
+             v_nativo = v$native[v$metric == "cramers_v"],
+             v_biblium = v$biblium[v$metric == "cramers_v"],
+             p_nativo = v$native[v$metric == "p_value"],
+             p_biblium = v$biblium[v$metric == "p_value"])
+}))
+resumo10 <- data.frame(
+  metrica = c("chi-quadrado", "V de Cramer", "p-valor (nativo)", "p-valor (Biblium)"),
+  minimo = c(min(est10$chi_nativo), min(est10$v_nativo),
+             min(est10$p_nativo), min(est10$p_biblium)),
+  maximo = c(max(est10$chi_nativo), max(est10$v_nativo),
+             max(est10$p_nativo), max(est10$p_biblium)),
+  valores_distintos = c(length(unique(round(est10$chi_nativo, 6))),
+                        length(unique(round(est10$v_nativo, 6))),
+                        length(unique(est10$p_nativo)),
+                        length(unique(est10$p_biblium))))
+```
+
+```{r tbl-m10-estabilidade}
+#| tbl-cap: "Estabilidade das metricas de associacao ao longo de oito sementes de permutacao. Chi-quadrado e V de Cramer nao dependem do sorteio; o p-valor depende."
+tab_est10 <- data.frame(
+  metrica = resumo10$metrica,
+  minimo = formatC(resumo10$minimo, format = "f", digits = 6),
+  maximo = formatC(resumo10$maximo, format = "f", digits = 6),
+  valores_distintos = as.character(resumo10$valores_distintos),
+  stringsAsFactors = FALSE)
+knitr::kable(tab_est10, row.names = FALSE,
+             col.names = c("Metrica", "Minimo", "Maximo", "Valores distintos"))
+```
+
+A tabela acima dá o critério operacional. Chi-quadrado e V de Cramér são
+**invariantes**: ao longo de `r nrow(est10)` sementes, chi-quadrado assume
+`r resumo10$valores_distintos[1]` valor distinto e V de Cramér
+`r resumo10$valores_distintos[2]`. São estatísticas descritivas da tabela de
+contingência, calculadas diretamente das contagens observadas, e por isso não
+dependem do sorteio. Essa invariância é exatamente o que a validação cruzada
+verifica.
+
+Já o p-valor assume `r resumo10$valores_distintos[3]` e
+`r resumo10$valores_distintos[4]` valores distintos, dentro das faixas
+`r sprintf("%.3f", resumo10$minimo[3])` a `r sprintf("%.3f", resumo10$maximo[3])`
+no motor nativo e `r sprintf("%.3f", resumo10$minimo[4])` a
+`r sprintf("%.3f", resumo10$maximo[4])` no Biblium. As duas faixas se sobrepõem;
+a conclusão qualitativa ("evidência forte de associação, p muito abaixo de 0,05")
+é a mesma em ambas.
+
+Com esse quadro, a decisão sobre aceitabilidade da divergência fica simples e
+defensável em três passos. Primeiro, confira a **magnitude do efeito**: chi e V
+devem coincidir em todas as casas decimais que você pretende publicar. Segundo,
+confira a **estabilidade entre sementes**: aumente `permutations` para 999 ou
+4.999 e veja se as faixas de p convergem; se a divergência diminuir com mais
+permutações, era ruído de amostragem. Terceiro, se chi e V **não** coincidirem, a
+validação encontrou algo real — e o passo seguinte não é mexer na semente, é
+procurar a causa no acervo, como mostra a seção a seguir.
+
+### Onde a divergência pode ter causa identificável
+
+No nosso corpus B existe um defeito plantado que a validação cruzada expõe de
+imediato. A tabela de obras tem `r nrow(x_analise$works)` linhas, mas apenas
+`r length(unique(x_analise$works$work_id))` identificadores distintos: quatro
+obras aparecem duas vezes, com títulos e DOIs diferentes, porque a deduplicação
+por DOI não pôde atuar sobre registros sem DOI.
+
+```{r m10-work-ids-duplicados}
+#| tbl-cap: "Diagnostico do acervo antes da validacao: identificadores repetidos e o total de pares obra-palavra-chave que cada motor coloca na tabela de contingencia."
+# Diagnostico: o acervo tem identificadores repetidos?
+ids10 <- x_analise$works$work_id
+dup10 <- names(which(table(ids10) > 1))
+kw_por_id10 <- table(x_analise$keywords$work_id)
+diagnostico10 <- data.frame(
+  fato = c("linhas na tabela de obras",
+           "identificadores distintos",
+           "identificadores repetidos",
+           "palavras-chave sob identificador repetido",
+           "total de pares obra-palavra-chave: motor nativo",
+           "total de pares obra-palavra-chave: motor Biblium"),
+  valor = c(nrow(x_analise$works), length(unique(ids10)), length(dup10),
+            sum(kw_por_id10[dup10]),
+            sum(vb10$native$observed), sum(vb10$biblium$observed)),
+  stringsAsFactors = FALSE)
+knitr::kable(diagnostico10, row.names = FALSE)
+```
+
+A razão é uma diferença de implementação, e vale entendê-la porque ela se repete
+em qualquer acervo com identificadores duplicados. O motor nativo constrói uma
+matriz binária obra × palavra-chave e localiza cada palavra-chave com
+`match(work_id, ids)`: quando o identificador aparece duas vezes, `match()` devolve
+sempre a **primeira** posição. As palavras-chave do identificador repetido são
+atribuídas a uma única linha e a cópia fica sem palavra-chave alguma. O motor
+Biblium recebe a tabela larga do `to_biblium()`, que colapsa as palavras-chave por
+`work_id` e depois indexa pelo nome: as **duas** cópias recebem a lista completa.
+O resultado é um excedente de
+`r sum(vb10$biblium$observed) - sum(vb10$native$observed)` pares
+obra-palavra-chave no lado Python, sempre igual à soma das palavras-chave dos
+identificadores repetidos multiplicada pelo número de cópias extras.
+
+```{r m10-validacao-limpa}
+# Repete a validacao removendo as copias: as estatisticas descritivas devem
+# coincidir exatamente, e apenas o p-valor deve continuar oscilando.
+sem_dup10 <- !duplicated(x_analise$works$work_id)
+x_sem_dup10 <- x_analise
+x_sem_dup10$works <- x_analise$works[sem_dup10, , drop = FALSE]
+x_sem_dup10$keywords <- x_analise$keywords[
+  x_analise$keywords$work_id %in% x_sem_dup10$works$work_id, , drop = FALSE]
+x_sem_dup10$authorships <- x_analise$authorships[
+  x_analise$authorships$work_id %in% x_sem_dup10$works$work_id, , drop = FALSE]
+
+vb_limpo10 <- validar_sem_ruido(x_sem_dup10, per_B[sem_dup10], entity = "keyword",
+                                permutations = 499, seed = SEED)$comparison
+comparacao10 <- rbind(
+  data.frame(cenario = paste0("acervo com copias (", nrow(x_analise$works), " linhas)"),
+             vb10$comparison[, c("metric", "native", "biblium", "difference")]),
+  data.frame(cenario = paste0("acervo sem copias (", nrow(x_sem_dup10$works), " linhas)"),
+             vb_limpo10[, c("metric", "native", "biblium", "difference")]))
+```
+
+```{r tbl-m10-limpo}
+#| tbl-cap: "Efeito do diagnostico: antes e depois de remover os identificadores repetidos, as estatisticas descritivas dos dois motores passam a coincidir exatamente."
+comparacao10$metrica <- unname(rotulos_metrica10[comparacao10$metric])
+tab_limpo10 <- data.frame(
+  cenario = comparacao10$cenario,
+  metrica = comparacao10$metrica,
+  nativo = formatC(comparacao10$native, format = "f", digits = 7),
+  biblium = formatC(comparacao10$biblium, format = "f", digits = 7),
+  diferenca = formatC(comparacao10$difference, format = "f", digits = 7),
+  stringsAsFactors = FALSE)
+knitr::kable(tab_limpo10, row.names = FALSE,
+             col.names = c("Cenario", "Metrica", "Nativo (R)",
+                           "Biblium (Python)", "Diferenca"))
+```
+
+Removidas as cópias, chi-quadrado e V de Cramér passam a ter diferença
+`r sprintf("%.7f", abs(vb_limpo10$difference[1]))` e
+`r sprintf("%.7f", abs(vb_limpo10$difference[3]))` — concordância na precisão da
+máquina —, enquanto o p-valor continua divergindo
+(`r sprintf("%.3f", vb_limpo10$native[2])` contra
+`r sprintf("%.3f", vb_limpo10$biblium[2])`), que é o comportamento esperado. Esse
+é o roteiro completo da validação cruzada: a divergência aparece, você investiga,
+encontra a causa, corrige o insumo e revalida. Note que a correção não foi
+aumentar a semente nem trocar de motor — foi consertar o acervo.
+
+### Resíduos: comparar exige alinhar
+
+Além das três métricas, os dois motores devolvem a tabela de resíduos
+padronizados, que é o que permite dizer **quais** palavras-chave puxam a
+associação. Comparar essas tabelas tem uma armadilha de ordem: as dimensões
+podem coincidir enquanto as colunas estão trocadas de posição.
+
+```{r m10-residuos-alinhados}
+# As dimensoes das duas tabelas coincidem, mas a ordem das colunas nao.
+colunas_iguais10 <- identical(colnames(vb10$native$observed),
+                              colnames(vb10$biblium$observed))
+
+# Alinhamento por nome: sem isso, a comparacao celula a celula e sem sentido.
+lin10 <- rownames(vb10$native$observed)
+col10 <- colnames(vb10$native$observed)
+dif_res10 <- data.frame(
+  keyword = rep(col10, each = length(lin10)),
+  periodo = rep(sub("^factor\\(groups\\)", "", lin10), times = length(col10)),
+  res_nativo = as.vector(vb10$native$residuals),
+  res_biblium = as.vector(vb10$biblium$residuals[lin10, col10, drop = FALSE]),
+  stringsAsFactors = FALSE)
+# Correlacao com e sem alinhamento, para evidenciar o efeito do desencontro.
+desalinhado10 <- cor(as.vector(vb10$native$residuals),
+                     as.vector(vb10$biblium$residuals))
+alinhado10 <- cor(dif_res10$res_nativo, dif_res10$res_biblium)
+```
+
+O teste `identical()` sobre os nomes de coluna retorna
+`r colunas_iguais10`: as duas tabelas têm as mesmas `r length(col10)` colunas, em
+ordens diferentes. Na primeira posição o motor nativo traz
+`r colnames(vb10$native$observed)[1]` e o Biblium traz
+`r colnames(vb10$biblium$observed)[1]`; o nativo ordena alfabeticamente e o
+Biblium ordena por frequência decrescente.
+
+```{r}
+#| label: fig-m10-residuos
+#| fig-cap: "Residuos padronizados do motor nativo contra os do motor Biblium, alinhados por nome de coluna. Os pontos proximos da linha de 45 graus indicam que os dois motores destacam as mesmas palavras-chave."
+#| fig-alt: "Grafico de dispersao com pontos proximos de uma linha diagonal, coloridos por periodo."
+ggplot(dif_res10, aes(x = res_nativo, y = res_biblium, colour = periodo)) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2, colour = "grey45") +
+  geom_hline(yintercept = 0, colour = "grey85") +
+  geom_vline(xintercept = 0, colour = "grey85") +
+  geom_point(size = 2.4, alpha = .85) +
+  scale_colour_manual(values = pal_agri[1:2], name = "Periodo") +
+  labs(x = "Residuo padronizado - motor nativo (R)",
+       y = "Residuo padronizado - motor Biblium",
+       title = "Concordancia dos residuos, celula a celula",
+       subtitle = sprintf("correlacao alinhada por nome = %.4f; correlacao sem alinhamento = %.4f",
+                          alinhado10, desalinhado10))
+```
+
+@fig-m10-residuos tem duas lições. A primeira é substantiva: os pontos
+acompanham a linha de 45 graus, com correlação `r sprintf("%.4f", alinhado10)`, de
+modo que as duas implementações apontam as mesmas palavras-chave como
+responsáveis pela associação. A segunda é metodológica, e mais importante. A
+correlação calculada **sem** alinhar as colunas por nome dá
+`r sprintf("%.4f", desalinhado10)` — um valor negativo, que um leitor apressado
+interpretaria como discordância entre os motores. A leitura correta é que a
+comparação estava errada desde o início: ela confrontou a palavra-chave
+`r col10[1]` do motor nativo com a palavra-chave
+`r colnames(vb10$biblium$observed)[1]` do Biblium, e repetiu esse desencontro em
+todas as `r length(col10)` colunas. Sempre alinhe por nome antes de comparar
+matrizes. Em R, a forma segura é
+`M2[rownames(M1), colnames(M1), drop = FALSE]` — exatamente o que a linha
+`res_biblium` do bloco acima faz.
+
+### As contagens observadas
+
+Fechando o diagnóstico, vale olhar as contagens brutas que os dois motores
+colocam na tabela de contingência. Elas são o insumo de tudo o que foi calculado
+acima.
+
+```{r}
+#| label: fig-m10-observadas
+#| fig-cap: "Contagens observadas por palavra-chave e periodo, nas duas implementacoes. As dez palavras-chave mais frequentes do acervo; a diferenca entre motores concentra-se nos identificadores repetidos."
+#| fig-alt: "Barras horizontais pareadas por palavra-chave, separadas em dois paineis de periodo."
+na10 <- vb10$native$observed
+bi10 <- vb10$biblium$observed
+bi10a <- bi10[rownames(na10), colnames(na10), drop = FALSE]
+top10 <- names(sort(colSums(na10) + colSums(bi10a), decreasing = TRUE))[1:10]
+obs10 <- rbind(
+  data.frame(keyword = rep(colnames(na10), each = nrow(na10)),
+             periodo = rep(sub("^factor\\(groups\\)", "", rownames(na10)),
+                           times = ncol(na10)),
+             motor = "nativo (R)", n = as.vector(na10)),
+  data.frame(keyword = rep(colnames(bi10a), each = nrow(bi10a)),
+             periodo = rep(sub("^factor\\(groups\\)", "", rownames(bi10a)),
+                           times = ncol(bi10a)),
+             motor = "Biblium (Python)", n = as.vector(bi10a)))
+obs10 <- obs10[obs10$keyword %in% top10, ]
+obs10$motor <- factor(obs10$motor, levels = c("nativo (R)", "Biblium (Python)"))
+obs10$keyword <- factor(obs10$keyword,
+                        levels = top10[order(colSums(na10)[top10] +
+                                             colSums(bi10a)[top10])])
+ggplot(obs10, aes(x = keyword, y = n, fill = motor)) +
+  geom_col(position = position_dodge(width = .78), width = .74) +
+  coord_flip() +
+  facet_wrap(~ periodo, ncol = 1) +
+  scale_fill_manual(values = c("nativo (R)" = pal_agri[1],
+                               "Biblium (Python)" = pal_agri[2]),
+                    name = NULL) +
+  labs(x = NULL, y = "Pares obra-palavra-chave observados",
+       title = "Contagens observadas por motor",
+       subtitle = "As barras coincidem quase sempre; onde nao coincidem, ha copia de identificador")
+```
+
+Em @fig-m10-observadas, as barras das palavras-chave mais frequentes praticamente
+se sobrepõem entre os motores. O desencontro fica visível nas palavras-chave que
+aparecem nos registros duplicados, que são justamente aquelas com
+`r sum(vb10$biblium$observed) - sum(vb10$native$observed)` pares de diferença no
+total. É essa diferença pequena, e não um erro de fórmula, que produziu o
+chi-quadrado de `r sprintf("%.4f", vb10$native$chi_square)` contra
+`r sprintf("%.4f", vb10$biblium$chi_square)`.
+
+## Quando vale usar o motor Python
+
+A pergunta prática não é qual motor é melhor em abstrato, e sim quando o custo de
+depender de Python se paga.
+
+```{r tbl-m10-motores}
+#| tbl-cap: "Os dois motores lado a lado: o que cada um oferece e o que cada um custa."
+motores10 <- data.frame(
+  criterio = c("Instalacao", "Dependencia externa",
+               "Velocidade em acervos grandes", "Classificacao supervisionada de documentos",
+               "Validacao cruzada",
+               "Auditoria do codigo", "Comportamento com identificadores duplicados",
+               "Quando escolher"),
+  nativo = c("nenhuma: vem no pacote",
+             "apenas R",
+             "suficiente ate alguns milhares de obras",
+             "nao implementada",
+             "e o proprio referencial de comparacao",
+             "codigo R legivel com debug()",
+             "atribui as palavras-chave a primeira ocorrencia",
+             "por padrao, e sempre que o resultado nativo bastar"),
+  biblium = c(paste0("pip install biblium==", pbs10$version,
+                     ", dentro de um ambiente virtual"),
+              "Python 3 com biblium, huggingface_hub e plotly",
+              "rotinas vetorizadas, vantagem crescente com o volume",
+              "oferece rotinas de aprendizado que o nativo nao tem",
+              "e o motor confrontado",
+              "codigo Python, exige leitura do fonte",
+              "replica a lista completa em cada copia",
+              "quando ha ganho de desempenho, recurso ausente no R, ou validacao exigida"),
+  stringsAsFactors = FALSE)
+knitr::kable(motores10, row.names = FALSE,
+             col.names = c("Criterio", "Motor nativo (R)", "Motor Biblium (Python)"))
+```
+
+Três situações justificam o motor Python. A primeira é **desempenho**: as rotinas
+do Biblium são vetorizadas em NumPy e, acima de alguns milhares de obras, a
+diferença de tempo passa a ser perceptível. A segunda é **recurso ausente**: a
+biblioteca implementa caminhos de classificação supervisionada de documentos que
+o lado R não oferece, e reimplementá-los à mão seria pior do que depender do
+pacote. A terceira é a **validação cruzada**: confrontar duas implementações
+independentes é a forma mais barata de defender um número em revisão, e para isso
+o Python é indispensável.
+
+Em contrapartida, não vale a pena usar o motor Python quando o resultado nativo já
+resolve e o artigo precisa ser reprodutível em qualquer máquina. Cada dependência
+de Python é um ponto de falha a mais na replicação por terceiros: versão do
+interpretador, versão do Biblium, versões de NumPy e pandas. Se o chi-quadrado
+nativo responde à pergunta, publicar esse número com `compare_groups()` e usar o
+Biblium apenas como conferência de robustez é a escolha de menor risco. O
+princípio geral do pacote é que o Python seja um **reforço**, nunca um pré-requisito.
+
+## Tarefas do Módulo 10
+
+**Tarefa 10.1 (aplicar).** Refaça a validação cruzada trocando o agrupamento por
+período pelo agrupamento por tema (`g_tema`, formado a partir do título das
+obras) e, em seguida, refaça-a variando a entidade de `"keyword"` para
+`"author"`. Para cada uma das quatro combinações (dois agrupamentos × duas
+entidades) registre, em um único `data.frame`: o chi-quadrado nativo, o
+chi-quadrado do Biblium, a diferença relativa percentual, o p-valor de cada motor
+e o número de linhas da tabela de contingência. Termine com uma tabela
+`knitr::kable()` que permita decidir em qual combinação a validação cruzada foi
+mais convincente e por quê.
+
+**Tarefa 10.2 (analisar).** Escreva um diagnóstico automatizado que percorra os
+três corpora (`x_did`, `x_analise` e `x_openalex`) e responda, para cada um:
+quantos identificadores de obra são repetidos, quantas palavras-chave estão sob
+esses identificadores repetidos, e se a validação cruzada de `entity = "keyword"`
+sobre o grupo por período produz estatísticas descritivas idênticas entre os dois
+motores. Quando não produzir, calcule quanto da diferença de chi-quadrado é
+atribuível ao excedente de pares obra-palavra-chave. Feche com uma figura
+(`ggplot2`, `tema_agri`/`pal_agri`) comparando o chi-quadrado dos dois motores nos
+três corpora, com os corpora no eixo das categorias, e escreva a leitura: em qual
+deles a validação cruzada deve ser usada com cautela e qual providência de
+qualidade de dados deve vir antes dela.

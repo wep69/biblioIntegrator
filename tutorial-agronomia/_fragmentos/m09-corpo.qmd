@@ -1,0 +1,560 @@
+# Módulo 9. APIs abertas: OpenAlex e OpenCitations
+
+## O problema agronômico
+
+Em algum momento do doutorado, alguém da banca pergunta se a revisão foi feita
+em mais de uma base. A resposta honesta costuma ser desconfortável, porque a
+maior parte dos levantamentos em Agronomia nasce de uma única exportação —
+Scopus, Web of Science ou a Biblioteca Digital de Teses — e essa exportação
+carrega os vícios de cobertura daquela base em particular. Periódicos de acesso
+aberto, anais de congresso brasileiros e revistas regionais aparecem de forma
+desigual entre provedores, e um acervo montado a partir de uma fonte só tende a
+subestimar a produção nacional e a superestimar a de periódicos com acordos
+comerciais de indexação. O problema cresce quando o tema é de fronteira, como
+silício e estresse salino em arroz: parte do que existe sobre o assunto está em
+revistas de escopo regional, fora do circuito das bases pagas.
+
+A segunda dificuldade é de rastreabilidade. Uma busca feita hoje por interface
+gráfica deixa como rastro um arquivo de exportação e uma captura de tela. Seis
+meses depois, ninguém consegue dizer com precisão qual string foi usada, em que
+data, com que filtros e em que base — e sem isso o levantamento deixa de ser
+reprodutível. Pior: as bases mudam de conteúdo continuamente, indexando
+documentos antigos e corrigindo metadados, de modo que a mesma consulta, repetida
+mais tarde, devolve um conjunto diferente. O que era um procedimento passa a ser
+um evento irrepetível, e um evento irrepetível não sustenta uma afirmação
+científica.
+
+O `biblioIntegrator` responde com duas funções que consultam APIs abertas e
+devolvem objetos prontos para a análise. `fetch_openalex()` consulta o OpenAlex,
+o grafo aberto de literatura científica, e devolve um `biblio_project` com obras,
+autorias, autores e palavras-chave já harmonizados. `fetch_opencitations()`
+consulta o OpenCitations, que registra as ligações de citação entre obras, e
+devolve um `data.frame` com as citações recebidas ou as referências de um
+documento. O resultado é um acervo obtido por comando, com a consulta registrada
+no próprio material — e é isso que este módulo ensina a fazer.
+
+## OpenAlex: o grafo aberto como fonte de acervo
+
+O OpenAlex é um catálogo aberto e gratuito que descreve a literatura científica
+como um grafo: obras, autores, instituições, periódicos e temas, ligados entre si
+por identificadores estáveis. Ele não exige chave de acesso, e a política de uso
+pede apenas que o cliente se identifique com um endereço de e-mail — é para isso
+que serve o argumento `mailto`. Consultar a API em vez de exportar manualmente
+tem três consequências práticas que importam para uma tese. A primeira é a
+reprodutibilidade: o acervo nasce de uma linha de código, e essa linha pode ser
+lida por qualquer pessoa. A segunda é a rastreabilidade da consulta, que veremos
+logo adiante. A terceira é a atualização, porque refazer a busca custa um comando
+e não uma tarde de cliques.
+
+```{r m9-openalex}
+# consulta registrada: guardar a string de busca, o numero de obras pedido e o
+# identificador de contato e parte da documentacao do acervo, nao um detalhe
+# opcional. O resultado fica em cache em _cache/, de modo que a segunda
+# renderizacao nao depende de rede.
+consulta_openalex <- "silicon salinity rice"
+n_pedido <- 40L
+mailto_openalex <- Sys.getenv("OPENALEX_MAILTO", unset = "")
+if (!nzchar(mailto_openalex)) mailto_openalex <- NULL
+
+x_openalex <- cache_rds("openalex_silicio", fetch_openalex(
+  consulta_openalex, n = n_pedido, mailto = mailto_openalex))
+tem_B <- inherits(x_openalex, "biblio_project")
+if (tem_B) {
+  cat("acervo real obtido: ", nrow(x_openalex$works), " obras, ",
+      nrow(x_openalex$authors), " autores, ",
+      nrow(x_openalex$keywords), " pares obra-termo\n", sep = "")
+} else {
+  cat("consulta indisponivel nesta renderizacao:", x_openalex, "\n")
+  cat("apague o arquivo _cache/openalex_silicio.rds depois de recuperar a conexao\n")
+}
+```
+
+O acervo devolvido vem com as
+`r length(x_openalex)` tabelas do projeto relacional, e a única que difere de
+uma importação comum é `provenance`, que registra a origem. Nesta execução ela
+tem `r nrow(x_openalex$provenance)` linha, com a operação
+`r x_openalex$provenance$operation[1]` e o detalhe
+`r x_openalex$provenance$details[1]`. Esse registro é o mínimo que o pacote
+guarda sozinho, e ele não basta para uma tese: ele diz que o acervo veio do
+OpenAlex, quantas obras entraram e quando — mas não diz qual foi a consulta.
+
+## Documentar a consulta numa tabela de proveniência
+
+A pergunta que um leitor de artigo tem o direito de fazer é: qual foi a busca
+exata que produziu este acervo, e em que data. Um acervo sem essa resposta não é
+auditável, e a solução é barata: montar uma tabela de proveniência com o que você
+de fato executou, e publicá-la como material suplementar ou apêndice.
+
+```{r m9-proveniencia}
+#| tbl-cap: "Tabela de proveniencia da consulta. Cada linha registra um campo que o leitor precisa poder conferir."
+data_coleta <- format(Sys.Date())
+proveniencia <- data.frame(
+  campo = c("Base consultada", "Interface", "String de busca", "Campo de busca",
+            "Ordenação", "Número de obras pedido", "Data da coleta",
+            "Identificador de contato", "Filtros aplicados", "Cache local"),
+  valor = c("OpenAlex", "API REST, via fetch_openalex()", consulta_openalex,
+            "título, resumo e palavras-chave (busca padrão da base)",
+            "relevância, critério da base", as.character(n_pedido),
+            data_coleta,
+            if (is.null(mailto_openalex)) "não informado nesta execução" else mailto_openalex,
+            "nenhum", "_cache/openalex_silicio.rds"),
+  stringsAsFactors = FALSE)
+knitr::kable(proveniencia, row.names = FALSE)
+```
+
+A data de coleta desta renderização é `r data_coleta`, e é ela que ancora a
+leitura de tudo o que vem a seguir. As duas últimas linhas da tabela merecem
+comentário. A busca do OpenAlex não foi restringida por filtro de ano, tipo de
+documento ou idioma, o que significa que o acervo mistura artigos, revisões e
+trabalhos de áreas vizinhas, como química e ciência de materiais, sempre que o
+termo aparece. E o acervo está em cache local: se você apagar o arquivo, a
+próxima execução refaz a consulta e pode devolver um conjunto ligeiramente
+diferente, porque a base cresce entre uma coleta e outra. O Módulo 8 explicou
+como transformar esse acervo em material persistido; o que importa aqui é que a
+tabela acima acompanhe o arquivo gravado, e não apenas a sessão de R.
+
+::: {.callout-tip}
+## Identifique-se para a API
+O OpenAlex é gratuito e pede apenas que o cliente se identifique. Use o argumento
+`mailto` com um endereço real, ou defina a variável de ambiente `OPENALEX_MAILTO`
+antes de renderizar o documento. Identificar-se costuma render acesso à via mais
+rápida do serviço, e é a forma de respeitar a política de uso da base.
+:::
+
+```{r m9-tbl-acervo}
+#| tbl-cap: "Resumo do acervo real obtido do OpenAlex nesta renderizacao."
+if (tem_B) {
+  wC <- x_openalex$works
+  i_top <- which.max(wC$cited_by_count)
+  resumo_C <- data.frame(
+    item = c("Obras", "Autorias (pares obra-autor)", "Autores únicos",
+             "Pares obra-termo", "Termos únicos", "Fontes (periódicos)",
+             "Primeiro ano", "Último ano", "Citações somadas",
+             "Mediana de citações por obra", "Obra mais citada",
+             "Obras com 100 citações ou mais", "DOIs presentes",
+             "Resumos disponíveis"),
+    valor = c(nrow(wC), nrow(x_openalex$authorships), nrow(x_openalex$authors),
+              nrow(x_openalex$keywords), length(unique(x_openalex$keywords$keyword)),
+              length(unique(wC$source)), min(wC$year), max(wC$year),
+              # separador de milhar com espaco nao separavel: o separador de
+              # decimal do R nesta maquina e o ponto, e usar ponto tambem no
+              # milhar produziria "14.486", que se le como catorze inteiros
+              formatC(sum(wC$cited_by_count), format = "d", big.mark = "\u00a0"),              median(wC$cited_by_count),
+              sprintf("%d citações — %s (%d)", wC$cited_by_count[i_top],
+                      substr(wC$title[i_top], 1, 46), wC$year[i_top]),
+              sum(wC$cited_by_count >= 100),
+              sum(!is.na(wC$doi) & nzchar(wC$doi)), sum(nzchar(wC$abstract))),
+    stringsAsFactors = FALSE)
+  knitr::kable(resumo_C, row.names = FALSE)
+}
+```
+
+A tabela acima é o retrato do acervo. Ele tem
+`r nrow(x_openalex$works)` obras distribuídas por
+`r length(unique(x_openalex$works$source))` periódicos, com
+`r nrow(x_openalex$authors)` autores distintos em
+`r nrow(x_openalex$authorships)` pares obra-autor — uma média de
+`r round(nrow(x_openalex$authorships) / nrow(x_openalex$works), 1)` autor por
+obra, o que é típico de um tema com colaboração multidisciplinar entre fisiologia
+vegetal, ciência do solo e biologia molecular. O período coberto vai de
+`r min(x_openalex$works$year)` a `r max(x_openalex$works$year)`, e aqui aparece a
+primeira diferença em relação ao acervo simulado dos módulos anteriores, que
+começava em `r min(x_analise$works$year)`.
+
+Duas linhas da tabela merecem leitura cuidadosa, porque descrevem limitações e
+não qualidades. A penúltima mostra que
+`r sum(!is.na(x_openalex$works$doi) & nzchar(x_openalex$works$doi))` das
+`r nrow(x_openalex$works)` obras têm DOI — nesse acervo, quase todas, mas em
+acervos de anais de congresso e periódicos regionais o número cai bastante. A
+última linha mostra que `r sum(nzchar(x_openalex$works$abstract))` obras têm
+resumo disponível, e esse zero não é um defeito do pacote: o campo existe na
+tabela, mas a licença de redistribuição do OpenAlex nem sempre permite devolver o
+texto do resumo por API. A consequência prática é grande para quem planeja
+análise textual: sem resumo, a única matéria-prima textual são título e
+palavras-chave, e o Módulo 5 já mostrou como trabalhar nesse cenário.
+
+```{r m9-tbl-obras}
+#| tbl-cap: "As seis primeiras obras importadas do OpenAlex, na ordem em que chegaram."
+if (tem_B) {
+  primeiras <- head(x_openalex$works[, c("title", "year", "source", "cited_by_count", "doi")], 6)
+  names(primeiras) <- c("Título", "Ano", "Fonte", "Citações", "DOI")
+  knitr::kable(primeiras, row.names = FALSE)
+}
+```
+
+As primeiras linhas mostram a ordem em que a base devolveu os resultados, que é
+por relevância e não por ano ou citações. Isso importa para quem usa `n =` como
+critério de corte: pedir as quarenta primeiras obras de um tema é pedir as
+quarenta mais relevantes segundo o critério da base, e o critério mistura
+correspondência textual, centralidade da obra na rede de citações e
+disponibilidade de metadados. Não é uma amostra aleatória nem um recorte
+temporal, e descrevê-lo como "as obras mais importantes sobre o tema" seria
+sobre-interpretar o que o parâmetro faz.
+
+```{r m9-fig-ano}
+#| label: fig-m9-ano
+#| fig-cap: "Produção anual do acervo real obtido do OpenAlex. As lacunas entre os anos são parte do resultado, e não falha de plotagem."
+#| fig-alt: "Gráfico de barras verticais com o número de obras por ano entre 1999 e 2025, com vários anos sem nenhuma obra."
+#| fig-height: 3.6
+if (tem_B) {
+  prod_C <- as.data.frame(table(ano = x_openalex$works$year))
+  names(prod_C) <- c("ano", "obras")
+  prod_C$ano <- as.integer(as.character(prod_C$ano))
+  prod_C <- prod_C[order(prod_C$ano), ]
+  ggplot(prod_C, aes(x = ano, y = obras)) +
+    geom_col(fill = pal_agri[4], width = .78) +
+    geom_text(aes(label = obras), vjust = -0.35, size = 2.6, colour = "grey30") +
+    scale_x_continuous(breaks = seq(min(prod_C$ano), max(prod_C$ano), by = 2)) +
+    scale_y_continuous(expand = expansion(mult = c(0, .16))) +
+    labs(x = "ano de publicação", y = "número de obras",
+         title = "Produção anual do acervo real",
+         subtitle = sprintf("%d obras entre %d e %d, segundo o OpenAlex",
+                            nrow(x_openalex$works), min(prod_C$ano), max(prod_C$ano)))
+}
+```
+
+A figura da produção anual tem uma leitura diferente da figura equivalente do
+acervo simulado. Aqui a série não é crescente: há
+`r sum(prod_C$obras == 1)` anos com uma única obra, e o pico está em
+`r prod_C$ano[which.max(prod_C$obras)]`, com `r max(prod_C$obras)` obras. Duas
+causas se somam, e vale saber distingui-las. A primeira é real: a obra fundadora
+sobre o papel do silício na tolerância a estresses abióticos é de
+`r min(x_openalex$works$year)`, e a literatura sobre silício em arroz de fato
+cresce depois de 2010. A segunda é de amostragem: um acervo de
+`r nrow(x_openalex$works)` obras, cortado por relevância, não é uma amostra
+representativa da produção anual, e o formato da série depende de quantas obras
+você pediu. Aumente `n` e a série se suaviza.
+
+## Comparar o acervo real com o simulado
+
+A comparação entre o acervo real e o simulado é o exercício mais útil deste
+módulo, porque mostra em que aspectos um corpus de teste engana. O acervo
+simulado dos módulos anteriores foi construído com um gerador log-normal, que
+produz assimetria moderada em torno de uma mediana baixa — e é assim que as
+coisas acontecem em levantamentos recentes sobre temas de nicho. O acervo real,
+recortado por relevância, é outra coisa.
+
+```{r m9-tbl-compara}
+#| tbl-cap: "Acervo real e acervo simulado lado a lado. A comparacao explica por que um corpus de teste nao substitui um recorte real."
+assim_ <- function(x) { m <- mean(x); s <- sqrt(mean((x - m)^2)); mean((x - m)^3) / s^3 }
+if (tem_B) {
+  cr <- x_openalex$works$cited_by_count
+  cs <- x_analise$works$cited_by_count
+  compara <- data.frame(
+    medida = c("Obras", "Primeiro ano", "Ano mediano", "Mediana de citações",
+               "Média de citações", "Máximo de citações", "Assimetria",
+               "Obras com 100+ citações", "Citações concentradas nas dez mais citadas"),
+    real = c(nrow(x_openalex$works), min(x_openalex$works$year),
+             median(x_openalex$works$year), median(cr), round(mean(cr), 1),
+             max(cr), round(assim_(cr), 2), sum(cr >= 100),
+             sprintf("%.0f%%", 100 * sum(sort(cr, decreasing = TRUE)[1:10]) / sum(cr))),
+    simulado = c(nrow(x_analise$works), min(x_analise$works$year),
+                 median(x_analise$works$year), median(cs), round(mean(cs), 1),
+                 max(cs), round(assim_(cs), 2), sum(cs >= 100),
+                 sprintf("%.0f%%", 100 * sum(sort(cs, decreasing = TRUE)[1:10]) / sum(cs))),
+    stringsAsFactors = FALSE)
+  knitr::kable(compara, row.names = FALSE)
+}
+```
+
+A comparação isola duas diferenças que mudam a análise, e uma terceira que não
+muda. A primeira é de escala de citações: a mediana do acervo real é
+`r median(x_openalex$works$cited_by_count)` contra
+`r median(x_analise$works$cited_by_count)` do simulado, e o máximo real é
+`r max(x_openalex$works$cited_by_count)` contra
+`r max(x_analise$works$cited_by_count)`. Isso não é assimetria maior — os dois
+coeficientes ficam próximos —, é deslocamento de nível: o acervo real reúne
+trabalhos que já acumularam trinta anos de citações, enquanto o simulado tem
+mediana de ano `r median(x_analise$works$year)` e não teve tempo de acumular.
+Quem normaliza citações por ano, como o Módulo 3 ensinou, corrige essa parte.
+
+A segunda diferença é de concentração, e é a que mais afeta a redação. As dez
+obras mais citadas do acervo real concentram
+`r sprintf("%.0f%%", 100 * sum(sort(x_openalex$works$cited_by_count, decreasing = TRUE)[1:10]) / sum(x_openalex$works$cited_by_count))`
+das citações recebidas, contra
+`r sprintf("%.0f%%", 100 * sum(sort(x_analise$works$cited_by_count, decreasing = TRUE)[1:10]) / sum(x_analise$works$cited_by_count))`
+no simulado. A consequência prática é direta: em um acervo real, a média de
+citações é uma estatística ruim, porque poucas obras a puxam para cima, e a
+mediana ou o total acumulado dizem mais. A terceira diferença, o ano de
+publicação mais antigo, não é defeito de nenhum dos dois: é a diferença entre um
+corpus de teste e um recorte feito por relevância, em que a obra fundadora de um
+tema aparece necessariamente.
+
+```{r m9-fig-top}
+#| label: fig-m9-top
+#| fig-cap: "As dez obras mais citadas do acervo real, com título truncado e ano entre parênteses."
+#| fig-alt: "Barras horizontais com as dez obras mais citadas do acervo real, ordenadas da maior para a menor contagem."
+#| fig-height: 4.4
+if (tem_B) {
+  top10 <- head(x_openalex$works[order(-x_openalex$works$cited_by_count),
+                                 c("title", "year", "cited_by_count")], 10)
+  top10$rotulo <- ifelse(nchar(top10$title) > 58,
+                         paste0(substr(top10$title, 1, 55), "..."), top10$title)
+  top10$rotulo <- paste0(top10$rotulo, " (", top10$year, ")")
+  top10$rotulo <- factor(top10$rotulo, levels = rev(top10$rotulo))
+  ggplot(top10, aes(x = rotulo, y = cited_by_count, fill = cited_by_count)) +
+    geom_col(width = .72) +
+    geom_text(aes(label = cited_by_count), hjust = -0.12, size = 3) +
+    coord_flip() +
+    scale_fill_gradient(low = pal_agri[5], high = pal_agri[1], guide = "none") +
+    scale_y_continuous(expand = expansion(mult = c(0, .14))) +
+    labs(x = NULL, y = "citações recebidas",
+         title = "Obras mais citadas do acervo real",
+         subtitle = "Título truncado em 58 caracteres; ano de publicação entre parênteses")
+}
+```
+
+A figura acima é a que você vai querer olhar antes de escrever a introdução do
+artigo, porque as obras mais citadas de um tema são, em geral, as que a banca
+espera ver citadas. A primeira delas é
+*`r x_openalex$works$title[which.max(x_openalex$works$cited_by_count)]`*,
+publicada em `r x_openalex$works$year[which.max(x_openalex$works$cited_by_count)]`
+em `r x_openalex$works$source[which.max(x_openalex$works$cited_by_count)]`, com
+`r x_openalex$works$cited_by_count[which.max(x_openalex$works$cited_by_count)]`
+citações. Note o que esse resultado revela sobre a consulta: a obra mais citada
+trata de mecanismos de tolerância à salinidade em plantas, de forma geral, e não
+de silício. O termo "silicon" aparece com peso na consulta, mas a base devolve por
+relevância e traz trabalhos que cobrem o contexto amplo do problema. É por isso
+que a curadoria manual do acervo, com leitura de título e resumo, continua sendo
+uma etapa obrigatória — e é o que a tarefa 9.2 pede.
+
+```{r m9-fig-assim}
+#| label: fig-m9-assim
+#| fig-cap: "Distribuição das citações por obra nos dois acervos, em escala logarítmica e em fração de cada acervo."
+#| fig-alt: "Duas curvas de área sobrepostas mostrando a fração de obras por faixa de citações, em escala logarítmica, para o acervo real e para o simulado."
+#| fig-height: 3.9
+if (tem_B) {
+  # a escala e logaritmica porque as contagens vao de uma a quatro ordens de
+  # grandeza; e a altura e a FRACAO de cada acervo, e nao a contagem absoluta,
+  # porque os dois acervos tem 40 e 280 obras e a contagem absoluta compararia
+  # tamanhos de acervo em vez de formatos de distribuicao
+  cit_real <- x_openalex$works$cited_by_count
+  cit_sim  <- pmax(x_analise$works$cited_by_count, 1L)
+  cortes <- seq(0, ceiling(log10(max(cit_real))) + .1, by = .25)
+  hist_log <- function(x, acervo) {
+    h <- hist(log10(x), breaks = cortes, plot = FALSE)
+    data.frame(acervo = acervo, centro = 10^h$mids, fracao = h$counts / sum(h$counts))
+  }
+  dist_dois <- rbind(hist_log(cit_real, "real (OpenAlex)"),
+                     hist_log(cit_sim,  "simulado (corpus B)"))
+  ggplot(dist_dois, aes(x = centro, y = fracao, fill = acervo, colour = acervo)) +
+    geom_area(alpha = .28, linewidth = .6) +
+    geom_point(size = 1.4) +
+    scale_x_log10(breaks = c(1, 3, 10, 30, 100, 300, 1000, 3000)) +
+    scale_y_continuous(labels = function(v) sprintf("%.0f%%", 100 * v)) +
+    scale_fill_manual(values = c(`real (OpenAlex)` = pal_agri[1],
+                                `simulado (corpus B)` = pal_agri[3]), guide = "none") +
+    scale_colour_manual(values = c(`real (OpenAlex)` = pal_agri[1],
+                                   `simulado (corpus B)` = pal_agri[3])) +
+    labs(x = "citações recebidas por obra (escala log)",
+         y = "fração das obras do acervo", fill = NULL, colour = "acervo",
+         title = "Distribuição de citações nos dois acervos",
+         subtitle = "Fração por acervo, para compensar a diferença de tamanho entre eles")
+}
+```
+
+A distribuição em escala logarítmica é o argumento visual a favor de nunca
+resumir citações por média, e a figura tem duas escolhas de desenho que precisam
+ser explicadas. A escala logarítmica é necessária porque as contagens vão de
+`r min(x_openalex$works$cited_by_count)` a
+`r max(x_openalex$works$cited_by_count)` citações, o que em escala linear
+esmagaria quase todo o acervo contra o eixo vertical. E a altura é a **fração**
+de cada acervo, e não a contagem absoluta, porque os dois têm
+`r nrow(x_openalex$works)` e `r nrow(x_analise$works)` obras: plotar contagens
+compararia tamanhos de acervo em vez de formatos de distribuição.
+
+Com isso resolvido, a leitura fica nítida. As duas curvas têm forma de sino em
+escala log, mas estão deslocadas uma em relação à outra: o acervo simulado
+concentra `r sprintf("%.0f%%", 100 * sum(x_analise$works$cited_by_count <= 30) / nrow(x_analise$works))`
+das obras com trinta citações ou menos, enquanto o acervo real concentra
+`r sprintf("%.0f%%", 100 * sum(x_openalex$works$cited_by_count <= 30) / nrow(x_openalex$works))`
+nessa mesma faixa. Não é uma diferença de cauda, é uma diferença de escala
+inteira, e o deslocamento é grande o bastante para invalidar a transferência
+direta de um modelo calibrado no corpus simulado para o acervo real. É exatamente
+por isso que este tutorial mantém os dois corpora separados por módulos, em vez
+de misturá-los numa única análise: eles respondem a perguntas diferentes, e um
+deles é material de treino, não de resultado.
+
+Há também uma lição de amostragem embutida na figura, e ela vale mais que a
+comparação numérica. Um acervo de `r nrow(x_openalex$works)` obras cortado por
+relevância não é uma amostra da literatura do tema: ele é uma amostra do que a
+base considera mais relevante, e por isso carrega as obras fundadoras e mais
+citadas. Se você quiser descrever o perfil de citações do campo, precisa de um
+recorte por período ou por amostragem sistemática, e não das primeiras `n` obras
+devolvidas por relevância. Confundir as duas coisas é o erro que faz um artigo
+afirmar, com base em quarenta registros, algo sobre a produção de um campo
+inteiro.
+
+## OpenCitations: quem citou, quando e com que atraso
+
+Se o OpenAlex responde "o que existe sobre o tema", o OpenCitations responde
+"quem citou quem, e quando". A função `fetch_opencitations()` recebe um
+identificador de documento e um sentido de busca. Com
+`direction = "citations"`, o padrão, devolve as citações **recebidas** pelo
+documento; com `direction = "references"`, devolve as referências que ele faz.
+
+```{r m9-opencitations}
+# o identificador pode ser escrito de tres formas, e a funcao normaliza todas
+# para o formato exigido pela API. As tres chamadas abaixo devolvem o mesmo
+# conjunto, e a comparacao e o teste da normalizacao.
+doi_bruto <- "10.1038/nature12373"
+doi_prefixado <- paste0("doi:", doi_bruto)
+doi_url <- paste0("https://doi.org/", doi_bruto)
+margem <- function(z) if (is.data.frame(z)) nrow(z) else NA_integer_
+
+oc_bruto <- cache_rds("oc_nature_bruto", fetch_opencitations(doi_bruto))
+n_formas <- c(
+  doi_nu     = margem(oc_bruto),
+  doi_prefix = margem(tryCatch(fetch_opencitations(doi_prefixado),
+                               error = function(e) NULL)),
+  doi_url    = margem(tryCatch(fetch_opencitations(doi_url),
+                               error = function(e) NULL)))
+
+oc <- oc_bruto
+cat("citações recebidas por", doi_bruto, ":", margem(oc), "linhas\n")
+cat("mesmo resultado nas três formas do identificador:",
+    length(unique(n_formas[!is.na(n_formas)])) == 1, "\n")
+cat("colunas:", paste(names(oc), collapse = ", "), "\n")
+
+# o campo timespan e o intervalo entre a publicacao e a citacao, em ISO 8601.
+# A leitura do numero de anos usa expressao regular porque o campo tambem traz
+# meses e dias, e vem vazio quando a citacao e do mesmo ano da publicacao.
+anos_espera <- suppressWarnings(as.numeric(sub("^P([0-9]+)Y.*$", "\\1", oc$timespan)))
+oc$anos_espera <- anos_espera
+cat("timespan sem valor numérico:", sum(is.na(anos_espera)), "\n")
+cat("mediana do intervalo, em anos:", median(anos_espera, na.rm = TRUE), "\n")
+```
+
+A primeira coisa a notar é que `fetch_opencitations()` aceita o identificador em
+três formatos — DOI nu, com o prefixo `doi:` e como URL do `doi.org` — e devolve
+o mesmo conjunto nas três. Isso importa porque a API do OpenCitations exige
+internamente o formato com prefixo, e um DOI copiado de uma página de artigo vem
+sem ele. As `r margem(oc)` linhas da tabela devolvida são citações recebidas, e
+cada linha descreve um evento de citação com sete colunas.
+
+```{r m9-tbl-oc}
+#| tbl-cap: "As sete colunas do retorno de fetch_opencitations() e o que cada uma descreve."
+if (is.data.frame(oc)) {
+  legenda_oc <- data.frame(
+    coluna = c("oci", "citing", "cited", "creation", "timespan", "journal_sc", "author_sc"),
+    conteudo = c("identificador do próprio evento de citação",
+                 "obra que cita, com identificadores de várias fontes",
+                 "obra citada, aqui sempre o mesmo documento",
+                 "data em que a citação foi publicada",
+                 "intervalo entre publicação e citação, em padrão ISO 8601",
+                 "indica autocitação de periódico",
+                 "indica autocitação de autor"),
+    exemplo = c(oc$oci[1], substr(oc$citing[1], 1, 40),
+                substr(oc$cited[1], 1, 40), oc$creation[1],
+                ifelse(nzchar(oc$timespan[1]), oc$timespan[1], "(vazio)"),
+                oc$journal_sc[1], oc$author_sc[1]),
+    stringsAsFactors = FALSE)
+  knitr::kable(legenda_oc, row.names = FALSE)
+}
+```
+
+O campo `creation` é a data em que a citação foi publicada, e o campo `timespan`
+é a distância entre a publicação da obra citada e a publicação da citação,
+escrito no padrão ISO 8601 — `P4Y7M19D` significa quatro anos, sete meses e
+dezenove dias. A diferença entre os dois não é sutil. `creation` responde
+"quando o campo passou a citar este trabalho", e permite montar a série histórica
+de recebimento de citações. `timespan` responde "quanto tempo levou para citar",
+e permite medir velocidade de difusão. Uma obra citada no mesmo ano em que foi
+publicada tem `timespan` vazio, e é isso que explica os valores ausentes que a
+próxima tabela registra. Neste acervo,
+`r sum(is.na(oc$anos_espera))` dos `r nrow(oc)` registros não trazem valor
+numérico no campo, e a mediana do intervalo entre os demais é de
+`r median(oc$anos_espera, na.rm = TRUE)` anos.
+
+```{r m9-tbl-oc-ano}
+#| tbl-cap: "Citações recebidas pelo artigo por ano, contadas a partir do campo creation."
+if (is.data.frame(oc)) {
+  oc$ano <- suppressWarnings(as.integer(substr(oc$creation, 1, 4)))
+  n_sem_data <- sum(is.na(oc$ano))
+  tab_ano <- as.data.frame(table(ano = oc$ano[!is.na(oc$ano)]))
+  names(tab_ano) <- c("ano", "citacoes")
+  tab_ano$ano <- as.integer(as.character(tab_ano$ano))
+  tab_ano <- tab_ano[order(tab_ano$ano), ]
+  knitr::kable(tab_ano, row.names = FALSE)
+  cat("\nregistros sem data de citação:", n_sem_data, "\n")
+  cat("soma das linhas da tabela:", sum(tab_ano$citacoes), "de", nrow(oc), "\n")
+}
+```
+
+A série de citações recebidas conta uma história de difusão com um pico recente e
+um último ano incompleto. O primeiro ano com citações é
+`r min(tab_ano$ano)` — o próprio ano de publicação — e o pico isolado está em
+`r tab_ano$ano[which.max(tab_ano$citacoes)]`, com
+`r max(tab_ano$citacoes)` citações. O último ano da tabela,
+`r max(tab_ano$ano)`, tem apenas `r tab_ano$citacoes[tab_ano$ano == max(tab_ano$ano)]`
+citações e não deve ser lido como queda: a coleta foi feita em
+`r data_coleta`, de modo que o ano corrente está truncado no mês da coleta.
+Registrar a data da coleta é o que permite fazer essa correção, e é o argumento
+mais forte a favor da tabela de proveniência apresentada antes. Restam ainda
+`r n_sem_data` registros sem data de citação, que foram excluídos da série e cujo
+total corresponde à diferença entre a soma da tabela e o número de linhas do
+retorno.
+
+```{r m9-fig-oc}
+#| label: fig-m9-oc
+#| fig-cap: "Citações recebidas por ano, agregadas a partir do campo creation do OpenCitations. O último ano está incompleto por construção."
+#| fig-alt: "Gráfico de barras com o número de citações recebidas por ano, de 2013 a 2026."
+#| fig-height: 3.6
+if (is.data.frame(oc)) {
+  tab_ano$parcial <- tab_ano$ano == max(tab_ano$ano)
+  ggplot(tab_ano, aes(x = ano, y = citacoes, fill = parcial)) +
+    geom_col(width = .75) +
+    geom_text(aes(label = citacoes), vjust = -0.35, size = 2.7, colour = "grey30") +
+    scale_fill_manual(values = c(`FALSE` = pal_agri[1], `TRUE` = pal_agri[2]),
+                      labels = c("ano completo", "ano da coleta, incompleto"),
+                      name = NULL) +
+    scale_x_continuous(breaks = seq(min(tab_ano$ano), max(tab_ano$ano), by = 1)) +
+    scale_y_continuous(expand = expansion(mult = c(0, .16))) +
+    labs(x = "ano da citação", y = "citações recebidas",
+         title = "Citações recebidas pelo artigo por ano",
+         subtitle = sprintf("Coleta em %s; %d eventos sem data foram excluídos",
+                            data_coleta, n_sem_data)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+```
+
+## Limitações das APIs abertas
+
+Nenhuma das duas fontes é um censo, e o material de métodos precisa dizer isso.
+A primeira limitação é a cobertura desigual. O OpenAlex descreve bem a literatura
+com DOI registrado, e cobre de forma irregular anais de congresso, teses e
+periódicos que não depositam metadados em Crossref. Em Agronomia, isso significa
+que capítulos de livro e trabalhos apresentados em reuniões regionais aparecem
+pouco, e que a produção nacional pode estar sub-representada em comparação com a
+de periódicos internacionais de grande editora. A segunda limitação é a
+dependência de rede: uma API fora do ar interrompe o script, e é para isso que
+serve o cache local — o documento que você está lendo foi construído a partir de
+um arquivo em disco, não de uma consulta nova.
+
+A terceira limitação é o limite de requisições. As duas APIs são públicas e
+gratuitas, e nenhuma delas tolera um laço que dispara centenas de chamadas em
+sequência. Se você precisar consultar as citações de trezentos DOIs, faça uma
+chamada por vez com pausa, ou consulte em lote quando a API oferecer esse
+caminho; o cache local existe exatamente para que a segunda leitura do mesmo
+documento não custe rede. A quarta limitação é a ausência de resumos, já
+registrada na tabela do acervo, que reduz o material disponível para análise
+textual. A quinta é a instabilidade temporal das contagens: as citações recebidas
+por uma obra aumentam todos os dias, e o número que você leu hoje em uma tabela
+não será o número de amanhã. Toda figura de citações precisa da data de coleta no
+subtitle ou na legenda, e é por isso que ela aparece nas figuras deste módulo.
+
+## Tarefas do Módulo 9
+
+**Tarefa 9.1 (aplicar).** Faça uma consulta nova ao OpenAlex com `n = 25` sobre
+um tema agronômico do seu interesse, guarde o resultado em cache com
+`cache_rds()` e monte a tabela de proveniência da consulta com os dez campos
+usados neste módulo. Informe quantas obras, autores e termos o acervo tem, e
+qual é o período coberto.
+
+**Tarefa 9.2 (analisar).** No acervo real deste módulo, selecione as
+`r min(5L, nrow(x_openalex$works))` obras mais citadas e verifique, pelo título,
+se todas tratam diretamente de silício. Calcule a fração das citações totais
+concentrada nessas obras e compare com a fração equivalente no acervo simulado.
+Depois, escreva um parágrafo de duas a três frases discutindo o que essa
+diferença implica para a decisão de reportar média ou mediana de citações na
+seção de Resultados.

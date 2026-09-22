@@ -1,0 +1,40 @@
+## Gabarito do Exercício 1.2
+
+### Código completo e executável
+
+```{r}
+# 1.2.1 Diagnóstico do acervo didático
+h_did <- biblio_health(x_did)
+knitr::kable(h_did, row.names = FALSE,
+             caption = "Diagnóstico de qualidade do acervo didático de 12 obras.")
+
+# 1.2.2 Quantas verificações passaram sem achado
+n_ok <- sum(h_did$n == 0)
+```
+
+### Leitura da saída
+
+O diagnóstico fez `r nrow(h_did)` verificações e todas as
+`r nrow(h_did)` devolveram zero ocorrências, ou seja, `r n_ok` de
+`r nrow(h_did)` verificações passaram sem achado. A explicação não é que o
+acervo seja grande ou pequeno, e sim que ele foi construído para servir de
+exemplo: títulos preenchidos, anos presentes, DOI normalizado, nenhuma obra
+repetida e nenhuma citação negativa. O valor pedagógico desse resultado está no
+contraste com o acervo simulado do Módulo 2, onde cada defeito plantado aparece
+como uma linha não nula. Em outras palavras, `biblio_health()` não mede a
+qualidade científica do acervo; mede a consistência interna dos metadados, e é
+essa consistência que sustenta as análises seguintes.
+
+### Redação sugerida para o artigo
+
+Antes das análises, os metadados foram submetidos a verificação de consistência
+interna (títulos, anos, identificadores persistentes, duplicatas e valores de
+citação), sem registro de inconsistências no conjunto analisado.
+
+### Erros comuns a evitar
+
+- Interpretar `biblio_health()` como validação de qualidade científica: a função verifica metadados, não o mérito dos estudos.
+- Rodar o diagnóstico só no fim da análise: defeitos de metadados distorcem redes, métricas e comparações, portanto a verificação vem antes.
+- Ignorar a linha de citações negativas: contagem negativa indica erro de importação ou de codificação e quebra médias e normalizações.
+- Supor que acervo pequeno dispensa verificação: o acervo didático tem 12 obras e ainda assim passa por seis verificações.
+- Confundir ausência de achado com ausência de problema: campos vazios podem existir em número baixo e ainda assim concentrar-se justamente nas obras mais influentes.

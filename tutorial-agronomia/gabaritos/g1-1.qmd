@@ -1,0 +1,49 @@
+## Gabarito do Exercício 1.1
+
+### Código completo e executável
+
+```{r}
+# 1.1.1 Importação do arquivo gerado no módulo
+csv_did <- file.path(tempdir(), "acervo_agronomia.csv")
+write.csv(head(example_biblio(), 6L), csv_did, row.names = FALSE)
+dados <- biblio_import(csv_did)
+
+# 1.1.2 Harmonização com rótulo de origem
+proj <- as_biblio_project(dados, source = "minha base")
+
+# 1.1.3 Dimensões das tabelas do projeto
+dim_proj <- data.frame(
+  tabela = c("works", "authorships", "authors", "keywords"),
+  linhas = c(nrow(proj$works), nrow(proj$authorships),
+             nrow(proj$authors), nrow(proj$keywords)))
+knitr::kable(dim_proj, row.names = FALSE,
+             caption = "Dimensões do projeto harmonizado na Tarefa 1.1.")
+```
+
+### Leitura da saída
+
+A importação produziu um quadro plano com `r nrow(dados)` linhas, e a
+harmonização converteu esse quadro em um projeto com `r nrow(proj$works)` obras,
+`r nrow(proj$authorships)` ligações de autoria, `r nrow(proj$authors)` autores
+únicos e `r nrow(proj$keywords)` pares obra-termo. A leitura importante é a
+relação entre os números: as linhas de `authorships` são maiores que as de
+`works` porque cada obra tem mais de um autor, e `authors` é menor que
+`authorships` porque um mesmo autor assina várias obras. Se você tivesse
+guardado apenas o quadro plano, cada contagem exigiria reinterpretar o campo de
+autoria como texto separado por ponto e vírgula.
+
+### Redação sugerida para o artigo
+
+As referências foram exportadas na base de dados de origem no formato CSV,
+importadas com `biblio_import()` e harmonizadas em um objeto relacional
+(`biblio_project`) com `as_biblio_project()`, preservando a rastreabilidade da
+origem. O acervo final reuniu N obras, M registros de autoria e K pares
+obra-palavra-chave.
+
+### Erros comuns a evitar
+
+- Passar o caminho de um arquivo que não existe e não verificar a mensagem de erro: `biblio_import()` para com erro claro de arquivo ausente, e o caminho relativo depende do diretório de trabalho.
+- Harmonizar sem indicar `source`: o rótulo entra na trilha de proveniência e é o que permite, meses depois, saber de onde veio cada registro.
+- Confundir `authorships` com `authors`: a primeira conta assinaturas, a segunda conta pessoas.
+- Editar o quadro plano depois de harmonizar: o projeto não se atualiza sozinho; refaça a harmonização.
+

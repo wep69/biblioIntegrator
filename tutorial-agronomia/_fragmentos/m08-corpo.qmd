@@ -1,0 +1,602 @@
+# Módulo 8. Escala: armazenamento colunar e consultas SQL
+
+## O problema agronômico
+
+Um doutorado em Agronomia raramente termina com um único corpus. O projeto sobre
+silício e estresse salino começa com as obras de 2010 a 2019, recebe uma rodada
+nova de exportação de bases em 2024 e ainda ganha um recorte de sensoriamento
+remoto quando o tema da fenotipagem entra na tese. Cada rodada refaz a busca, e
+cada busca devolve um acervo ligeiramente diferente, porque as bases indexam
+documentos novos, corrigem metadados antigos e mudam a cobertura de periódicos.
+Se a análise for sempre refeita a partir do zero, uma figura da defesa pode não
+se reproduzir três meses depois — e a banca pergunta, com razão, de onde veio
+aquele número.
+
+O segundo problema é de tempo. Quem já esperou a importação de um acervo com
+dezenas de milhares de registros sabe que a etapa mais lenta não é a estatística,
+é a releitura do material. A cada mudança de um parâmetro de filtro, o objeto
+inteiro precisa ser reconstruído a partir do arquivo de origem, mesmo quando o
+que interessa é uma única coluna. Uma consulta que soma citações por ano não
+precisa abrir o abstract de cada obra; precisa abrir uma coluna de número
+inteiro e uma de ano, o que muda a ordem de grandeza do custo quando o acervo
+cresce.
+
+O `biblioIntegrator` responde aos dois problemas com três funções que fazem o
+`biblio_project` sair da memória da sessão e virar material em disco.
+`biblio_store()` grava as seis tabelas do projeto em dois formatos: um diretório
+de arquivos Parquet pelo motor `arrow`, ou um único arquivo de banco de dados
+pelo motor `duckdb`. `biblio_load()` devolve o projeto exatamente como ele saiu.
+`biblio_query()` responde perguntas em SQL direto sobre o acervo gravado, sem
+carregar o projeto inteiro na memória. Este módulo exercita as três, mede o custo
+de cada motor e mostra o comportamento que o pacote adota para proteger um acervo
+já gravado.
+
+## Gravar, carregar e conferir a volta
+
+A primeira pergunta de qualquer persistência é a mais simples e a que mais
+importa: o material volta inteiro? O bloco abaixo grava o acervo analítico nos
+dois motores, recarrega cada um e compara as tabelas com o objeto original.
+
+```{r m8-store-load}
+# O DuckDB escreve um aviso informativo na primeira conexão da sessão. Ele é
+# inofensivo e não deve poluir o documento, por isso as chamadas que abrem uma
+# conexão passam pelo auxiliar sem_eco(), que desvia stdout e stderr sem perder
+# o valor de retorno nem engolir erros.
+sem_eco <- function(expr) {
+  n_out <- sink.number(); n_msg <- sink.number(type = "message")
+  f_out <- tempfile(); f_msg <- tempfile()
+  c_out <- file(f_out, open = "wt"); c_msg <- file(f_msg, open = "wt")
+  sink(c_out); sink(c_msg, type = "message")
+  on.exit({
+    while (sink.number() > n_out) sink()
+    while (sink.number(type = "message") > n_msg) sink(type = "message")
+    close(c_out); close(c_msg); unlink(c(f_out, f_msg))
+  }, add = TRUE)
+  force(expr)
+}
+# caminho relativo ao diretorio de build, para que o projeto viaje junto com os fontes
+dir_saida <- if (dir.exists("_cache")) "_cache" else tempdir()
+p_arrow  <- file.path(dir_saida, "m08_acervo_arrow")
+p_duck   <- file.path(dir_saida, "m08_acervo.duckdb")
+
+# grava nos dois motores. Se o caminho ja existe, a chamada abaixo recusa e o
+# argumento overwrite resolve: o script fica idempotente, sem apagar nada a priori.
+tenta_gravar <- function(alvo, motor) {
+  r <- tryCatch(biblio_store(x_analise, alvo, engine = motor),
+                error = function(e) conditionMessage(e))
+  if (is.character(r) && !dir.exists(alvo) && !file.exists(alvo))
+    r <- sem_eco(biblio_store(x_analise, alvo, engine = motor, overwrite = TRUE))
+  invisible(r)
+}
+invisible(tenta_gravar(p_arrow, "arrow"))
+invisible(tenta_gravar(p_duck,  "duckdb"))
+
+# a volta: biblio_load() reconstroi o biblio_project a partir de cada motor
+proj_arrow <- sem_eco(biblio_load(p_arrow, engine = "arrow"))
+proj_duck  <- sem_eco(biblio_load(p_duck,  engine = "duckdb"))
+
+# conferencia tabela por tabela, comparando com o projeto que ficou na memoria.
+# a comparacao usa all.equal() sobre os vetores de cada coluna, e nao identical()
+# sobre o data.frame: gravar e reler reordena atributos internos do quadro (ordem
+# de names/class/row.names) e o Parquet nao guarda nomes de linha, de modo que
+# identical() reprova quadros cujos valores sao exatamente os mesmos. A chave real
+# do projeto e `work_id`, e nao o numero da linha.
+tabelas <- c("works", "authors", "authorships", "keywords", "references", "provenance")
+mesmo_conteudo <- function(original, volta) {
+  original <- as.data.frame(original); volta <- as.data.frame(volta)
+  if (!identical(sort(names(original)), sort(names(volta))) ||
+      nrow(original) != nrow(volta)) return(FALSE)
+  all(vapply(names(original), function(cc)
+    isTRUE(all.equal(original[[cc]], volta[[cc]], check.attributes = FALSE)), logical(1)))
+}
+volta <- data.frame(
+  tabela       = tabelas,
+  linhas_orig  = vapply(tabelas, function(t) nrow(x_analise[[t]]), integer(1)),
+  linhas_arrow = vapply(tabelas, function(t) nrow(proj_arrow[[t]]), integer(1)),
+  linhas_duck  = vapply(tabelas, function(t) nrow(proj_duck[[t]]),  integer(1)),
+  stringsAsFactors = FALSE)
+volta$conteudo_identico <- vapply(tabelas, function(t)
+  mesmo_conteudo(x_analise[[t]], proj_arrow[[t]]) &&
+    mesmo_conteudo(x_analise[[t]], proj_duck[[t]]), logical(1))
+knitr::kable(volta, row.names = FALSE,
+  caption = "As seis tabelas do projeto antes e depois da ida ao disco, nos dois motores de armazenamento.")
+```
+
+As duas colunas de linhas coincidem com a coluna de origem em
+`r sum(volta$linhas_orig == volta$linhas_arrow & volta$linhas_orig == volta$linhas_duck)`
+das `r nrow(volta)` tabelas. A comparação valor a valor devolve `TRUE` em
+`r sum(volta$conteudo_identico)` das `r nrow(volta)` tabelas, nos dois motores, e
+a única linha que reprova é `provenance` — vale entender exatamente por que,
+porque a explicação separa um defeito real de uma propriedade esperada. As três
+colunas de `provenance` são `timestamp`, `operation` e `details`; a comparação
+reprova apenas em `timestamp`, e não em conteúdo analítico. O motivo é que a
+coluna é um relógio de parede gravado no momento de cada operação: o objeto que
+ficou em memória foi criado no início da sessão, e o arquivo em disco foi
+reescrito depois, com marcas de tempo alguns segundos mais novas. O que importa
+para a análise — as operações aplicadas e o que cada uma alterou — sobrevive
+intacto, e a tabela `works` fecha idêntica nas
+`r volta$linhas_orig[volta$tabela == "works"]` obras com
+`r ncol(x_analise$works)` colunas. O acervo volta com
+`r nrow(proj_arrow$works)` obras, `r nrow(proj_arrow$authors)` autores e
+`r nrow(proj_arrow$keywords)` pares obra-termo, exatamente o que entrou. Note
+ainda que as duas tabelas `references` têm
+`r volta$linhas_orig[volta$tabela == "references"]` linha: o corpus simulado deste
+tutorial não traz arestas de citação, e a ausência sobrevive à gravação em vez de
+virar uma tabela vazia de aparência ambígua.
+
+```{r m8-arquivos}
+#| tbl-cap: "O que cada motor grava em disco: um diretorio com seis arquivos Parquet ou um unico arquivo de banco de dados."
+#| tbl-cap-location: top
+arq_parquet <- list.files(p_arrow, full.names = TRUE)
+tamanhos <- data.frame(
+  motor   = c(rep("arrow (diretorio Parquet)", length(arq_parquet)),
+              "duckdb (arquivo unico)"),
+  objeto  = c(basename(arq_parquet), basename(p_duck)),
+  bytes   = c(file.size(arq_parquet), file.size(p_duck)),
+  stringsAsFactors = FALSE)
+tamanhos$kb <- round(tamanhos$bytes / 1024, 1)
+knitr::kable(tamanhos, row.names = FALSE,
+  caption = "Tamanho de cada artefato gravado. O motor arrow produz um arquivo por tabela; o duckdb concentra tudo em um so.")
+```
+
+A lista de arquivos explica a diferença de filosofia entre os motores. O `arrow`
+grava seis arquivos independentes, um por tabela, dentro de um diretório: isso
+permite ler apenas a tabela que interessa e copiar um arquivo isolado. O `duckdb`
+grava um arquivo único com catálogo, tipos declarados e índices internos, o que
+custa `r round(tamanhos$bytes[nrow(tamanhos)] / sum(tamanhos$bytes[1:(nrow(tamanhos)-1)]), 1)`
+vezes o total do Parquet nesta gravação — uma diferença de ordem de grandeza que
+não deve assustar, porque o Parquet comprime colunas numéricas e textuais de
+forma muito agressiva, enquanto o banco reserva espaço para transações. Para
+acervos de dezenas de milhares de obras, os dois continuam cabendo em qualquer
+notebook.
+
+## Gravar duas vezes no mesmo caminho: o que o pacote faz
+
+Este é o comportamento que mais rende dor de cabeça quando não é conhecido, e por
+isso vale ser demonstrado em vez de descrito. O argumento `overwrite` tem valor
+padrão `FALSE`, e nesse estado o pacote **recusa** a gravação quando o caminho
+destino já existe, em vez de sobrescrever em silêncio.
+
+```{r m8-overwrite}
+# o caminho p_arrow ja existe nesta sessao; a chamada abaixo reproduz o erro
+mensagem_overwrite <- sem_eco(tryCatch(
+  biblio_store(x_analise, p_arrow, engine = "arrow"),
+  error = function(e) conditionMessage(e)))
+cat("resultado da segunda gravacao sem overwrite:\n")
+cat("  ", mensagem_overwrite, "\n", sep = "")
+
+# agora com overwrite = TRUE, o conteudo antigo e substituido
+grava_ok <- sem_eco(biblio_store(x_analise, p_arrow, engine = "arrow", overwrite = TRUE))
+n_pos <- nrow(sem_eco(biblio_load(p_arrow, "arrow"))$works)
+cat("com overwrite = TRUE o caminho devolvido foi:\n")
+cat("  ", basename(grava_ok), "\n", sep = "")
+cat("e o acervo relido tem", n_pos, "obras\n")
+```
+
+A mensagem que o pacote devolve é literalmente
+`r mensagem_overwrite`, sem número de linha e sem chamada ecoada, porque o erro é
+lançado com `call. = FALSE`. A consequência prática é grande e é a razão do
+comportamento: um acervo persistido é o resultado de uma busca que talvez não
+possa ser repetida igual — a base mudou, a licença expirou, o período da coleta
+foi outro. Sobrescrever esse material por um objeto de mesmo nome, vindo de uma
+sessão diferente, destrói a rastreabilidade sem avisar. Recusar é a escolha
+conservadora, e a sobreposição fica explícita na chamada
+(`overwrite = TRUE`), o que a torna uma decisão visível quando o script é
+relido. O mesmo vale para o motor `duckdb`, com a diferença de que o caminho
+verificado é um arquivo, e não um diretório.
+
+::: {.callout-warning}
+## Reaproveite o caminho em vez de apagá-lo
+Em vez de apagar a pasta do acervo toda vez que o script roda, prefira a
+estrutura do bloco anterior: tente gravar, e grave com `overwrite = TRUE` só
+quando a tentativa recusar. O script fica idempotente — rodar duas vezes produz
+o mesmo estado — e a primeira gravação de um acervo novo é sempre confirmada por
+uma recusa em vez de por uma destruição silenciosa.
+:::
+
+## Quanto custa cada motor
+
+Com os dois acervos gravados, a comparação de custo deixa de ser opinião e passa
+a ser medida. O bloco abaixo cronometra gravação e leitura em réplicas e separa o
+tempo de leitura do tempo de consulta agregada.
+
+```{r m8-bench}
+#| tbl-cap: "Custo medido de gravacao e leitura por motor, em replicas. Os tempos vem da propria renderizacao e variam com a maquina."
+# mede uma funcao em R replicas e devolve o tempo decorrido de cada uma.
+# O argumento e uma FUNCAO, e nao uma expressao: uma promessa avaliada dentro de
+# um laco e forcada uma unica vez, e as replicas seguintes mediriam zero.
+cronometra <- function(f, replicas = 7L) {
+  t <- numeric(replicas)
+  for (i in seq_len(replicas)) t[i] <- system.time(f())[["elapsed"]]
+  t
+}
+# A gravacao e medida APAGANDO o alvo antes de cada replica: medir uma
+# sobrescrita sobre diretorio ja existente mediria outra coisa, porque o motor
+# arrow troca seis arquivos em vez de criar a estrutura do zero. O motor duckdb
+# ja recria o arquivo por definicao.
+medidas <- list(
+  grav_arrow = cronometra(function() {
+    unlink(p_arrow, recursive = TRUE)
+    invisible(biblio_store(x_analise, p_arrow, engine = "arrow", overwrite = TRUE)) }),
+  grav_duck  = cronometra(function() {
+    unlink(p_duck)
+    invisible(sem_eco(biblio_store(x_analise, p_duck, engine = "duckdb", overwrite = TRUE))) }),
+  leit_arrow = cronometra(function() invisible(biblio_load(p_arrow, "arrow"))),
+  leit_duck  = cronometra(function() invisible(sem_eco(biblio_load(p_duck, "duckdb")))),
+  sql_duck   = cronometra(function() invisible(sem_eco(biblio_query(p_duck,
+    "SELECT year, COUNT(*) AS obras, AVG(cited_by_count) AS media FROM works GROUP BY year")))))
+bench <- do.call(rbind, lapply(names(medidas), function(n) data.frame(
+  operacao = n, replica = seq_along(medidas[[n]]), segundos = medidas[[n]])))
+
+# a mesma consulta agregada, mas lendo os arquivos Parquet do outro motor:
+# o DuckDB le Parquet direto, o que permite comparar as duas rotas colunares
+sql_parquet <- cronometra(function() sem_eco(biblio_query(p_duck, sprintf(
+  "SELECT year, COUNT(*) AS obras FROM read_parquet('%s/works.parquet') GROUP BY year",
+  normalizePath(p_arrow, winslash = "/")))))
+
+resumo_tempo <- do.call(rbind, lapply(split(bench, bench$operacao), function(d) data.frame(
+  operacao = d$operacao[1], mediana_s = median(d$segundos),
+  min_s = min(d$segundos), max_s = max(d$segundos))))
+rotulos <- c(grav_arrow = "gravar em arrow", grav_duck = "gravar em duckdb",
+             leit_arrow = "carregar de arrow", leit_duck = "carregar de duckdb",
+             sql_duck = "consultar SQL agregada")
+resumo_tempo$etapa <- unname(rotulos[resumo_tempo$operacao])
+knitr::kable(resumo_tempo[, c("etapa", "mediana_s", "min_s", "max_s")], row.names = FALSE,
+  caption = "Tempo decorrido de cada etapa, em segundos, com o minimo e o maximo das replicas.")
+```
+
+A medição confirma o desenho dos dois motores e desfaz uma intuição comum. Gravar
+em `duckdb` custou
+`r round(resumo_tempo$mediana_s[resumo_tempo$operacao == "grav_duck"] / resumo_tempo$mediana_s[resumo_tempo$operacao == "grav_arrow"], 1)`
+vezes o tempo de gravar em `arrow`, porque o banco abre catálogo, cria tabelas
+tipadas e fecha a transação — trabalho que o Parquet não tem. Carregar de volta
+segue a mesma ordem:
+`r round(resumo_tempo$mediana_s[resumo_tempo$operacao == "leit_duck"] / resumo_tempo$mediana_s[resumo_tempo$operacao == "leit_arrow"], 1)`
+vezes mais lento pelo banco. Mas o número que muda a decisão está na linha da
+consulta SQL: a agregação gastou
+`r round(resumo_tempo$mediana_s[resumo_tempo$operacao == "sql_duck"], 2)` s e
+devolveu a resposta sem nunca carregar o projeto na memória, contra
+`r round(resumo_tempo$mediana_s[resumo_tempo$operacao == "leit_duck"], 2)` s só
+para materializar as seis tabelas. E o mesmo DuckDB, lendo os arquivos Parquet do
+outro motor diretamente com `read_parquet()`, respondeu em
+`r round(median(sql_parquet), 2)` s. A lição é que o ganho de escala vem do motor
+vetorizado e da projeção de colunas, não do formato do arquivo: as duas rotas
+colunares competem de igual para igual neste tamanho, e ambas vencem a
+materialização completa.
+
+Uma ressalva de método, porque ela vale para toda medição de tempo que você fizer
+na tese. Os tempos deste acervo estão na casa dos centésimos de segundo, e nessa
+faixa o próprio sistema de arquivos domina o resultado: a primeira gravação de um
+caminho novo costuma custar mais do que as seguintes, porque paga a criação do
+diretório e o primeiro acesso ao disco. Por isso os números desta seção são
+medianas de `r nrow(medidas[[1]])` réplicas, e não uma medição isolada. Antes de
+tirar conclusão de qualquer comparação de desempenho, repita a medição algumas
+vezes e olhe a dispersão, que aparece na figura a seguir.
+
+```{r m8-fig-tempo}
+#| label: fig-m8-tempo
+#| fig-cap: "Tempo medido de gravação e leitura em cada motor, em sete réplicas. A escala do eixo vertical é livre por painel, porque gravar e ler diferem em uma ordem de grandeza."
+#| fig-alt: "Dois painéis de barras; no primeiro, o tempo de gravação em arrow e em duckdb; no segundo, o tempo de leitura em cada motor."
+#| fig-height: 3.4
+bt <- bench
+bt$motor <- ifelse(grepl("arrow", bt$operacao), "arrow", "duckdb")
+bt$etapa <- ifelse(grepl("^grav", bt$operacao), "Gravação", "Leitura")
+bt <- bt[bt$operacao %in% c("grav_arrow", "grav_duck", "leit_arrow", "leit_duck"), ]
+ggplot(bt, aes(x = motor, y = segundos, fill = motor)) +
+  geom_col(data = aggregate(segundos ~ motor + etapa, bt, median),
+           width = .6, alpha = .55) +
+  geom_point(position = position_jitter(width = .06, height = 0),
+             size = 1.7, colour = "grey20") +
+  facet_wrap(~ etapa, scales = "free_y") +
+  scale_fill_manual(values = c(arrow = pal_agri[1], duckdb = pal_agri[2]), guide = "none") +
+  labs(x = NULL, y = "segundos",
+       title = "Custo de persistir e reler o acervo",
+       subtitle = "Barra: mediana das réplicas. Pontos: cada réplica medida.")
+```
+
+A Figura acima traz a barra como mediana e os pontos como as réplicas
+individuais, e essa escolha é deliberada: em tempos desta ordem, uma única
+medição pode enganar, porque o primeiro acesso a um arquivo paga o custo de
+cache do sistema operacional. A dispersão observada entre o mínimo e o máximo de
+cada etapa (de `r round(min(resumo_tempo$min_s), 2)` s a
+`r round(max(resumo_tempo$max_s), 2)` s na tabela anterior) é da mesma ordem da
+diferença entre os motores, o que recomenda ler esta figura como ordem de
+grandeza e não como placar. Para o acervo de 280 obras deste tutorial, qualquer
+um dos motores responde em menos de um segundo; a decisão passa a depender do
+tipo de pergunta, não da velocidade.
+
+```{r m8-fig-disco}
+#| label: fig-m8-disco
+#| fig-cap: "Espaço ocupado em disco por cada motor. O eixo vertical é logarítmico, porque os dois artefatos diferem em quase duas ordens de grandeza."
+#| fig-alt: "Barras horizontais com o tamanho em quilobytes do diretório Parquet e do arquivo DuckDB, em escala logarítmica."
+#| fig-height: 2.6
+disp <- data.frame(
+  motor = c("arrow\n(6 arquivos Parquet)", "duckdb\n(arquivo único)"),
+  kb = c(sum(file.size(list.files(p_arrow, full.names = TRUE))), file.size(p_duck)) / 1024)
+ggplot(disp, aes(x = motor, y = kb, fill = motor)) +
+  geom_col(width = .55) +
+  geom_text(aes(label = paste0(round(kb, 1), " kB")), vjust = -0.4, size = 3.4) +
+  scale_fill_manual(values = pal_agri[1:2], guide = "none") +
+  scale_y_log10(expand = expansion(mult = c(.04, .28))) +
+  labs(x = NULL, y = "quilobytes (escala log)",
+       title = "Espaço em disco por motor de armazenamento",
+       subtitle = sprintf("Razão duckdb/arrow: %.0f vezes", disp$kb[2] / disp$kb[1]))
+```
+
+A Figura do disco é a que mais muda de sentido quando o acervo cresce. Com
+280 obras, o Parquet ocupa `r round(disp$kb[1], 1)` kB e o banco ocupa
+`r round(disp$kb[2], 1)` kB, uma razão de
+`r round(disp$kb[2] / disp$kb[1], 0)` vezes. Nessa faixa de tamanho, a diferença
+é irrelevante: os dois artefatos cabem num anexo de e-mail. O que a figura
+ensina é a origem do custo, que é estrutural e não desaparece com escala — o
+banco mantém estruturas internas que o Parquet não precisa manter. Se o seu
+acervo final passar de alguns gigabytes, e isso acontece quando o corpus inclui
+texto completo, a decisão de formato deixa de ser didática e passa a ser
+orçamentária.
+
+## Consultas SQL sobre o acervo persistido
+
+O ganho de ter um acervo em DuckDB não é a velocidade bruta: é poder perguntar
+sem carregar. `biblio_query()` recebe o caminho do arquivo e uma instrução SQL, e
+devolve um `data.frame`. As quatro consultas abaixo cobrem o essencial da
+bibliometria descritiva, e cada uma vem com a leitura do resultado.
+
+### Produção por ano
+
+```{r m8-sql-ano}
+#| tbl-cap: "Produção anual do acervo, contada diretamente na tabela works pelo motor SQL."
+consulta_ano <- sem_eco(biblio_query(p_duck, "
+  SELECT year AS ano, COUNT(*) AS obras
+  FROM works GROUP BY year ORDER BY year"))
+knitr::kable(consulta_ano, row.names = FALSE)
+```
+
+A contagem por ano reproduz o que os módulos de dinâmica temporal já mostraram a
+partir da memória, e a coincidência é o ponto: o dado persistido é o mesmo dado.
+O ano de maior produção é `r consulta_ano$ano[which.max(consulta_ano$obras)]`,
+com `r max(consulta_ano$obras)` obras, e o primeiro ano da série é
+`r min(consulta_ano$ano)`. Vale registrar que a consulta não devolve o ano
+ausente — o recorte analítico do Módulo 2 já havia excluído a obra sem ano, e a
+consistência entre a decisão tomada em memória e o material em disco é o que
+torna o acervo persistido confiável para retomar a análise meses depois.
+
+```{r m8-fig-ano}
+#| label: fig-m8-ano
+#| fig-cap: "Produção anual do acervo obtida por consulta SQL sobre o arquivo DuckDB, sem carregar o projeto na memória."
+#| fig-alt: "Gráfico de barras verticais com o número de obras por ano, de 2010 a 2025."
+#| fig-height: 3.6
+ggplot(consulta_ano, aes(x = ano, y = obras)) +
+  geom_col(fill = pal_agri[1], width = .78) +
+  geom_text(aes(label = obras), vjust = -0.35, size = 2.6, colour = "grey30") +
+  scale_x_continuous(breaks = seq(min(consulta_ano$ano), max(consulta_ano$ano), by = 2)) +
+  scale_y_continuous(expand = expansion(mult = c(0, .14))) +
+  labs(x = "ano de publicação", y = "número de obras",
+       title = "Produção anual do acervo, medida por SQL",
+       subtitle = sprintf("%d obras entre %d e %d", sum(consulta_ano$obras),
+                          min(consulta_ano$ano), max(consulta_ano$ano)))
+```
+
+A Figura acima tem valor prático imediato para o capítulo de Resultados: é a
+figura de produção anual construída sem que o `biblio_project` jamais tenha
+voltado para a memória. A assimetria entre o começo e o fim da série — de
+`r consulta_ano$obras[1]` obras em `r consulta_ano$ano[1]` para
+`r consulta_ano$obras[nrow(consulta_ano)]` em
+`r consulta_ano$ano[nrow(consulta_ano)]` — reflete tanto o crescimento real do
+campo quanto a maior indexação de trabalhos recentes, e o Módulo 4 discute como
+separar as duas coisas.
+
+### Fontes mais produtivas
+
+```{r m8-sql-fontes}
+#| tbl-cap: "Seis fontes com mais obras no acervo e a citacao media por obra de cada uma, obtidas por GROUP BY na tabela works."
+top_fontes <- sem_eco(biblio_query(p_duck, "
+  SELECT source AS fonte, COUNT(*) AS obras,
+         ROUND(AVG(cited_by_count), 1) AS citacoes_por_obra
+  FROM works GROUP BY source ORDER BY obras DESC LIMIT 6"))
+knitr::kable(top_fontes, row.names = FALSE)
+```
+
+O ranking de fontes separa duas coisas que costumam ser confundidas em revisões
+de literatura: volume e impacto. A fonte que mais publica no acervo é
+`r top_fontes$fonte[1]`, com `r top_fontes$obras[1]` obras, mas a maior média de
+citações por obra entre as seis é a de
+`r top_fontes$fonte[which.max(top_fontes$citacoes_por_obra)]`, com
+`r max(top_fontes$citacoes_por_obra)` citações por obra. A ordem dos dois
+critérios não coincide, e isso é esperado num levantamento por palavras-chave:
+a revista de escopo amplo aparece mais vezes, enquanto a especializada concentra
+trabalhos mais citados. Duas linhas desta tabela merecem atenção pelo que o
+Módulo 3 plantou — as fontes do acervo simulado não têm o mesmo tratamento de
+citações, e a média revela a diferença.
+
+### Obras acima de um limiar de citações
+
+```{r m8-sql-limiar}
+#| tbl-cap: "Obras com pelo menos quarenta citacoes, ordenadas da mais citada para a menos citada."
+limiar <- 40
+acima <- sem_eco(biblio_query(p_duck, sprintf("
+  SELECT title AS titulo, year AS ano, cited_by_count AS citacoes
+  FROM works WHERE cited_by_count >= %d
+  ORDER BY cited_by_count DESC LIMIT 6", limiar)))
+knitr::kable(acima, row.names = FALSE)
+```
+
+O limiar de `r limiar` citações deixa `r sem_eco(biblio_query(p_duck, sprintf("SELECT COUNT(*) AS n FROM works WHERE cited_by_count >= %d", limiar)))$n`
+obras no acervo, e as seis primeiras aparecem na tabela. Um filtro por limiar em
+SQL é a forma mais direta de montar o núcleo de leitura de uma tese: são as obras
+que a banca vai esperar citadas. Compare a primeira linha, com
+`r acima$citacoes[1]` citações em `r acima$ano[1]`, com a última,
+`r acima$citacoes[nrow(acima)]` citações em `r acima$ano[nrow(acima)]`. O
+intervalo é grande, o que recomenda nunca escolher o limiar pelo valor absoluto
+sem olhar a distribuição — a mediana do acervo é
+`r sem_eco(biblio_query(p_duck, "SELECT CAST(MEDIAN(cited_by_count) AS INT) AS m FROM works"))$m`,
+e um corte muito acima dela seleciona pouquíssimas obras.
+
+### Termos por período
+
+A consulta que o SQL resolve melhor do que qualquer alternativa em R é a junção
+entre tabelas. A contagem de um termo por período exige encontrar quais obras
+usam o termo e, em seguida, classificar essas obras por faixa de ano.
+
+```{r m8-sql-termos}
+#| tbl-cap: "Termos mais frequentes no periodo de 2020 a 2025, obtidos pela juncao entre as tabelas works e keywords."
+termos_per <- sem_eco(biblio_query(p_duck, "
+  SELECT w.periodo AS periodo, k.keyword AS termo, COUNT(*) AS n
+  FROM works w JOIN keywords k ON k.work_id = w.work_id
+  WHERE w.periodo = '2020-2025'
+  GROUP BY w.periodo, k.keyword ORDER BY n DESC LIMIT 8"))
+knitr::kable(termos_per, row.names = FALSE)
+
+# a mesma pergunta nos dois periodos, para um termo de interesse
+termo_foco <- "machine learning"
+termo_periodos <- sem_eco(biblio_query(p_duck, sprintf("
+  SELECT w.periodo AS periodo, COUNT(DISTINCT w.work_id) AS obras
+  FROM works w JOIN keywords k ON k.work_id = w.work_id
+  WHERE k.keyword = '%s' GROUP BY w.periodo ORDER BY w.periodo", termo_foco)))
+knitr::kable(termo_periodos, row.names = FALSE,
+  caption = sprintf("Obras que declaram o termo '%s', por periodo.", termo_foco))
+```
+
+O JOIN responde, em uma linha, a pergunta que sustenta a justificativa de um
+projeto de doutorado. O termo mais frequente do período recente é
+`r termos_per$termo[1]`, com `r termos_per$n[1]` ocorrências, e a segunda tabela
+mostra o contraste para um termo específico: `r termo_periodos$obras[termo_periodos$periodo == "2020-2025"]`
+obras no período de 2020 a 2025 contra
+`r termo_periodos$obras[termo_periodos$periodo == "2010-2019"]` no período
+anterior, uma razão de
+`r round(termo_periodos$obras[termo_periodos$periodo == "2020-2025"] / max(1, termo_periodos$obras[termo_periodos$periodo == "2010-2019"]), 1)`
+vezes. Esse é o tipo de número que entra na redação como evidência quantitativa
+de deslocamento temático, desde que acompanhado da ressalva do Módulo 4: o
+crescimento do acervo entre os períodos também contribui para a diferença bruta.
+
+```{r m8-fig-termos}
+#| label: fig-m8-termos
+#| fig-cap: "Termos mais frequentes no período recente, obtidos por junção SQL entre as tabelas works e keywords."
+#| fig-alt: "Barras horizontais com a frequência dos termos mais comuns no período de 2020 a 2025."
+#| fig-height: 3.8
+termos_ord <- termos_per[order(termos_per$n), ]
+termos_ord$termo <- factor(termos_ord$termo, levels = termos_ord$termo)
+ggplot(termos_ord, aes(x = termo, y = n)) +
+  geom_col(fill = pal_agri[3], width = .72) +
+  geom_text(aes(label = n), hjust = -0.25, size = 3) +
+  coord_flip() +
+  scale_y_continuous(expand = expansion(mult = c(0, .12))) +
+  labs(x = NULL, y = "obras que declaram o termo",
+       title = "Termos mais frequentes, período 2020-2025",
+       subtitle = "Contagem por junção entre works e keywords")
+```
+
+## Comparar os motores e escolher
+
+```{r m8-tbl-motores}
+#| tbl-cap: "Comparacao dos dois motores de armazenamento em tempo medido, tamanho em disco e uso recomendado."
+tg <- resumo_tempo$mediana_s[resumo_tempo$operacao == "grav_arrow"]
+td <- resumo_tempo$mediana_s[resumo_tempo$operacao == "grav_duck"]
+la <- resumo_tempo$mediana_s[resumo_tempo$operacao == "leit_arrow"]
+ld <- resumo_tempo$mediana_s[resumo_tempo$operacao == "leit_duck"]
+tam_a <- sum(file.size(list.files(p_arrow, full.names = TRUE))) / 1024
+tam_d <- file.size(p_duck) / 1024
+motores <- data.frame(
+  criterio = c("Artefato em disco", "Tempo de gravação (s)", "Tempo de leitura (s)",
+               "Consulta agregada", "Leitura parcial", "Uso típico recomendado"),
+  arrow = c(sprintf("diretório com %d arquivos Parquet", length(arq_parquet)),
+            sprintf("%.2f", tg), sprintf("%.2f", la),
+            "possível com read_parquet() por outro motor",
+            "lê só as colunas e tabelas pedidas",
+            "arquivo de intercâmbio; versionar o corpus em git"),
+  duckdb = c("arquivo único de banco de dados",
+             sprintf("%.2f", td), sprintf("%.2f", ld),
+             sprintf("%.2f s por biblio_query()", resumo_tempo$mediana_s[resumo_tempo$operacao == "sql_duck"]),
+             "a consulta traz só as colunas do SELECT",
+             "perguntas SQL recorrentes sobre acervo grande"),
+  stringsAsFactors = FALSE)
+motores$arrow[2:3] <- sprintf("%s (%.1f kB no total)", motores$arrow[2:3], tam_a)
+motores$duckdb[2:3] <- sprintf("%s (%.1f kB)", motores$duckdb[2:3], tam_d)
+knitr::kable(motores, row.names = FALSE)
+```
+
+A comparação fecha uma decisão que você vai tomar em algum momento do
+doutorado, e a resposta depende do uso. O motor `arrow` é o formato de
+intercâmbio: seis arquivos Parquet que qualquer linguagem lê, que viajam bem em
+anexo e que versionam de forma razoável. O motor `duckdb` é o formato de
+trabalho: um arquivo com tipos declarados, que responde SQL agregado sem
+carregar o projeto e que aceita junções entre tabelas com uma linha de código.
+A escolha prática é gravar nos dois — o custo total medido foi de
+`r round(tg + td, 2)` s de gravação e menos de
+`r round(tam_a + tam_d, 1)` kB de disco para o acervo deste tutorial — e usar
+cada um para o que ele faz melhor. Um acervo real de 20 mil obras torna a
+consulta SQL não um luxo, mas a diferença entre explorar os dados e esperar.
+
+```{r m8-query-arrow}
+# uma limitacao que precisa ser conhecida antes de perder tempo com ela:
+# biblio_query() nao tem argumento `engine` e so aceita o arquivo do motor duckdb.
+erro_query_arrow <- sem_eco(tryCatch(
+  biblio_query(p_arrow, "SELECT COUNT(*) AS n FROM works"),
+  error = function(e) sub("[\r\n]+", " ", conditionMessage(e))))
+cat("biblio_query() sobre o diretorio Parquet devolve erro:\n")
+cat(strtrim(erro_query_arrow, 160), "...\n")
+
+# a rota que funciona para consultar Parquet: o proprio DuckDB le o arquivo
+n_parquet <- sem_eco(biblio_query(p_duck, sprintf(
+  "SELECT COUNT(*) AS n FROM read_parquet('%s/works.parquet')",
+  normalizePath(p_arrow, winslash = "/"))))$n
+cat("por read_parquet() a mesma contagem devolve", n_parquet, "obras\n")
+```
+
+A assimetria entre as três funções vale ser dita sem rodeios. `biblio_store()` e
+`biblio_load()` aceitam os dois motores, mas `biblio_query()` aceita apenas o
+arquivo DuckDB: não há argumento de motor na assinatura, e apontar a função para
+um diretório Parquet produz um erro do próprio DuckDB, longo e de baixo nível, em
+vez de uma mensagem orientadora. O contorno é uma linha de SQL, como mostra o
+bloco acima: como o DuckDB lê Parquet nativamente, `read_parquet()` dentro da
+consulta resolve o caso e mantém os arquivos do motor `arrow` no lugar. Se você
+prefere evitar o erro por completo, grave o acervo em `duckdb` sempre que
+pretender consultá-lo por SQL.
+
+## Por que persistir o acervo
+
+Persistir o acervo resolve quatro problemas concretos de um projeto de
+doutorado, e vale nomear cada um. O primeiro é a retomada: entre a qualificação
+e a defesa passam-se anos, e a sessão de R que produziu as figuras do capítulo 3
+não existe mais; o `biblio_load()` devolve o acervo exato, com a mesma trilha de
+proveniência gravada na tabela `provenance`. O segundo é o versionamento: como o
+corpus vira arquivo, ele pode entrar no controle de versão junto com o script de
+análise, e a diferença entre duas versões do corpus fica visível. O terceiro é o
+compartilhamento: um coautor sem acesso às bases de dados originais, ou com uma
+licença institucional diferente, recebe o diretório Parquet e reproduz a análise
+inteira. O quarto é a auditoria: as decisões tomadas no Módulo 2 — qual método de
+deduplicação, qual obra foi excluída por falta de ano — ficam registradas numa
+tabela que o leitor do artigo pode inspecionar, e não apenas na memória de quem
+escreveu o script.
+
+Há um limite que vale declarar. Persistir não substitui documentar a busca. O
+arquivo em disco diz o que foi analisado, não como o acervo foi obtido; a string
+de busca, a data da coleta e as bases consultadas continuam precisando de
+registro próprio, e é isso que o Módulo 9 organiza numa tabela de proveniência
+para o caso de acervos obtidos por API.
+
+```{r m8-provenance}
+#| tbl-cap: "Trilha de proveniencia registrada pelo pacote nas operacoes aplicadas ao acervo analitico."
+knitr::kable(proj_duck$provenance, row.names = FALSE)
+```
+
+A tabela acima é lida do arquivo em disco, e não do objeto em memória: é a prova
+de que a trilha sobreviveu à gravação. Ela tem
+`r nrow(proj_duck$provenance)` registro desta sessão, referente à construção do
+acervo. Em um projeto longo, essa tabela cresce a cada operação, e é o que
+permite responder meses depois à pergunta "de onde veio este número".
+
+## Tarefas do Módulo 8
+
+**Tarefa 8.1 (aplicar).** Grave o acervo **didático** (`x_did`) em um diretório
+Parquet e em um arquivo DuckDB, dentro de `tempdir()`. Recarregue cada um,
+confirme que o número de obras é o mesmo do objeto original e informe quantos
+arquivos o motor `arrow` produziu e quantos quilobytes cada artefato ocupa. Em
+seguida, tente gravar uma segunda vez no mesmo caminho sem `overwrite` e
+descreva o que aconteceu.
+
+**Tarefa 8.2 (analisar).** Escreva uma consulta SQL que devolva, para cada
+período (`periodo`), o número de obras, a mediana de citações por obra e a fonte
+mais frequente do período. Rode a consulta sobre o acervo DuckDB gravado neste
+módulo e interprete a diferença entre os dois períodos, dizendo explicitamente
+qual parte da diferença você atribui ao crescimento do acervo e qual parte
+atribui a mudança de composição temática.

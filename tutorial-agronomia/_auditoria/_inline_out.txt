@@ -1,0 +1,373 @@
+objetos: x_did, x_bruto, x_limpo, x_analise, x_openalex, dB, per_B, tema_B, g_per, g_tema, pal_agri, tema_agri, SEED, cache_rds 
+dimensoes: did=12 bruto=283 limpo=281 analise=280 openalex=40
+biblium: 2.16.0 
+Warning message:
+package 'igraph' was built under R version 4.6.1 
+m00-corpo.qmd          inline OK (12)
+m01-corpo.qmd          inline OK (4)
+m01-gabaritos.qmd      inline OK (9)
+m02-corpo.qmd          inline OK (29)
+mensagem ao passar o quadro plano: o objeto precisa ser um biblio_project; harmonize antes com as_biblio_project(). 
+m02-gabaritos.qmd      inline OK (26)
+m03-corpo.qmd          inline OK (95)
+m03-gabaritos.qmd      inline OK (58)
+m04-corpo.qmd          inline OK (90)
+m04-gabaritos.qmd      inline OK (30)
+m05-corpo.qmd          inline OK (66)
+m05-gabaritos.qmd      inline OK (46)
+classe de g_per: matrix/array 
+dimensoes: 280 x 2 
+dimensoes de g_tema: 280 x 3 
+primeiras obras: W000474d7, W0004d050, W0004d133 
+p-valor minimo alcancavel com 499 permutacoes: 0.002 
+
+celulas na tabela de periodo: 48 
+celulas na tabela de tema: 72 
+residuos alem de 2 em modulo, periodo: 8 
+residuos alem de 2 em modulo, tema: 69 
+
+linhas (grupos): 3  colunas (termos): 24 
+valores singulares: 0.9491, 0.83, 0 
+inercia total: 1.5898 
+MCA do contraste por periodo, dimensoes 1 a 3 :
+      eigenvalue percentage of variance
+dim 1      0.198                 19.783
+dim 2      0.141                 14.081
+dim 3      0.087                  8.704
+compare_sources com uma base apenas:
+   n < m 
+obras nas revistas A: 66 
+obras no tema silicio: 139 
+obras nos DOIS grupos: 35 
+obras so em A: 31 | so em B: 104 | em nenhum: 110 
+linhas com mais de um grupo: 35 
+
+campo overlap do resultado: TRUE 
+qui-quadrado: 282.5 | p: 0.002 | V: 0.557 
+linhas da tabela observada: revista_bonus | silicio 
+obras com os dois rotulos no acervo: 35 
+
+obras com os dois rotulos depois de reembaralhar: 35 
+tamanho dos grupos antes: 66 e 139 | depois: 66 e 139 
+
+frequencia dos padroes de pertencimento (0/1 por grupo):
+antes do reembaralhamento: 00=110  01=104  10=31  11=35 
+depois do reembaralhamento: 00=110  01=104  10=31  11=35 
+
+as seis primeiras posicoes do acervo, antes:
+     [,1] [,2]
+[1,]    0    0
+[2,]    0    0
+[3,]    0    1
+[4,]    0    1
+[5,]    1    0
+[6,]    0    1
+as mesmas seis posicoes, depois do reembaralhamento:
+     [,1] [,2]
+[1,]    0    0
+[2,]    1    1
+[3,]    1    1
+[4,]    0    0
+[5,]    1    1
+[6,]    1    1
+m06-corpo.qmd          inline OK (65)
+
+                     Agronomy Journal                  Field Crops Research 
+                                   23                                    32 
+     Pesquisa Agropecuária Brasileira                        Plant and Soil 
+                                   22                                    29 
+                Precision Agriculture                        Remote Sensing 
+                                   28                                    24 
+Revista Brasileira de Ciência do Solo                     Scientia Agricola 
+                                   26                                    37 
+              Soil & Tillage Research           Soil Biology & Biochemistry 
+                                   25                                    34 
+obras com Soil no nome da revista: 88 
+obras com Agronomy no nome da revista: 23 
+obras nos dois grupos: 0 
+obras fora dos dois grupos: 169 
+
+contraste por periodico:
+  qui-quadrado: 13.872 
+  p-valor por permutacao: 0.768 
+  V de Cramer: 0.1667 
+  grupos sobrepostos? FALSE 
+
+celulas com |residuo| >= 2: 0 
+nenhum termo passa o limiar de 2: a tabela nao tem celula discrepante
+termos distintos no acervo: 24 
+termos com pelo menos 10 obras: 24 
+termo mais raro aparece em 19 obra(s)
+termo mais frequente aparece em 77 obras
+
+m06-gabaritos.qmd      inline OK (28)
+motor efetivo com engine = 'auto': biblionetwork 
+motor efetivo com engine = 'native': native 
+motor efetivo com engine = 'biblionetwork': biblionetwork 
+auto e biblionetwork produzem a mesma rede? TRUE 
+
+combinacoes possiveis de pares de autores: 120 
+grau nativo  : 12, 20, 18, 18, 15, 11, 12, 13, 20, 12, 10, 15, 17, 15, 14, 18 
+grau limpo   : 9, 15, 15, 15, 11, 8, 9, 11, 15, 9, 8, 10, 10, 11, 11, 15 
+autores cujo grau difere entre os motores: 16 de 16 
+lider de grau no motor nativo: Smith J com grau 20 
+maior grau: 15 | maior força: 341 | maior intermediação: 0.4095 
+autores com o maior grau: 5 
+autores com intermediação zero: 9 de 16 
+autor de maior grau, força e intermediação: Silva AP 
+autores cuja posicao difere entre grau e intermediação: 15 de 16 
+maior diferenca de posto entre os dois criterios: 7 posicoes
+rede completa: 16 vertices, 91 arestas, modularidade 0.2262 
+rede sem os internacionais: 12 vertices, 37 arestas, modularidade 0.4486 
+componentes conexos sem os internacionais: 1 
+desvio-padrao do posto: minimo 0.3663 | maximo 1.6092 | medio 0.9529 
+menor posto medio: 1.65 | maior: 15.65 
+autores com desvio-padrao zero: 0 
+autor de maior forca (rede completa): Silva AP | posto medio: 3.95 
+autor de maior intermediação (rede completa): Silva AP | posto medio: 3.95 
+tres primeiros no posto medio: Smith J, Müller H, Chen L 
+correlacao entre posto medio e grau do motor nativo: -0.9904 
+grau maximo no motor nativo: 20 | autores empatados nesse maximo: 2 
+tres primeiros no posto medio: Smith J, Müller H, Chen L 
+tres primeiros por grau no motor nativo: Smith J, Müller H, Silva AP 
+intermediacao na rede completa:
+ display_name betweenness
+     Silva AP  0.40952381
+      Smith J  0.31428571
+  Oliveira TN  0.09523810
+       Chen L  0.06666667
+     Nunes PR  0.01904762
+   Barbosa KS  0.01904762
+posto medio na reamostragem propria:
+ display_name posto_medio_intermediacao sd_posto_intermediacao
+     Costa JR                     3.900               2.210025
+      Rossi G                     5.000               3.252529
+   Almeida FB                     5.575               4.120791
+      Smith J                     5.850               4.639930
+rede de palavras com min_weight = 8: 24 termos, 135 arestas, densidade 0.489 
+comunidades de termos: 9, 8, 7 
+termo de maior grau: nutrient uptake 
+termo de maior intermediação: deep learning 
+arquivo gravado? TRUE 
+tamanho em bytes: 2153 
+numero de linhas: 92 
+primeiras linhas do arquivo:
+from	to	weight
+A0000110a	A00000913	13
+A00000b2d	A00000913	29
+A0000110a	A00000b2d	11 
+tipo de rede inexistente:       'arg' should be one of "coauthor", "keyword", "citation" 
+metodo de comunidade invalido:  'arg' should be one of "louvain", "walktrap", "label_prop" 
+redes sem arestas de citacao:   arguments imply differing number of rows: 0, 1 
+m07-corpo.qmd          inline OK (91)
+desvio-padrao do grau no motor nativo: 3.2042 | amplitude: 10 a 20 
+desvio-padrao do grau no motor biblionetwork: 2.7049 | amplitude: 8 a 15 
+forca identica nos dois motores? TRUE 
+autor de maior forca: Silva AP | nos dois motores? TRUE 
+
+motor nativo: arestas=120  pares_distintos=91 
+motor biblionetwork: arestas=91  pares_distintos=91 
+
+arquivo gravado? TRUE 
+arestas no arquivo: 91 
+arestas no grafo exportado: 91 
+desvio-padrao medio do posto com 80%: 0.9529 
+desvio-padrao medio do posto com 50%: 1.4341 
+razao entre os dois: 1.505 
+autores cujo desvio-padrao do posto aumenta: 15 de 16 
+autor que mais se degrada: Almeida FB | aumento: 0.9159 
+correlacao de Spearman entre os postos medios: 0.9647 
+m07-gabaritos.qmd      inline OK (38)
+resultado da segunda gravacao sem overwrite:
+  path exists; use overwrite=TRUE
+com overwrite = TRUE o caminho devolvido foi:
+  m08_acervo_arrow
+e o acervo relido tem 280 obras
+biblio_query() sobre o diretorio Parquet devolve erro:
+{"exception_type":"IO","exception_message":"Cannot open file \"D:\\Walter\\R\\Pacotes_criados\\Tutoriais\\biblioIntegrator\\_cache\\m08_acervo_arrow\": Acesso n ...
+por read_parquet() a mesma contagem devolve 280 obras
+m08-corpo.qmd          inline OK (49)
+m08-gabaritos.qmd : chunk 7 falhou: não foi possível encontrar a função "sem_eco" 
+acervo real obtido: 40 obras, 175 autores, 570 pares obra-termo
+citações recebidas por 10.1038/nature12373 : 1806 linhas
+mesmo resultado nas três formas do identificador: TRUE 
+colunas: oci, citing, cited, creation, timespan, journal_sc, author_sc 
+timespan sem valor numérico: 31 
+mediana do intervalo, em anos: 7 
+
+registros sem data de citação: 30 
+soma das linhas da tabela: 1776 de 1806 
+m09-corpo.qmd          inline OK (51)
+
+
+Table: Proveniência da consulta do exercício 9.1.
+
+|campo                    |valor                                                  |
+|:------------------------|:------------------------------------------------------|
+|Base consultada          |OpenAlex                                               |
+|Interface                |API REST, via fetch_openalex()                         |
+|String de busca          |cover crops soil carbon no-till                        |
+|Campo de busca           |título, resumo e palavras-chave (busca padrão da base) |
+|Ordenação                |relevância, critério da base                           |
+|Número de obras pedido   |25                                                     |
+|Data da coleta           |2026-09-22                                             |
+|Identificador de contato |não informado nesta execução                           |
+|Filtros aplicados        |nenhum                                                 |
+|Cache local              |_cache/gabarito_m09_cover_crops.rds                    |
+
+
+Table: Tamanho e cobertura do acervo obtido na consulta do exercício.
+
+|item                | valor|
+|:-------------------|-----:|
+|Obras               |    25|
+|Autores únicos      |   134|
+|Autorias            |   146|
+|Pares obra-termo    |   383|
+|Termos únicos       |   109|
+|Fontes              |    20|
+|Primeiro ano        |  1997|
+|Último ano          |  2020|
+|Mediana de citações |   825|
+|Resumos disponíveis |     0|
+
+
+Table: As cinco obras mais citadas do acervo real e a verificação textual da menção a silício no título.
+
+|title                                                                                                 | year|source                                      | cited_by_count|menciona_silicio |
+|:-----------------------------------------------------------------------------------------------------|----:|:-------------------------------------------|--------------:|:----------------|
+|Mechanism of Salinity Tolerance in Plants: Physiological, Biochemical, and Molecular Characterization | 2014|International Journal of Genomics           |           2118|FALSE            |
+|Role of silicon in enhancing the resistance of plants to biotic and abiotic stresses                  | 2004|Soil Science & Plant Nutrition              |           1391|TRUE             |
+|Plant Salinity Stress: Many Unanswered Questions Remain                                               | 2019|Frontiers in Plant Science                  |           1172|FALSE            |
+|Mechanisms of silicon-mediated alleviation of abiotic stresses in higher plants: A review             | 2006|Environmental Pollution                     |           1152|TRUE             |
+|Regulation of Reactive Oxygen Species and Antioxidant Defense in Plants under Salinity                | 2021|International Journal of Molecular Sciences |            866|FALSE            |
+
+
+Table: Concentração de citações nos dois acervos: fração reunida nas cinco obras mais citadas e número de obras necessário para reunir metade das citações.
+
+|acervo              | obras| citacoes_totais| fracao_top5|fracao_top5_pct | obras_para_metade|
+|:-------------------|-----:|---------------:|-----------:|:---------------|-----------------:|
+|real (OpenAlex)     |    40|           14486|   0.4624465|46%             |                 6|
+|simulado (corpus B) |   280|            3215|   0.1026439|10%             |                57|
+obras do top 5 que mencionam silício no título: 2 de 5 
+títulos sem menção a silício:
+[1] "Mechanism of Salinity Tolerance in Plants: Physiological, Biochemical, and Molecular Characterization"
+[2] "Plant Salinity Stress: Many Unanswered Questions Remain"                                              
+[3] "Regulation of Reactive Oxygen Species and Antioxidant Defense in Plants under Salinity"               
+m09-gabaritos.qmd      inline OK (33)
+H:/uv/AppDataLocalUv/cache/archive-v0/MfuOKTFtveE-Nd3l_RFiM/Scripts/python.exe 
+Groups are disjoint: the asymptotic chi-squared test is unbiased; the permutation results below are reported for completeness only. 
+m10-corpo.qmd          inline OK (47)
+m10-gabaritos.qmd      inline OK (54)
+[ERRO: Can't find locally running ollama.]
+comprimento da mensagem: 34 | termina com espaco: FALSE 
+No references found in corpus.
+payload de obras  : 8000 caracteres
+payload de resumos: 23 caracteres -> No abstracts available. 
+resumos preenchidos no acervo: 0 de 280 obras
+funcao restaurada: TRUE 
+erro real do provedor ainda ocorre: Can't find locally running ollama. 
+retorno simulado com 1326 caracteres e 10 registros
+m11-corpo.qmd          inline OK (24)
+m11-gabaritos.qmd      inline OK (59)
+
+
+|situacao                                                   |resultado                                                                             |consequencia                                               |
+|:----------------------------------------------------------|:-------------------------------------------------------------------------------------|:----------------------------------------------------------|
+|form_plan() com módulo inexistente: o que a função faz     |retorna um biblio_plan com 3 módulos                                                  |nenhuma checagem é feita na construção do plano            |
+|validate_plan() no plano correto                           |aceito                                                                                |execução liberada                                          |
+|validate_plan() no plano com 'rdes'                        |Unknown analyses: rdes                                                                |execução interrompida antes do primeiro cálculo            |
+|validate_plan() em uma lista comum, sem classe biblio_plan |`plan` must be created by form_plan(). Note the argument order: run_plan(plan, data). |execução interrompida: o objeto precisa vir de form_plan() |
+
+
+|modulo      |funcao                  |classe         |dimensoes      |
+|:-----------|:-----------------------|:--------------|:--------------|
+|project     |as_biblio_project()     |biblio_project |comprimento 6  |
+|health      |biblio_health()         |data.frame     |6 x 2          |
+|descriptive |describe_biblio()       |list           |comprimento 6  |
+|temporal    |temporal_growth()       |data.frame     |16 x 4         |
+|network     |bibliographic_network() |igraph         |comprimento 16 |
+|centrality  |network_centrality()    |data.frame     |16 x 5         |
+|terms       |term_frequency()        |data.frame     |298 x 2        |
+
+
+|formato  |arquivo        |gerado | segundos|uso_tipico                                      |
+|:--------|:--------------|:------|--------:|:-----------------------------------------------|
+|markdown |relatorio.md   |TRUE   |     0.05|controle de versão e leitura no editor de texto |
+|html     |relatorio.html |TRUE   |     0.64|envio direto como suplemento navegável          |
+|docx     |relatorio.docx |TRUE   |     0.26|coorientador que revisa com comentários no Word |
+|pdf      |relatorio.pdf  |TRUE   |     1.53|anexo impresso e versão final do suplemento     |
+
+
+| linha|texto                                       |
+|-----:|:-------------------------------------------|
+|     1|# Silício e salinidade: relatório do acervo |
+|     2|                                            |
+|     3|Generated: 2026-09-22 00:21:43.685984       |
+|     4|                                            |
+|     5|## Corpus summary                           |
+|     6|Documents: **280**                          |
+|     7|Total citations: **3215**                   |
+|     8|Years: **2010-2025**                        |
+|     9|                                            |
+|    10|## Data quality                             |
+|    11|&#124; check &#124; n &#124;                |
+|    12|&#124; --- &#124; --- &#124;                |
+|    13|&#124; missing_title &#124; 1 &#124;        |
+|    14|&#124; missing_year &#124; 0 &#124;         |
+|    15|&#124; missing_doi &#124; 2 &#124;          |
+|    16|&#124; duplicate_doi &#124; 0 &#124;        |
+|    17|&#124; duplicate_title_year &#124; 1 &#124; |
+|    18|&#124; negative_citations &#124; 1 &#124;   |
+|    19|                                            |
+|    20|## Annual production                        |
+
+
+|formato | arquivos|    kB|uso_tipico                                   |
+|:-------|--------:|-----:|:--------------------------------------------|
+|csv     |        6|  98.1|conferência linha a linha em planilha        |
+|json    |        6| 250.3|intercâmbio com Python, JavaScript e APIs    |
+|parquet |        6|  24.2|volume alto, consulta colunar e Arrow/DuckDB |
+
+
+|etiqueta |campo_origem          |conteudo                                                     |
+|:--------|:---------------------|:------------------------------------------------------------|
+|TI       |works$title           |Carbono do solo e plantas de cobertura em milho (estudo 001) |
+|PY       |works$year            |2019                                                         |
+|DI       |works$doi             |10.1016/j.agri.2024.00001                                    |
+|SO       |works$source          |Pesquisa Agropecuária Brasileira                             |
+|TC       |works$cited_by_count  |8                                                            |
+|AU       |authors + authorships |Silva AP;Oliveira TN                                         |
+|DE       |keywords              |green manure;no-till;carbon sequestration;crop rotation      |
+
+
+|pergunta                                                  |funcao                                                          |cuidado                                                        |
+|:---------------------------------------------------------|:---------------------------------------------------------------|:--------------------------------------------------------------|
+|O acervo que eu montei sustenta uma conclusão?            |biblio_health(), audit_biblio()                                 |qualidade do acervo é limitação do estudo, não erro a esconder |
+|Como o campo está distribuído entre periódicos e autores? |describe_biblio(), biblio_metrics()                             |contagem absoluta premia bases com mais cobertura              |
+|O tema está crescendo ou estabilizando?                   |temporal_growth(), citation_velocity()                          |janela curta confunde crescimento real com indexação recente   |
+|Quem são os grupos de pesquisa e como se conectam?        |bibliographic_network(), network_communities()                  |rede é sensível ao limiar de peso e à normalização             |
+|O vocabulário do campo mudou entre períodos?              |term_frequency(), tfidf_terms(), trend_topics()                 |termo frequente não é termo relevante sem peso por documento   |
+|Quais termos distinguem um subgrupo do resto?             |compare_groups(), association_residuals()                       |grupos pequenos produzem p instáveis; cheque o tamanho         |
+|Meus resultados dependem de um limiar arbitrário?         |sensitivity_analysis(), network_stability()                     |declare o limiar e mostre o resultado em mais de um valor      |
+|Como entrego os dados e o relatório ao revisor?           |biblio_report(), export_biblio()                                |o relatório deve ter a data da versão submetida                |
+|Preciso conversar com quem usa Python ou bibliometrix?    |to_biblium(), to_bibliometrix(), export_biblio(format = 'json') |o formato plano perde identificadores e procedência            |
+|Como registro o plano de análise para a banca?            |form_plan(), validate_plan(), run_plan()                        |validar antes de executar evita rodar meia análise             |
+m12-corpo.qmd          inline OK (27)
+[1] "project"     "health"      "descriptive" "temporal"    "network"    
+[6] "centrality"  "terms"      
+[1] "Unknown analyses: redes"
+  formato arquivos  bytes   kB
+1     csv        6 100481 98.1
+2 parquet        6  24769 24.2
+[1] TRUE TRUE
+                   arquivo existe
+1               works.json   TRUE
+2                works.csv   TRUE
+3 entrega_bibliometrix.csv   TRUE
+4   relatorio-entrega.docx   TRUE
+5       nota-de-entrega.md   TRUE
+m12-gabaritos.qmd      inline OK (18)
+There were 17 warnings (use warnings() to see them)
+
+TOTAL de erros inline: 0 

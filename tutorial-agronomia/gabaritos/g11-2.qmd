@@ -1,0 +1,263 @@
+## Gabarito do Exercício 11.2
+
+### Código completo e executável
+
+```{r gab-m11-2}
+# ---------------------------------------------------------------------------
+# Tarefa 11.2: validar um retorno simulado de llm_classify() antes de usa-lo.
+# Autossuficiência: o gabarito também é entregue como arquivo isolado, então o
+# retorno simulado é recriado aqui se o módulo não tiver rodado na sessão.
+# ---------------------------------------------------------------------------
+if (!exists("retorno_simulado11")) {
+  retorno_simulado11 <- '[
+ {"work_id":"@ID1@","title":"obra 1","primary":"fertilizacao","secondary":["silicio"],"confidence":0.91,"reason":"aplica silicato"},
+ {"work_id":"@ID2@","title":"obra 2","primary":"cobertura","secondary":["carbono"],"confidence":0.84,"reason":"plantas de cobertura"},
+ {"work_id":"@ID3@","title":"obra 3","primary":"fertilizacao","secondary":[],"confidence":0.77,"reason":"adubacao"},
+ {"work_id":"@ID1@","title":"obra 1","primary":"fertilizacao","secondary":["silicio"],"confidence":0.88,"reason":"repeticao do mesmo trabalho"},
+ {"work_id":"@ID4@","title":"obra 4","primary":"","secondary":[],"confidence":0.40,"reason":"nao sei classificar"},
+ {"work_id":"W0000000","title":"obra inexistente","primary":"sensoriamento","secondary":[],"confidence":0.95,"reason":"inventada"},
+ {"work_id":"@ID5@","title":"obra 5","primary":"sensoriamento","secondary":["uav"],"confidence":0.89,"reason":"imagens de UAV"},
+ {"work_id":"@ID6@","title":"obra 6","primary":"cobertura","secondary":["carbono"],"confidence":0.81,"reason":"manejo conservacionista"},
+ {"work_id":"@ID7@","title":"obra 7","primary":null,"secondary":[],"confidence":0.33,"reason":"incerto"},
+ {"work_id":"@ID8@","title":"obra 8","primary":"irrigacao","secondary":["salinidade"],"confidence":0.72,"reason":"lamina de irrigacao"}
+]'
+  for (k in 1:8)
+    retorno_simulado11 <- gsub(paste0("@ID", k, "@"), x_analise$works$work_id[k],
+                               retorno_simulado11)
+}
+
+# A via mais direta: jsonlite com simplificacao para data.frame.
+# Campos ausentes viram NA; campos nulos viram NA; arrays viram lista-coluna.
+validar_rotulos <- function(df) {
+  df$id_existe <- df$work_id %in% x_analise$works$work_id
+  df$rotulo_preenchido <- !is.na(df$primary) & nzchar(trimws(df$primary))
+  df$duplicata <- duplicated(df$work_id)
+  df$aproveitavel <- df$id_existe & df$rotulo_preenchido & !df$duplicata
+  df
+}
+rotulos_112 <- validar_rotulos(
+  jsonlite::fromJSON(retorno_simulado11, simplifyVector = TRUE))
+
+diagnostico_112 <- data.frame(
+  verificacao = c("registros devolvidos pelo modelo",
+                  "work_id ausentes do acervo",
+                  "rotulo primario vazio ou ausente",
+                  "duplicatas do mesmo work_id",
+                  "registros aproveitaveis sem revisao",
+                  "registros que exigem revisao"),
+  n = c(nrow(rotulos_112), sum(!rotulos_112$id_existe),
+        sum(!rotulos_112$rotulo_preenchido), sum(rotulos_112$duplicata),
+        sum(rotulos_112$aproveitavel), sum(!rotulos_112$aproveitavel)),
+  fracao = sprintf("%.1f%%", 100 * c(1, mean(!rotulos_112$id_existe),
+                                     mean(!rotulos_112$rotulo_preenchido),
+                                     mean(rotulos_112$duplicata),
+                                     mean(rotulos_112$aproveitavel),
+                                     mean(!rotulos_112$aproveitavel))))
+
+# Posicao do registro inventado na ordenacao por confianca: e a maior confianca
+# de todo o conjunto, o que destroi a ideia de filtrar por limiar.
+posicao_inventado_112 <- rank(-rotulos_112$confidence)[!rotulos_112$id_existe]
+
+knitr::kable(diagnostico_112, row.names = FALSE,
+             col.names = c("Verificacao", "Registros", "Fracao"))
+```
+
+```{r tbl-gab-m11-2}
+#| tbl-cap: "Registros por categoria: o que o modelo devolveu (bruto) e o que sobrevive a validacao contra o acervo (validado)."
+# Rotulo vazio e rotulo ausente sao reunidos em uma unica categoria: para a
+# analise, os dois casos significam "sem rotulo".
+categoria_112 <- function(v) ifelse(is.na(v) | !nzchar(trimws(v)), "(vazio ou ausente)", v)
+bruto_112 <- as.data.frame(table(cat = categoria_112(rotulos_112$primary)))
+validado_112 <- as.data.frame(table(cat = categoria_112(
+  rotulos_112$primary[rotulos_112$aproveitavel])))
+comparacao_112 <- merge(bruto_112, validado_112, by = "cat", all = TRUE)
+names(comparacao_112) <- c("categoria", "bruto", "validado")
+comparacao_112[is.na(comparacao_112)] <- 0L
+comparacao_112$descartados <- comparacao_112$bruto - comparacao_112$validado
+knitr::kable(comparacao_112, row.names = FALSE,
+             col.names = c("Categoria", "Registros brutos do modelo",
+                           "Registros validados", "Descartados"))
+```
+
+```{r tbl-gab-m11-3}
+#| tbl-cap: "O efeito de sub() no lugar de gsub(): o defeito de duplicata nao desaparece, ele muda de nome e passa a ser contado como identificador ausente."
+# Reconstroi o retorno que sub() produziria: troca a SEGUNDA ocorrencia do
+# primeiro identificador pelo marcador literal, que e exatamente o que sub()
+# deixa para tras ao substituir apenas a primeira ocorrencia.
+id_dup_112 <- x_analise$works$work_id[1]
+ocorrencias_112 <- as.integer(
+  gregexpr(id_dup_112, retorno_simulado11, fixed = TRUE)[[1]])
+defeituoso_112 <- paste0(
+  substr(retorno_simulado11, 1, ocorrencias_112[2] - 1), "@ID1@",
+  substr(retorno_simulado11, ocorrencias_112[2] + nchar(id_dup_112),
+         nchar(retorno_simulado11)))
+rotulos_defeito_112 <- validar_rotulos(
+  jsonlite::fromJSON(defeituoso_112, simplifyVector = TRUE))
+
+efeito_sub_112 <- data.frame(
+  versao = c("com gsub()", "com sub()"),
+  ids_ausentes = c(sum(!rotulos_112$id_existe),
+                   sum(!rotulos_defeito_112$id_existe)),
+  duplicatas = c(sum(rotulos_112$duplicata),
+                 sum(rotulos_defeito_112$duplicata)),
+  aproveitaveis = c(sum(rotulos_112$aproveitavel),
+                    sum(rotulos_defeito_112$aproveitavel)))
+knitr::kable(efeito_sub_112, row.names = FALSE,
+             col.names = c("Versao do retorno", "IDs ausentes do acervo",
+                           "Duplicatas detectadas", "Aproveitaveis"))
+```
+
+```{r}
+#| label: fig-gab-m11-2
+#| fig-cap: "Registros brutos do modelo e registros validados por categoria. A diferenca em cada barra e o que a validacao contra o acervo descartou."
+#| fig-alt: "Barras horizontais pareadas por categoria, comparando registros brutos e validados."
+comparacao_112$categoria <- factor(comparacao_112$categoria,
+                                   levels = comparacao_112$categoria[order(comparacao_112$bruto)])
+comparacao_longa_112 <- rbind(
+  data.frame(categoria = comparacao_112$categoria, etapa = "bruto do modelo",
+             n = comparacao_112$bruto),
+  data.frame(categoria = comparacao_112$categoria, etapa = "validado contra o acervo",
+             n = comparacao_112$validado))
+comparacao_longa_112$etapa <- factor(comparacao_longa_112$etapa,
+                                     levels = c("bruto do modelo",
+                                                "validado contra o acervo"))
+ggplot(comparacao_longa_112, aes(x = categoria, y = n, fill = etapa)) +
+  geom_col(position = position_dodge(width = .74), width = .7) +
+  geom_text(aes(label = n), position = position_dodge(width = .74),
+            vjust = -.4, size = 3) +
+  coord_flip() +
+  scale_fill_manual(values = c("bruto do modelo" = pal_agri[2],
+                               "validado contra o acervo" = pal_agri[1]),
+                    name = NULL) +
+  scale_y_continuous(expand = expansion(mult = c(0, .18)),
+                     breaks = pretty(c(0, max(comparacao_112$bruto)))) +
+  labs(x = NULL, y = "Numero de registros",
+       title = "O que sobrevive a validacao",
+       subtitle = "Quatro categorias, dez registros devolvidos pelo modelo")
+```
+
+```{r}
+#| label: fig-gab-m11-2b
+#| fig-cap: "Distribuicao da confianca declarada pelo modelo, separada entre registros aproveitaveis e registros descartados na validacao."
+#| fig-alt: "Grafico de pontos com a confianca de cada registro, separado nas duas classes."
+ggplot(rotulos_112,
+       aes(x = ifelse(aproveitavel, "aproveitavel", "revisao obrigatoria"),
+           y = confidence, colour = aproveitavel)) +
+  geom_jitter(width = .09, height = 0, size = 2.4, alpha = .85) +
+  stat_summary(fun = median, geom = "crossbar", width = .38,
+               colour = "grey25", linewidth = .4) +
+  scale_colour_manual(values = c(`TRUE` = pal_agri[1], `FALSE` = "#C0392B"),
+                      guide = "none") +
+  labs(x = NULL, y = "Confianca declarada pelo modelo",
+       title = "A confianca declarada nao separa o joio do trigo",
+       subtitle = "A cruz marca a mediana de cada grupo")
+```
+
+### Leitura da saída
+
+O retorno bruto tem `r nrow(rotulos_112)` registros. A validação derruba
+`r sum(!rotulos_112$aproveitavel)` deles, por três motivos independentes:
+`r sum(!rotulos_112$id_existe)` registro com `work_id` que **não existe** no
+acervo, `r sum(!rotulos_112$rotulo_preenchido)` registros sem rótulo primário
+(um com string vazia, outro com `null`) e `r sum(rotulos_112$duplicata)` duplicata
+do mesmo trabalho — o registro repetido traz `confidence` diferente do primeiro
+(`r rotulos_112$confidence[rotulos_112$work_id == rotulos_112$work_id[1]]`,
+dois valores), o que mostra que o modelo não é determinístico nem sobre o próprio
+insumo, e que sem a checagem de duplicata a mesma obra entraria duas vezes na
+contagem de categorias.
+
+Sobram `r sum(rotulos_112$aproveitavel)` registros aproveitáveis, ou
+`r sprintf("%.1f%%", 100 * mean(rotulos_112$aproveitavel))` do total. A
+distribuição por categoria na tabela mostra o efeito concreto do descarte:
+`fertilizacao` cai de `r comparacao_112$bruto[comparacao_112$categoria == "fertilizacao"]`
+para `r comparacao_112$validado[comparacao_112$categoria == "fertilizacao"]`
+registros e `sensoriamento` de
+`r comparacao_112$bruto[comparacao_112$categoria == "sensoriamento"]` para
+`r comparacao_112$validado[comparacao_112$categoria == "sensoriamento"]`, enquanto
+`cobertura` e `irrigacao` passam intactas. Uma tabela de frequência construída
+sobre o retorno bruto superestimaria `fertilizacao` em
+`r comparacao_112$descartados[comparacao_112$categoria == "fertilizacao"]`
+registro.
+
+O gráfico de confiança é a parte mais instrutiva, e a lição é negativa. A
+confiança mediana dos registros aproveitáveis é
+`r sprintf("%.2f", median(rotulos_112$confidence[rotulos_112$aproveitavel]))`,
+contra `r sprintf("%.2f", median(rotulos_112$confidence[!rotulos_112$aproveitavel]))`
+dos descartados — a separação existe, mas o registro **inventado** tem
+`confidence = `r sprintf("%.2f", rotulos_112$confidence[!rotulos_112$id_existe])``,
+que é a
+`r if (posicao_inventado_112 == 1) "maior" else paste0(posicao_inventado_112, "a maior")`
+confiança de todo o conjunto, entre `r nrow(rotulos_112)` registros. Ou seja:
+ordenar por `confidence` e cortar os registros de baixa confiança **não** elimina
+o pior defeito, que é a referência inexistente. A confiança declarada pelo modelo
+mede a própria segurança dele, não a veracidade do que afirma.
+
+Vale ainda comparar as duas versões de retorno em @tbl-gab-m11-3, porque o
+experimento isola um erro de preparação que custa caro. Com `sub()`, os identificadores ausentes passam de
+`r efeito_sub_112$ids_ausentes[1]` para `r efeito_sub_112$ids_ausentes[2]` e as
+duplicatas detectadas caem de `r efeito_sub_112$duplicatas[1]` para
+`r efeito_sub_112$duplicatas[2]`, enquanto o número de registros aproveitáveis
+permanece `r efeito_sub_112$aproveitaveis[1]`. O total não muda, mas o
+**diagnóstico** muda, e com ele a providência: um identificador ausente pede
+correção do identificador, uma duplicata pede deduplicação. Contar com o número
+total de aproveitáveis e ignorar a decomposição do defeito é o que faz o erro
+passar despercebido.
+
+A resposta à pergunta do exercício tem três partes. A fração aproveitável sem
+revisão é de `r sprintf("%.0f%%", 100 * mean(rotulos_112$aproveitavel))`;
+os outros `r sprintf("%.0f%%", 100 * mean(!rotulos_112$aproveitavel))` vão para
+revisão integral, e não para uma amostra, porque cada defeito tem uma correção
+diferente. A amostra mínima de conferência humana sobre a parte aproveitável é de
+`r ceiling(0.2 * sum(rotulos_112$aproveitavel))` registros — 20%, arredondado para
+cima —, sorteados com semente fixada, conferidos contra o título e as
+palavras-chave da obra. O registro no Material e Métodos é uma frase e um número:
+declarar o modelo, a data, o número de registros devolvidos e o número descartado,
+com a taxa de aproveitamento.
+
+### Redação sugerida para o artigo
+
+> A rotulagem temática assistida por modelo de linguagem foi aplicada ao acervo e
+> submetida a validação sistemática antes do uso. De
+> `r nrow(rotulos_112)` registros devolvidos, `r sum(!rotulos_112$id_existe)`
+> continha identificador de obra inexistente na base,
+> `r sum(!rotulos_112$rotulo_preenchido)` não trazia rótulo primário e
+> `r sum(rotulos_112$duplicata)` duplicava um registro já classificado. Após o
+> descarte desses casos, restaram `r sum(rotulos_112$aproveitavel)` registros
+> (`r sprintf("%.1f%%", 100 * mean(rotulos_112$aproveitavel))` do total), dos
+> quais `r ceiling(0.2 * sum(rotulos_112$aproveitavel))` foram conferidos
+> manualmente contra o título e as palavras-chave das obras, com concordância
+> integral. Registra-se que a confiança declarada pelo modelo não se mostrou
+> indicador confiável de correção, razão pela qual a validação foi feita por
+> confronto com a base e não por limiar de confiança. A rotulagem foi executada
+> com o provedor `r config_111$provider`, modelo `r config_111$model`, em
+> `r format(Sys.Date(), "%d/%m/%Y")`, e nenhuma saída do modelo foi incorporada ao
+> manuscrito sem revisão humana.
+
+### Erros comuns a evitar
+
+1. **Usar o retorno bruto.** Sem as quatro verificações, a contagem de
+   `fertilizacao` fica `r comparacao_112$descartados[comparacao_112$categoria == "fertilizacao"]`
+   registro acima do real, e a obra inventada entra na base como se existisse.
+2. **Confiar em `confidence`.** O registro com identificador inexistente tem
+   `r sprintf("%.2f", rotulos_112$confidence[!rotulos_112$id_existe])` de
+   confiança — a
+   `r if (posicao_inventado_112 == 1) "maior" else paste0(posicao_inventado_112, "a maior")`
+   do conjunto. Filtrar por limiar de confiança remove registros honestos e mantém
+   o inventado. A ordem correta é validar contra o acervo e só depois olhar a
+   confiança.
+3. **Usar `sub()` no lugar de `gsub()` ao preparar o retorno simulado.** O
+   marcador `@ID1@` aparece duas vezes de propósito. `sub()` troca só a primeira
+   ocorrência, a segunda permanece literal e a duplicata deixa de ser detectada:
+   ela passa a ser contada como um segundo identificador ausente
+   (`r efeito_sub_112$ids_ausentes[2]` em vez de
+   `r efeito_sub_112$ids_ausentes[1]`). O total de aproveitáveis não muda, o que
+   torna o erro invisível para quem só olha o total.
+4. **Tratar `null` e string vazia como casos diferentes.** Os dois produzem
+   `NA` ou `""` conforme o caminho de conversão, e para a análise significam a
+   mesma coisa: registro sem rótulo. Unifique antes de tabular, como faz a função
+   `categoria_112()` do gabarito.
+5. **Relatar apenas a taxa de aproveitamento sem declarar o modelo e a data.**
+   Um número de aproveitamento sem proveniência não é verificável por ninguém.
+   Registre provedor, modelo, data e a taxa, sempre juntos.
+# Gabaritos do Módulo 12
+

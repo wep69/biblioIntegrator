@@ -1,0 +1,338 @@
+---
+title: "Bibliometria aplicada à Agronomia com o pacote biblioIntegrator"
+subtitle: "Tutorial progressivo para doutorandos: da importação de bases à análise semântica com Python e LLM"
+author: "Walter E. Pereira"
+date: today
+date-format: long
+lang: pt
+format:
+  html:
+    self-contained: true
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+    toc-title: "Neste tutorial"
+    number-sections: true
+    code-tools: true
+    code-copy: true
+    df-print: paged
+  typst:
+    toc: true
+    number-sections: true
+    papersize: a4
+    margin:
+      x: 2cm
+      y: 2cm
+    fontsize: 10pt
+execute:
+  warning: false
+  message: false
+  cache: false
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE, comment = "#>",
+  fig.width = 7.2, fig.height = 4.6, dpi = 200, fig.align = "center"
+)
+set.seed(2026)
+suppressPackageStartupMessages({
+  library(biblioIntegrator)
+  library(ggplot2)
+  library(igraph)
+})
+tema_agri <- theme_bw(base_size = 11) +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "bottom",
+        strip.background = element_rect(fill = "grey92", colour = NA),
+        plot.title = element_text(face = "bold", size = 11),
+        plot.subtitle = element_text(colour = "grey35", size = 9.5))
+theme_set(tema_agri)
+pal_agri <- c("#2E5E4E", "#C97B3C", "#4A6FA5", "#8E6C88", "#7A9E7E", "#B5651D")
+SEED <- 2026L
+
+# ambiente Python/Biblium: aceita interpretador indicado por variável de
+# ambiente (rota documentada no Módulo 10). Se não houver, os trechos de
+# Biblium informam a indisponibilidade sem interromper o documento.
+py_env <- Sys.getenv("BIBLIOINTEGRATOR_PYTHON", "")
+if (nzchar(py_env) && file.exists(py_env))
+  options(biblioIntegrator.python = py_env)
+
+# cache local para as chamadas de rede
+dir.create("_cache", showWarnings = FALSE)
+cache_rds <- function(nome, expr) {
+  f <- file.path("_cache", paste0(nome, ".rds"))
+  if (file.exists(f)) return(readRDS(f))
+  v <- tryCatch(expr, error = function(e)
+    structure(conditionMessage(e), class = "erro_rede"))
+  if (!inherits(v, "erro_rede")) saveRDS(v, f)
+  v
+}
+```
+
+# Apresentação
+
+Este tutorial foi escrito para doutorandos em Agronomia que precisam transformar
+um acervo de publicações em evidência analisável. O problema de pesquisa típico é
+concreto: você tem uma pasta com exportações de Scopus, Web of Science e OpenAlex
+sobre silício e estresse salino, ou sobre carbono do solo e plantas de cobertura,
+e precisa dizer o que esse acervo mostra, com que confiança e com que rastro de
+auditoria. O `biblioIntegrator` organiza esse caminho em um objeto relacional
+único, ao qual se aplicam auditoria, deduplicação, estatística descritiva,
+inferência por permutação, redes, análise textual, armazenamento colunar,
+consultas por API, integração com Python e, opcionalmente, assistência por
+modelos de linguagem.
+
+O percurso tem doze módulos. Cada um abre com um problema agronômico, apresenta
+os dados, executa o código comentado, mostra tabelas e figuras e fecha com a
+leitura dos resultados. Ao final de cada módulo há tarefas em três níveis, do
+reconhecimento à criação, e os gabaritos comentados aparecem em seção própria
+mais adiante. Duas convenções valem para todo o documento. A primeira é que
+nenhum número de resultado foi digitado no texto: todos são calculados no momento
+da renderização, de modo que, se você mudar a semente, o texto acompanha. A
+segunda é que as verdades plantadas nos dados simulados são verificadas pelo
+próprio documento, e não pressupostas.
+
+# Como usar este material
+
+1. Instale o `biblioIntegrator` e carregue com `library(biblioIntegrator)`.
+2. Execute os blocos na ordem. O bloco de preparação é obrigatório, porque cria os corpora usados em todos os módulos.
+3. Em cada módulo, leia o contexto agronômico antes de rodar o código. A pergunta de pesquisa precede a função.
+4. Resolva as tarefas do módulo antes de consultar o gabarito. Os gabaritos trazem código completo, leitura da saída, redação pronta para a seção de Resultados e os erros mais comuns.
+5. O arquivo `exercicios-aluno.R` acompanha o tutorial com os códigos de simulação e os esqueletos das tarefas, sem respostas.
+6. Os corpora usados são três: o didático do pacote, um simulado com defeitos e verdades plantadas, e um real obtido por API. O material indica sempre qual deles está em uso.
+
+::: {.callout-note}
+## Reprodutibilidade
+Todas as simulações usam a semente `r SEED`. As chamadas de rede (OpenAlex e
+OpenCitations) são guardadas em `_cache/` na primeira execução, de modo que a
+segunda renderização do documento não depende de conexão.
+:::
+
+# Inventário do biblioIntegrator instalado
+
+Antes de qualquer análise, vale saber exatamente com que instrumento se trabalha.
+O inventário abaixo é calculado no documento: ele confronta a lista de funções
+exportadas pela versão instalada com o mapa de módulos deste tutorial e acusa
+qualquer função que tenha ficado sem cobertura.
+
+```{r tbl-inventario}
+#| tbl-cap: "Inventário das funções exportadas pelo biblioIntegrator instalado e o módulo do tutorial que as apresenta."
+plano_modulos <- list(
+  "1. Arquitetura e importação"    = c("example_biblio", "as_biblio_project", "biblio_import", "backend_status"),
+  "2. Qualidade e duplicatas"      = c("biblio_health", "deduplicate_biblio", "audit_biblio"),
+  "3. Descritiva e impacto"        = c("describe_biblio", "biblio_metrics", "normalized_citations"),
+  "4. Dinâmica temporal"           = c("temporal_growth", "citation_velocity", "citation_trajectory", "rpys", "disruption_index"),
+  "5. Análise textual"             = c("term_frequency", "tfidf_terms", "trend_topics"),
+  "6. Comparação de grupos"        = c("form_groups", "compare_groups", "association_residuals", "group_ca", "group_mca", "sensitivity_analysis", "compare_sources"),
+  "7. Redes bibliográficas"        = c("bibliographic_network", "network_centrality", "network_communities", "network_stability", "export_vosviewer"),
+  "8. Escala: Arrow e DuckDB"      = c("biblio_store", "biblio_load", "biblio_query"),
+  "9. APIs abertas"                = c("fetch_openalex", "fetch_opencitations"),
+  "10. Python e Biblium"           = c("python_backend_status", "biblium_backend_status", "enable_python_backend", "install_biblium_backend", "to_biblium", "biblium_compare_groups", "validate_biblium"),
+  "11. Modelos de linguagem"       = c("llm_configure", "llm_get_config", "llm_status", "semantic_search", "llm_topic_discovery", "llm_summarize", "llm_gap_analysis", "llm_query_expand", "llm_classify", "llm_citation_context"),
+  "12. Fluxo, relatório e app"     = c("form_plan", "validate_plan", "run_plan", "biblio_report", "biblio_app", "export_biblio", "to_bibliometrix")
+)
+funcoes_mapeadas <- unlist(plano_modulos, use.names = FALSE)
+exportadas <- sort(getNamespaceExports("biblioIntegrator"))
+inventario <- do.call(rbind, lapply(names(plano_modulos), function(m) {
+  f <- plano_modulos[[m]]
+  data.frame(modulo = m, funcao = f,
+             argumentos = vapply(f, function(g)
+               paste(names(formals(getExportedValue("biblioIntegrator", g))), collapse = ", "),
+               character(1), USE.NAMES = FALSE),
+             stringsAsFactors = FALSE)
+}))
+sem_modulo <- setdiff(exportadas, funcoes_mapeadas)
+inexistentes <- setdiff(funcoes_mapeadas, exportadas)
+knitr::kable(inventario, row.names = FALSE)
+```
+
+O inventário cobre `r nrow(inventario)` funções distribuídas em
+`r length(plano_modulos)` módulos, contra `r length(exportadas)` funções
+exportadas pela versão instalada. Funções exportadas ainda sem módulo:
+`r if (length(sem_modulo)) paste(sem_modulo, collapse = ", ") else "nenhuma"`.
+Nomes do mapa que não existem nesta versão:
+`r if (length(inexistentes)) paste(inexistentes, collapse = ", ") else "nenhum"`.
+
+```{r tbl-ambiente}
+#| tbl-cap: "Versões do ambiente e disponibilidade dos componentes opcionais."
+vers <- data.frame(
+  componente = c("R", "biblioIntegrator", "ggplot2", "igraph", "arrow", "duckdb",
+                 "reticulate", "testthat"),
+  versao = c(paste(R.version$major, R.version$minor, sep = "."),
+             as.character(packageVersion("biblioIntegrator")),
+             as.character(packageVersion("ggplot2")),
+             as.character(packageVersion("igraph")),
+             if (requireNamespace("arrow", quietly = TRUE)) as.character(packageVersion("arrow")) else "ausente",
+             if (requireNamespace("duckdb", quietly = TRUE)) as.character(packageVersion("duckdb")) else "ausente",
+             if (requireNamespace("reticulate", quietly = TRUE)) as.character(packageVersion("reticulate")) else "ausente",
+             if (requireNamespace("testthat", quietly = TRUE)) as.character(packageVersion("testthat")) else "ausente"),
+  stringsAsFactors = FALSE)
+knitr::kable(vers, row.names = FALSE)
+```
+
+```{r}
+#| label: fig-backends
+#| fig-cap: "Disponibilidade dos backends opcionais detectados em tempo de execução."
+#| fig-alt: "Gráfico de barras com disponível ou ausente para cada backend opcional."
+bs <- backend_status()
+bs$backend <- factor(bs$backend, levels = bs$backend[order(bs$available)])
+ggplot(bs, aes(x = backend, y = as.integer(available), fill = available)) +
+  geom_col(width = .65) +
+  scale_fill_manual(values = c(`TRUE` = pal_agri[1], `FALSE` = "#C0392B"),
+                    guide = "none") +
+  scale_y_continuous(breaks = c(0, 1), labels = c("ausente", "disponível")) +
+  coord_flip() +
+  labs(x = NULL, y = NULL, title = "Backends opcionais do biblioIntegrator")
+```
+
+A Figura 1 mostra o que está instalado nesta máquina. A leitura é operacional:
+cada backend ausente desliga um caminho do tutorial, nunca o documento inteiro,
+porque a arquitetura do pacote trata todo motor opcional como detectado em tempo
+de execução. Dos `r nrow(bs)` backends verificados, `r sum(bs$available)` estão
+disponíveis.
+
+# Os três corpora do tutorial
+
+## Corpus A: acervo didático do pacote
+
+O `example_biblio()` traz doze obras de agronomia com título, ano, DOI, autoria,
+palavras-chave, citações e fonte. É o acervo de partida: pequeno o bastante para
+inspecionar linha a linha e suficientemente realista para todas as funções.
+
+## Corpus B: acervo simulado com verdades plantadas
+
+O acervo principal é simulado com semente fixa e comporta sete verdades que o
+tutorial verifica. Ele representa um levantamento sobre agricultura tropical entre
+2010 e 2025, com 280 obras em três frentes de pesquisa: silício e estresse
+abiótico, carbono do solo e plantas de cobertura, e sensoriamento remoto com
+aprendizado de máquina.
+
+| Verdade | O que foi plantado | Onde é verificada |
+|---|---|---|
+| V1 | três temas latentes com pesos desiguais | Módulos 5 e 6 |
+| V2 | duas fontes com bônus de 12 citações por obra | Módulo 3 |
+| V3 | metade das obras com coautoria internacional | Módulos 3 e 7 |
+| V4 | termos de aprendizado de máquina e VANT concentrados a partir de 2020 | Módulos 4 e 6 |
+| V5 | um autor central que articula a rede | Módulo 7 |
+| V6 | três duplicatas plantadas e defeitos de metadados | Módulo 2 |
+| V7 | três laboratórios com padrão de coautoria próprio | Módulo 7 |
+
+```{r corpus-B}
+set.seed(SEED)
+nB <- 280L
+temas <- list(
+  silicio = list(tit = "Silício e tolerância a estresse abiótico",
+                 kw = c("silicon","salinity","drought stress","rice","sorghum",
+                        "nutrient uptake","abiotic stress","silicon fertilization")),
+  carbono = list(tit = "Carbono do solo e plantas de cobertura",
+                 kw = c("soil carbon","cover crops","no-till","soil organic matter",
+                        "carbon sequestration","soil aggregation","crop rotation",
+                        "green manure")),
+  remoto  = list(tit = "Sensoriamento remoto e fenotipagem de culturas",
+                 kw = c("remote sensing","UAV","machine learning","hyperspectral",
+                        "yield prediction","vegetation index","phenotyping",
+                        "deep learning")))
+tema_lat <- sample(c("silicio","carbono","remoto"), nB, replace = TRUE,
+                   prob = c(.45, .35, .20))
+fontes_bonus <- c("Field Crops Research", "Soil Biology & Biochemistry")
+fontes <- c(fontes_bonus, "Agronomy Journal", "Plant and Soil",
+            "Precision Agriculture", "Pesquisa Agropecuária Brasileira",
+            "Revista Brasileira de Ciência do Solo", "Scientia Agricola",
+            "Soil & Tillage Research", "Remote Sensing")
+int_lab <- c("Smith J","Chen L","Müller H","Rossi G")
+lab_S <- c("Silva AP","Costa JR","Pereira WE","Martins LC")
+lab_C <- c("Souza RM","Oliveira TN","Almeida FB")
+lab_R <- c("Rocha MV","Lima DH","Barbosa KS","Nunes PR","Castro ES")
+lab_de <- list(silicio = lab_S, carbono = lab_C, remoto = lab_R)
+cultura <- c("arroz","milho","soja","sorgo","feijão","trigo","pastagem")
+termos_ia <- c("machine learning","deep learning","UAV","hyperspectral")
+ano <- sample(2010:2025, nB, replace = TRUE,
+              prob = c(2,2,3,3,4,4,5,5,6,7,8,9,10,11,12,9))
+fonte_i <- sample(fontes, nB, replace = TRUE,
+                  prob = c(12,11,10,10,9,9,10,10,9,10)/100)
+kw_list <- lapply(seq_len(nB), function(i) {
+  base <- sample(temas[[tema_lat[i]]]$kw, 4L)
+  if (ano[i] >= 2020 && runif(1) < .78) base <- c(base, sample(termos_ia, 1L))
+  paste(unique(base), collapse = "; ")
+})
+authors_list <- lapply(seq_len(nB), function(i) {
+  meu <- lab_de[[tema_lat[i]]]
+  outros <- unlist(lab_de[setdiff(names(lab_de), tema_lat[i])])
+  pool <- if (runif(1) < .88) meu else outros
+  br <- sample(pool, min(length(pool), sample(1:3, 1)))
+  if (i <= 40L || (tema_lat[i] == "silicio" && runif(1) < .60))
+    br <- unique(c("Silva AP", br))
+  if (runif(1) < .50) br <- c(br, sample(int_lab, sample(1:2, 1)))
+  paste(br, collapse = "; ")
+})
+cit <- pmax(0L, round(exp(rnorm(nB, 1.9, .9)) - 1)) +
+  ifelse(fonte_i %in% fontes_bonus, 12L, 0L)
+dB <- data.frame(
+  title = sprintf("%s em %s (estudo %03d)",
+                  vapply(tema_lat, function(t) temas[[t]]$tit, character(1)),
+                  sample(cultura, nB, replace = TRUE), seq_len(nB)),
+  year = ano, doi = paste0("10.1016/j.agri.2024.", sprintf("%05d", seq_len(nB))),
+  authors = unlist(authors_list), keywords = unlist(kw_list),
+  citations = cit, source = fonte_i, stringsAsFactors = FALSE)
+dB$doi[5] <- "  HTTPS://DOI.ORG/10.1016/j.agri.2024.00005  "
+dB$doi[9] <- "doi:10.1016/j.agri.2024.00009"
+dB$year[14] <- NA_integer_
+dB$citations[21] <- -3L
+dB$title[33] <- "   "
+dB$doi[47] <- NA_character_
+dB$tema <- tema_lat
+dB <- rbind(dB, dB[1, ])
+dB <- rbind(dB, transform(dB[2, ], doi = NA_character_))
+dB <- rbind(dB, transform(dB[3, ], doi = "https://doi.org/10.1016/j.agri.2024.00003"))
+x_bruto <- as_biblio_project(dB, source = "corpus B bruto")
+x_limpo <- deduplicate_biblio(x_bruto, method = "doi_title_year")
+# recorte analítico: parte do acervo JÁ deduplicado e exclui a obra sem ano,
+# porque agrupamentos por período exigem ano conhecido (ver Módulo 2)
+ids_ok <- x_limpo$works$work_id[!is.na(x_limpo$works$year)]
+x_analise <- x_limpo
+x_analise$works <- x_limpo$works[x_limpo$works$work_id %in% ids_ok, , drop = FALSE]
+x_analise$authorships <- x_limpo$authorships[x_limpo$authorships$work_id %in% ids_ok, , drop = FALSE]
+x_analise$keywords <- x_limpo$keywords[x_limpo$keywords$work_id %in% ids_ok, , drop = FALSE]
+n_dup_auto <- nrow(x_bruto$works) - nrow(x_limpo$works)
+n_sem_ano <- nrow(x_limpo$works) - nrow(x_analise$works)
+# grupos prontos para os módulos 6 e 7. A coluna auxiliar `tema` do quadro plano
+# não sobrevive à harmonização (as_biblio_project preserva apenas os campos
+# canônicos), então o tema é derivado do título, como faria um usuário
+tema_de_titulo <- function(t) {
+  ifelse(grepl("^Silício", t), "silicio",
+         ifelse(grepl("^Carbono", t), "carbono", "remoto"))
+}
+tema_B <- tema_de_titulo(x_analise$works$title)
+per_B  <- ifelse(x_analise$works$year >= 2020, "2020-2025", "2010-2019")
+g_per  <- form_groups(x_analise, per_B)
+g_tema <- form_groups(x_analise, tema_B)
+x_analise$works$periodo <- per_B
+```
+
+O acervo bruto tem `r nrow(x_bruto$works)` registros, porque as três duplicatas
+plantadas foram acrescentadas às 280 obras originais. A deduplicação automática
+removeu `r n_dup_auto` delas e o recorte analítico excluiu ainda
+`r n_sem_ano` obra sem ano, chegando a `r nrow(x_analise$works)` obras. A
+duplicata que sobreviveu à rotina automática é justamente a que não tem DOI, e o
+Módulo 2 explica por quê.
+
+## Corpus C: acervo real obtido por API
+
+O terceiro acervo é obtido em tempo de execução do OpenAlex, sobre um tema
+agronômico concreto. Ele mostra que o mesmo encadeamento analítico vale para
+dados que você não simulou.
+
+```{r corpusC}
+x_openalex <- cache_rds("openalex_silicio",
+                        fetch_openalex("silicon salinity rice", n = 40L))
+tem_C <- inherits(x_openalex, "biblio_project")
+if (tem_C) {
+  knitr::kable(head(x_openalex$works[, c("title","year","source","cited_by_count")], 5),
+               caption = "Primeiras obras do acervo real do OpenAlex sobre silício e salinidade em arroz.")
+} else {
+  cat("Chamada de rede indisponível nesta renderização:", x_openalex, "\n")
+}
+```
+

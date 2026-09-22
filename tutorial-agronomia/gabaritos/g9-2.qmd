@@ -1,0 +1,110 @@
+## Gabarito do Exercício 9.2
+
+**Enunciado.** No acervo real deste módulo, selecione as cinco obras mais citadas
+e verifique, pelo título, se todas tratam diretamente de silício. Calcule a
+fração das citações totais concentrada nessas obras e compare com a fração
+equivalente no acervo simulado. Depois, escreva um parágrafo de duas a três
+frases discutindo o que essa diferença implica para a decisão de reportar média
+ou mediana de citações na seção de Resultados.
+
+### Código completo e executável
+
+```{r gab-9-2}
+# 1. as cinco obras mais citadas do acervo real
+top5 <- head(x_openalex$works[order(-x_openalex$works$cited_by_count),
+                              c("title", "year", "source", "cited_by_count")], 5)
+# o teste de mencao ao termo e textual e proposital: e o que o leitor faria a mao
+top5$menciona_silicio <- grepl("silicon|silício|Si ", top5$title, ignore.case = TRUE)
+print(knitr::kable(top5, row.names = FALSE,
+  caption = "As cinco obras mais citadas do acervo real e a verificação textual da menção a silício no título."))
+
+# 2. concentração das citacoes nessas obras, nos dois acervos
+fracao_top5 <- function(x) sum(sort(x, decreasing = TRUE)[1:5]) / sum(x)
+conc <- data.frame(
+  acervo = c("real (OpenAlex)", "simulado (corpus B)"),
+  obras = c(nrow(x_openalex$works), nrow(x_analise$works)),
+  citacoes_totais = c(sum(x_openalex$works$cited_by_count),
+                      sum(x_analise$works$cited_by_count)),
+  fracao_top5 = c(fracao_top5(x_openalex$works$cited_by_count),
+                  fracao_top5(x_analise$works$cited_by_count)))
+conc$fracao_top5_pct <- sprintf("%.0f%%", 100 * conc$fracao_top5)
+# quantas obras seriam necessarias para reunir metade das citacoes
+n_metade <- function(x) { s <- sort(x, decreasing = TRUE)
+                          min(which(cumsum(s) / sum(s) >= .5)) }
+conc$obras_para_metade <- c(n_metade(x_openalex$works$cited_by_count),
+                            n_metade(x_analise$works$cited_by_count))
+print(knitr::kable(conc, row.names = FALSE,
+  caption = "Concentração de citações nos dois acervos: fração reunida nas cinco obras mais citadas e número de obras necessário para reunir metade das citações."))
+
+cat("obras do top 5 que mencionam silício no título:",
+    sum(top5$menciona_silicio), "de", nrow(top5), "\n")
+cat("títulos sem menção a silício:\n")
+print(top5$title[!top5$menciona_silicio], row.names = FALSE)
+```
+
+### Leitura da saída
+
+A primeira tabela responde à pergunta textual do enunciado.
+Das `r nrow(top5)` obras mais citadas do acervo,
+`r sum(top5$menciona_silicio)` mencionam silício no título. Isso significa que
+`r nrow(top5) - sum(top5$menciona_silicio)` obra(s) entraram no acervo sem tratar
+do mineral como objeto central, e a razão aparece no próprio título: são obras de
+contexto amplo, sobre mecanismos de tolerância à salinidade ou sobre estresse
+salino em plantas de forma geral. O termo "silicon" da consulta contribuiu para
+trazê-las, mas a base julga relevância combinando vários sinais, e uma obra
+fundadora de um tema vizinho pontua alto. A conclusão prática para o seu
+levantamento é que a triagem manual por título e resumo é etapa obrigatória, e
+que o número de obras do acervo depois da triagem é o número que você deve
+reportar — não o número que a API devolveu.
+
+A segunda tabela quantifica a concentração e é onde está o argumento
+metodológico. As cinco obras mais citadas do acervo real reúnem
+`r conc$fracao_top5_pct[1]` das citações totais, contra
+`r conc$fracao_top5_pct[2]` no acervo simulado. O número de obras necessário para
+reunir metade das citações conta a mesma história por outro caminho:
+`r conc$obras_para_metade[1]` obras no acervo real, de
+`r conc$obras[1]`, contra `r conc$obras_para_metade[2]` de
+`r conc$obras[2]` no simulado. Em outras palavras, no acervo real
+`r sprintf("%.0f%%", 100 * conc$obras_para_metade[1] / conc$obras[1])` das obras
+sustentam metade das citações, e a média aritmética dessas contagens é puxada por
+elas. Esse é o motivo pelo qual a mediana é a estatística correta para descrever
+citações por obra, com a média reportada em separado e sempre acompanhada do
+máximo ou de um quantil superior.
+
+### Redação sugerida para o artigo
+
+> A distribuição de citações por obra apresenta forte assimetria à direita nos
+> dois acervos analisados. As cinco obras mais citadas concentram
+> `r conc$fracao_top5_pct[1]` das citações recebidas pelo acervo obtido do
+> OpenAlex e `r conc$fracao_top5_pct[2]` das citações do acervo de referência,
+> sendo necessárias `r conc$obras_para_metade[1]` obras para reunir metade do
+> total de citações no primeiro caso e `r conc$obras_para_metade[2]` no segundo.
+> Em razão dessa concentração, a mediana foi adotada como medida de tendência
+> central para citações por obra, e a média foi reportada apenas de forma
+> complementar, acompanhada do valor máximo observado. A verificação textual dos
+> títulos das obras mais citadas mostrou que
+> `r nrow(top5) - sum(top5$menciona_silicio)` delas não tratam diretamente do
+> mineral investigado, explorando mecanismos gerais de tolerância à salinidade, o
+> que motivou a triagem manual do acervo antes da análise final.
+
+### Erros comuns a evitar
+
+1. **Calcular a fração com `sum(head(x, 5)) / sum(x)` sem ordenar antes.** O
+   `head()` devolve as cinco primeiras linhas na ordem em que estão no quadro, e
+   não as cinco maiores. É preciso `sort(decreasing = TRUE)` ou `order(-x)`.
+2. **Testar a presença de silício com `grepl("silicon", title)` em minúsculas.**
+   A busca padrão do R diferencia maiúsculas de minúsculas, e títulos começam com
+   letra maiúscula. Use `ignore.case = TRUE`, ou normalize com `tolower()` antes.
+3. **Tratar a contagem de citações como propriedade fixa da obra.** Citações
+   crescem todo dia, e o número que você mediu hoje deixa de valer amanhã. Toda
+   figura ou tabela de citações precisa declarar a data da coleta, como fazem as
+   figuras deste módulo.
+4. **Concluir que as obras mais citadas são as mais relevantes para o seu tema.**
+   A mais citada do acervo trata de salinidade em plantas de forma geral, e o
+   fato de estar no acervo decorre de relevância textual combinada com peso de
+   citações. Relevância para a sua pergunta de pesquisa é decisão sua, tomada na
+   triagem.
+5. **Comparar médias entre acervos de tamanhos e idades diferentes.** Média de
+   citações de 40 obras publicadas desde 1999 não é comparável com a média de 280
+   obras publicadas de 2010 a 2025. Quando precisar comparar, use citações
+   normalizadas por ano de publicação, como ensina o Módulo 3.

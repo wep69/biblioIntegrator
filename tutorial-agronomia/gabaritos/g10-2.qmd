@@ -1,0 +1,190 @@
+## Gabarito do Exercício 10.2
+
+### Código completo e executável
+
+```{r gab-m10-2}
+# ---------------------------------------------------------------------------
+# Tarefa 10.2: diagnostico de identificadores repetidos nos tres corpora
+# ---------------------------------------------------------------------------
+
+# Os tres corpora do tutorial, nomeados como aparecem no documento.
+corpora10 <- list(didatico = x_did, simulado = x_analise, real = x_openalex)
+
+# Para cada corpus: quantos identificadores se repetem, quantas palavras-chave
+# estao sob eles, e o que a validacao cruzada devolve.
+diag102 <- do.call(rbind, lapply(names(corpora10), function(nm) {
+  x <- corpora10[[nm]]
+  ids <- x$works$work_id
+  dup <- names(which(table(ids) > 1))
+  kw_dup <- if (length(dup) && nrow(x$keywords)) {
+    sum(table(x$keywords$work_id)[dup], na.rm = TRUE)
+  } else 0L
+
+  # Agrupamento por periodo, o mesmo do Modulo 10.
+  per <- ifelse(x$works$year >= 2020, "2020-2025", "2010-2019")
+  if (any(is.na(per))) per[is.na(per)] <- "sem ano"
+  gr <- form_groups(x, per)
+
+  r <- tryCatch(validar_sem_ruido(x, gr, entity = "keyword",
+                                  permutations = 499, seed = SEED),
+                error = function(e) paste("ERRO:", conditionMessage(e)))
+
+  base <- data.frame(corpus = nm,
+                     obras = nrow(x$works),
+                     ids_distintos = length(unique(ids)),
+                     ids_repetidos = length(dup),
+                     kw_sob_repetidos = kw_dup,
+                     stringsAsFactors = FALSE)
+
+  if (is.character(r)) {
+    # Corpus em que a validacao nao pode ser executada: registra o motivo.
+    cbind(base, data.frame(chi_nativo = NA_real_, chi_biblium = NA_real_,
+                           dif_rel_pct = NA_real_, pares_nativo = NA_integer_,
+                           pares_biblium = NA_integer_,
+                           observacao = substr(r, 1, 60),
+                           stringsAsFactors = FALSE))
+  } else {
+    cmp <- r$comparison
+    cbind(base, data.frame(
+      chi_nativo = cmp$native[cmp$metric == "chi_square"],
+      chi_biblium = cmp$biblium[cmp$metric == "chi_square"],
+      dif_rel_pct = 100 * abs(cmp$difference[cmp$metric == "chi_square"]) /
+        abs(cmp$native[cmp$metric == "chi_square"]),
+      pares_nativo = sum(r$native$observed),
+      pares_biblium = sum(r$biblium$observed),
+      observacao = "",
+      stringsAsFactors = FALSE))
+  }
+}))
+
+# Quanto da diferenca de chi-quadrado e atribuivel ao excedente de pares:
+# o excedente e a explicacao candidata; a coluna o quantifica.
+diag102$excedente_pares <-
+  diag102$pares_biblium - diag102$pares_nativo
+
+tab102 <- data.frame(
+  corpus = diag102$corpus,
+  obras = diag102$obras,
+  ids_distintos = diag102$ids_distintos,
+  ids_repetidos = diag102$ids_repetidos,
+  kw_sob_repetidos = diag102$kw_sob_repetidos,
+  chi_nativo = formatC(diag102$chi_nativo, format = "f", digits = 3),
+  chi_biblium = formatC(diag102$chi_biblium, format = "f", digits = 3),
+  excedente = diag102$excedente_pares,
+  dif_rel = sprintf("%.4f%%", diag102$dif_rel_pct),
+  stringsAsFactors = FALSE)
+
+knitr::kable(tab102, row.names = FALSE,
+             col.names = c("Corpus", "Obras", "IDs distintos", "IDs repetidos",
+                           "Palavras-chave sob IDs repetidos", "chi nativo",
+                           "chi Biblium", "Excedente de pares", "Diferenca relativa"))
+```
+
+```{r}
+#| label: fig-gab-m10-2
+#| fig-cap: "Chi-quadrado nos dois motores para os tres corpora do tutorial. As barras coincidem quando nao ha identificador repetido e se separam quando ha."
+#| fig-alt: "Barras pareadas por corpus, uma barra por motor, com o valor do chi-quadrado anotado."
+# Complemento visual: as barras pareadas mostram, corpus a corpus, onde a
+# validacao cruzada fecha e onde a divergencia tem causa no acervo.
+graf102 <- rbind(
+  data.frame(corpus = diag102$corpus, motor = "nativo (R)",
+             chi = diag102$chi_nativo, stringsAsFactors = FALSE),
+  data.frame(corpus = diag102$corpus, motor = "Biblium (Python)",
+             chi = diag102$chi_biblium, stringsAsFactors = FALSE))
+graf102 <- graf102[!is.na(graf102$chi), ]
+graf102$motor <- factor(graf102$motor,
+                          levels = c("nativo (R)", "Biblium (Python)"))
+graf102$corpus <- factor(graf102$corpus, levels = names(corpora10))
+
+ggplot(graf102, aes(x = corpus, y = chi, fill = motor)) +
+  geom_col(position = position_dodge(width = .74), width = .7) +
+  geom_text(aes(label = formatC(chi, format = "f", digits = 1)),
+            position = position_dodge(width = .74), vjust = -.35, size = 3) +
+  scale_fill_manual(values = c("nativo (R)" = pal_agri[1],
+                               "Biblium (Python)" = pal_agri[2]), name = NULL) +
+  scale_y_continuous(expand = expansion(mult = c(0, .17))) +
+  labs(x = NULL, y = "Chi-quadrado",
+       title = "Validacao cruzada nos tres corpora",
+       subtitle = "Barras separadas indicam divergencia a investigar")
+```
+
+### Leitura da saída
+
+A tabela e a figura dão o mesmo veredito, e o resultado é útil justamente porque
+não é uniforme.
+
+Nos corpora **didático** e **real** não há nenhum identificador repetido
+(`r diag102$ids_repetidos[1]` e `r diag102$ids_repetidos[3]`) e
+a validação cruzada fecha: chi-quadrado de
+`r sprintf("%.3f", diag102$chi_nativo[1])` e
+`r sprintf("%.3f", diag102$chi_biblium[1])` no primeiro,
+`r sprintf("%.3f", diag102$chi_nativo[3])` e
+`r sprintf("%.3f", diag102$chi_biblium[3])` no segundo, com excedente de
+pares igual a `r diag102$excedente_pares[1]` e
+`r diag102$excedente_pares[3]`. A diferença relativa residual
+(`r sprintf("%.4f", diag102$dif_rel_pct[1])`% no didático) é ruído de
+ponto flutuante, não divergência.
+
+No corpus **simulado**, com `r diag102$ids_repetidos[2]`
+identificadores repetidos e `r diag102$kw_sob_repetidos[2]`
+palavras-chave sob eles, as barras se separam:
+`r sprintf("%.3f", diag102$chi_nativo[2])` contra
+`r sprintf("%.3f", diag102$chi_biblium[2])`, excedente de
+`r diag102$excedente_pares[2]` pares. O excedente é exatamente igual à
+soma das palavras-chave dos identificadores repetidos que não foram colapsadas —
+`r diag102$kw_sob_repetidos[2]` —, o que identifica a causa sem
+ambiguidade: o motor nativo atribui as palavras-chave à primeira ocorrência do
+identificador e o motor Biblium replica a lista em cada cópia.
+
+A resposta à pergunta do exercício é, portanto, dupla. **Onde a validação cruzada
+deve ser usada com cautela:** no corpus simulado, e em qualquer acervo real com
+identificadores repetidos — o que inclui, tipicamente, exportações de bases
+diferentes com DOIs ausentes ou malformados. **Qual providência deve vir antes
+dela:** `deduplicate_biblio()` com uma chave que funcione sem DOI, ou uma
+verificação explícita de `length(unique(work_id)) == nrow(works)`. Nenhuma análise
+de associação deve ser reportada a partir de um acervo em que essas duas
+quantidades divergem, porque a tabela de contingência deixa de ter uma
+interpretação única — cada motor constrói uma tabela diferente.
+
+### Redação sugerida para o artigo
+
+> Antes da análise de associação, o acervo foi submetido a uma verificação de
+> integridade de identificadores, comparando o número de registros com o número de
+> identificadores únicos. Nos acervos sem identificadores repetidos, as
+> estatísticas de associação calculadas pelos dois motores coincidiram até a
+> precisão de ponto flutuante (chi-quadrado de
+> `r sprintf("%.3f", diag102$chi_nativo[1])` e
+> `r sprintf("%.3f", diag102$chi_biblium[1])` no acervo didático; de
+> `r sprintf("%.3f", diag102$chi_nativo[3])` e
+> `r sprintf("%.3f", diag102$chi_biblium[3])` no acervo obtido por API).
+> No acervo com identificadores duplicados, a divergência entre motores foi de
+> `r sprintf("%.3f", diag102$dif_rel_pct[2])`%, atribuível ao
+> tratamento diferenciado de registros repetidos e não a erro de implementação.
+> Os resultados reportados restringem-se ao subconjunto com identificadores únicos,
+> garantindo que cada obra contribua uma única vez para a tabela de contingência.
+
+### Erros comuns a evitar
+
+1. **Usar `year` sem tratamento de ausentes no agrupamento.** `ifelse()` sobre um
+   `year` com `NA` devolve `NA` como rótulo de grupo e cria um grupo fantasma.
+   Trate os ausentes antes, como o código faz com a categoria `"sem ano"`.
+2. **Tomar `nrow(x$works)` como número de obras.** É o número de **linhas**, e
+   não de obras. Em `x_analise` as duas quantidades diferem
+   (`r nrow(x_analise$works)` contra
+   `r length(unique(x_analise$works$work_id))`), e qualquer contagem de obras
+   derivada da primeira fica inflada.
+3. **Concluir "os motores divergem" sem verificar o excedente de pares.** Compare
+   `sum(observed)` dos dois motores antes de acusar a fórmula. Se os totais
+   diferem, a causa está no insumo, não no cálculo.
+4. **Reportar diferença relativa entre corpora diferentes.** Chi-quadrado cresce
+   com o tamanho da tabela e com os graus de liberdade; `r sprintf("%.0f", diag102$chi_nativo[3])`
+   contra `r sprintf("%.0f", diag102$chi_nativo[1])` não é evidência de
+   associação mais forte, é tabela maior.
+5. **Agrupar com um único nível.** `form_groups(x, rep("unico", nrow(x$works)))`
+   não devolve uma tabela de um grupo: falha com
+   `"contrastes podem ser aplicados apenas a fatores com 2 ou mais níveis"`,
+   porque a construção da matriz de pertencimento passa por
+   `model.matrix()`. Se você realmente precisa de um grupo único, passe a matriz
+   de pertencimento diretamente (`matrix(1, nrow(works), 1)`), que é aceita.
+   Antes disso, porém, pergunte-se se uma comparação de grupos com um só grupo
+   faz sentido: ela não faz, e a falha é o pacote avisando disso.

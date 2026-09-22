@@ -1,0 +1,121 @@
+## Gabarito do Exercício 9.1
+
+**Enunciado.** Faça uma consulta nova ao OpenAlex com `n = 25` sobre um tema
+agronômico do seu interesse, guarde o resultado em cache com `cache_rds()` e
+monte a tabela de proveniência da consulta com os dez campos usados neste módulo.
+Informe quantas obras, autores e termos o acervo tem, e qual é o período coberto.
+
+### Código completo e executável
+
+```{r gab-9-1}
+# O gabarito usa um tema diferente do modulo, para que a consulta seja de fato
+# nova: cobertura de residuos e agricultura de conservacao.
+tema_novo <- "cover crops soil carbon no-till"
+n_novo <- 25L
+mailto_gab <- Sys.getenv("OPENALEX_MAILTO", unset = "")
+if (!nzchar(mailto_gab)) mailto_gab <- NULL
+
+# o nome do arquivo de cache precisa ser estavel e descritivo: e ele que será
+# reaproveitado na proxima renderizacao
+acervo_novo <- cache_rds("gabarito_m09_cover_crops",
+                         fetch_openalex(tema_novo, n = n_novo, mailto = mailto_gab))
+tem_novo <- inherits(acervo_novo, "biblio_project")
+if (!tem_novo)
+  cat("consulta indisponível nesta renderização:", acervo_novo, "\n")
+
+if (tem_novo) {
+  # a tabela de proveniencia da consulta, com os dez campos do modulo
+  prov_gab <- data.frame(
+    campo = c("Base consultada", "Interface", "String de busca", "Campo de busca",
+              "Ordenação", "Número de obras pedido", "Data da coleta",
+              "Identificador de contato", "Filtros aplicados", "Cache local"),
+    valor = c("OpenAlex", "API REST, via fetch_openalex()", tema_novo,
+              "título, resumo e palavras-chave (busca padrão da base)",
+              "relevância, critério da base", as.character(n_novo),
+              format(Sys.Date()),
+              if (is.null(mailto_gab)) "não informado nesta execução" else mailto_gab,
+              "nenhum", "_cache/gabarito_m09_cover_crops.rds"),
+    stringsAsFactors = FALSE)
+  print(knitr::kable(prov_gab, row.names = FALSE,
+    caption = "Proveniência da consulta do exercício 9.1."))
+
+  # tamanho e cobertura do acervo obtido
+  wN <- acervo_novo$works
+  tamanho_novo <- data.frame(
+    item = c("Obras", "Autores únicos", "Autorias", "Pares obra-termo",
+             "Termos únicos", "Fontes", "Primeiro ano", "Último ano",
+             "Mediana de citações", "Resumos disponíveis"),
+    valor = c(nrow(wN), nrow(acervo_novo$authors), nrow(acervo_novo$authorships),
+              nrow(acervo_novo$keywords),
+              length(unique(acervo_novo$keywords$keyword)),
+              length(unique(wN$source)), min(wN$year), max(wN$year),
+              median(wN$cited_by_count), sum(nzchar(wN$abstract))))
+  print(knitr::kable(tamanho_novo, row.names = FALSE,
+    caption = "Tamanho e cobertura do acervo obtido na consulta do exercício."))
+}
+```
+
+### Leitura da saída
+
+A primeira tabela é a proveniência, e ela é o produto mais importante do
+exercício: é o que permite que outra pessoa refaça a busca. Repare que dois dos
+dez campos não são obtidos do objeto devolvido pela função, e sim do que você
+sabe sobre a própria execução — o campo de busca e a ordenação. O
+`biblioIntegrator` registra a origem na tabela `provenance` do projeto
+(`r if (tem_novo) acervo_novo$provenance$details[1] else "indisponível"`), mas
+não sabe qual foi o campo de busca, porque a API resolve isso internamente.
+Declarar isso como "busca padrão da base" é mais honesto do que omitir a linha.
+
+A segunda tabela descreve o acervo e responde às três perguntas do enunciado.
+Nesta execução foram `r if (tem_novo) nrow(acervo_novo$works) else NA` obras,
+`r if (tem_novo) nrow(acervo_novo$authors) else NA` autores e
+`r if (tem_novo) nrow(acervo_novo$keywords) else NA` pares obra-termo, cobrindo
+de `r if (tem_novo) min(acervo_novo$works$year) else NA` a
+`r if (tem_novo) max(acervo_novo$works$year) else NA`. Compare esses números com
+os do acervo do módulo: `r nrow(x_openalex$works)` obras, `r nrow(x_openalex$authors)`
+autores e `r nrow(x_openalex$keywords)` pares obra-termo. A diferença mais
+instrutiva costuma estar na razão entre pares obra-termo e obras, que mede quanta
+palavra-chave a base devolve por documento; ela varia por área, porque bases
+diferentes indexam termos com granularidades diferentes. Se o seu acervo
+devolver muito menos termos por obra, verifique se o campo de palavras-chave
+estava preenchido nos documentos — em muitos periódicos de Agronomia, o autor não
+declara palavras-chave e a base indexa apenas termos atribuídos por algoritmo.
+
+### Redação sugerida para o artigo
+
+> O acervo foi obtido por consulta programática à API do OpenAlex, com a string
+> de busca `r tema_novo` e limite de `r if (tem_novo) nrow(acervo_novo$works) else n_novo`
+> registros ordenados por relevância, sem filtros de ano, idioma ou tipo de
+> documento. A consulta foi executada em
+> `r if (tem_novo) format(Sys.Date()) else "data registrada no apêndice"` e o
+> resultado foi armazenado em cache local (`_cache/gabarito_m09_cover_crops.rds`),
+> de modo que a análise é reprodutível sem nova chamada de rede. A proveniência
+> completa da busca — base, interface, string, campo, ordenação, número de
+> registros, data, contato, filtros e arquivo de destino — consta do Material
+> Suplementar. O acervo recuperado contém
+> `r if (tem_novo) nrow(acervo_novo$works) else n_novo` obras publicadas entre
+> `r if (tem_novo) min(acervo_novo$works$year) else "—"` e
+> `r if (tem_novo) max(acervo_novo$works$year) else "—"`, com
+> `r if (tem_novo) nrow(acervo_novo$authors) else "—"` autores únicos e
+> `r if (tem_novo) nrow(acervo_novo$keywords) else "—"` pares obra-termo.
+
+### Erros comuns a evitar
+
+1. **Guardar o resultado em cache com um nome genérico**, como `acervo.rds`,
+   sobrescrevendo a consulta de outro capítulo. O cache é uma tabela de
+   resultados de rede: o nome precisa dizer qual foi a consulta, e é por isso que
+   ele inclui o tema e o número de obras.
+2. **Deixar o `mailto` em branco e não anotar isso.** A política do OpenAlex pede
+   identificação; não informar funciona, mas a tabela de proveniência precisa
+   registrar que não foi informado, em vez de deixar a lacuna invisível.
+3. **Descrever o resultado como "amostra" da literatura.** `n = 25` com ordenação
+   por relevância é um recorte intencional das obras mais relevantes, e chamá-lo
+   de amostra sugere representatividade que ele não tem.
+4. **Esquecer de registrar a data.** A base cresce, os metadados são corrigidos e
+   a mesma consulta devolve outro conjunto depois de alguns meses. Sem data, o
+   número de obras do acervo deixa de ser verificável.
+5. **Achar que o cache torna a análise imune a erro de digitação na consulta.**
+   Se você corrigir a string e o arquivo de cache já existir, a execução continua
+   usando o resultado antigo. Apague o arquivo do cache — ou mude o nome dele —
+   sempre que a consulta mudar; é o preço de não depender de rede.
+

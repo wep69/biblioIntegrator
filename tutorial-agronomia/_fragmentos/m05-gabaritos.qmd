@@ -1,0 +1,194 @@
+## Gabarito do Exercício 5.1
+
+### Código completo e executável
+
+```{r}
+#| label: tbl-g51
+#| tbl-cap: "Efeito do argumento stopwords e do filtro numérico sobre a contagem de termos e ocorrências no campo de títulos, na Tarefa 5.1."
+# 5.1.1 As três versões da contagem: bruta, com palavra vazia declarada e com filtro numérico
+tf_sem <- term_frequency(x_analise, field = "title")
+tf_com <- term_frequency(x_analise, field = "title", stopwords = c("estudo"))
+tf_fil <- tf_com[!grepl("^[0-9]+$", tf_com$term), ]
+
+versoes <- data.frame(
+  versao = c("padrão", "stopwords = c('estudo')", "stopwords + filtro numérico"),
+  termos_distintos = c(nrow(tf_sem), nrow(tf_com), nrow(tf_fil)),
+  ocorrencias = c(sum(tf_sem$n), sum(tf_com$n), sum(tf_fil$n)),
+  termo_lider = c(tf_sem$term[1], tf_com$term[1], tf_fil$term[1]),
+  n_do_lider = c(tf_sem$n[1], tf_com$n[1], tf_fil$n[1]))
+
+knitr::kable(versoes, row.names = FALSE,
+  caption = "Efeito do argumento stopwords e do filtro numérico sobre a contagem de termos e ocorrências no campo de títulos, na Tarefa 5.1.")
+
+# 5.1.2 Quantas ocorrências a lista padrão remove sozinha
+ocorrencias_num <- sum(tf_com$n[grepl("^[0-9]+$", tf_com$term)])
+n_numericos <- sum(grepl("^[0-9]+$", tf_com$term))
+
+# 5.1.3 TF-IDF agrupado por fonte, com a mesma limpeza
+ti_fonte <- tfidf_terms(x_analise, group = "source")
+ti_fonte <- ti_fonte[!grepl("^[0-9]+$", ti_fonte$term) & ti_fonte$term != "estudo", ]
+ti_ano <- tfidf_terms(x_analise, group = "year")
+ti_ano <- ti_ano[!grepl("^[0-9]+$", ti_ano$term) & ti_ano$term != "estudo", ]
+
+top_fonte <- head(ti_fonte[order(-ti_fonte$tfidf), c("term", "group", "n", "df", "tfidf")], 5L)
+knitr::kable(top_fonte, row.names = FALSE, digits = 3,
+  caption = "Cinco termos de maior TF-IDF no agrupamento por fonte, na Tarefa 5.1.")
+
+df_abiotico_fonte <- unique(ti_fonte$df[ti_fonte$term == "abiótico"])
+df_abiotico_ano <- unique(ti_ano$df[ti_ano$term == "abiótico"])
+```
+
+### Leitura da saída
+
+A primeira tabela responde à pergunta central com três linhas. Na versão padrão, a
+análise devolve `r versoes$termos_distintos[1]` termos e
+`r versoes$ocorrencias[1]` ocorrências, e o termo líder é
+`r versoes$termo_lider[1]`, com `r versoes$n_do_lider[1]` menções. Declarando a
+palavra vazia, os termos distintos caem para `r versoes$termos_distintos[2]` e as
+ocorrências para `r versoes$ocorrencias[2]`, uma redução de
+`r versoes$ocorrencias[1] - versoes$ocorrencias[2]` ocorrências do vocabulário
+administrativo; o termo líder passa a ser `r versoes$termo_lider[2]`. A terceira
+linha mostra que a lista de palavras vazias **não** resolve os códigos numéricos:
+restam `r n_numericos` termos puramente numéricos, responsáveis por
+`r ocorrencias_num` ocorrências, e é só com o filtro por expressão regular que o
+líder se torna `r versoes$termo_lider[3]`.
+
+Duas consequências práticas saem daí, e são elas que precisam ir para o Material e
+Métodos. A primeira é que o número de termos e o número de ocorrências do acervo
+dependem de decisão do analista, e não do dado: as três versões descrevem o mesmo
+acervo com `r min(versoes$termos_distintos)` a `r max(versoes$termos_distintos)`
+termos. A segunda é que a lista de palavras vazias **substitui** o padrão em vez de
+acrescentar a ele, de modo que declarar apenas `c("estudo")` em um acervo com
+títulos em inglês reintroduziria "the", "of" e "and" na contagem. O caminho seguro
+é declarar as duas listas juntas, como faz o bloco anterior com o termo
+administrativo local somado ao padrão.
+
+A segunda parte da tarefa muda o eixo da análise. Agrupando por fonte, o termo de
+maior TF-IDF é `r top_fonte$term[1]`, com índice
+`r round(top_fonte$tfidf[1], 3)` na fonte `r top_fonte$group[1]`, frequência de
+`r top_fonte$n[1]` no estrato e ocorrência em `r top_fonte$df[1]` das
+`r length(unique(ti_fonte$group))` fontes. O termo onipresente aqui é
+`r if (length(df_abiotico_fonte)) "abiótico" else "nenhum"`, presente em
+`r df_abiotico_fonte` fontes, contra `r df_abiotico_ano` anos no agrupamento
+temporal. A interpretação muda de natureza: no agrupamento por ano, o TF-IDF alto
+identifica uma *fase* temporal; no agrupamento por fonte, identifica o perfil
+editorial de um periódico. Como o acervo simulado não plantou viés temático por
+fonte, o resultado por fonte é mais fraco e menos interpretável, e isso é a
+resposta honesta: nem todo agrupamento produz achado, e um acervo sem estrutura
+por fonte não a inventa.
+
+### Redação sugerida para o artigo
+
+A análise textual foi conduzida sobre os títulos normalizados do corpus
+(n = `r nrow(x_analise$works)`), com conversão para minúsculas, remoção de
+palavras vazias (lista padrão acrescida do termo administrativo "estudo") e
+descarte de tokens exclusivamente numéricos, etapa necessária porque o corpus
+carrega códigos de identificação de estudo que não têm significado temático. A
+frequência absoluta dos termos foi complementada pelo cálculo de TF-IDF, que
+pondera a frequência no estrato pelo número de estratos em que o termo ocorre,
+permitindo distinguir vocabulário onipresente de vocabulário discriminante.
+
+### Erros comuns a evitar
+
+- Passar apenas o termo administrativo em `stopwords` e supor que ele se soma à lista padrão: o argumento substitui o padrão, e em corpus com títulos em inglês as palavras funcionais voltam à contagem.
+- Filtrar os tokens numéricos pelo comprimento em vez do conteúdo: os códigos de três dígitos sobrevivem ao corte de dois caracteres; o filtro correto é sobre o padrão do token.
+- Ler o TF-IDF alto como relevância temática: o índice mede concentração no estrato, e um termo onipresente tem índice zero por construção, por mais central que seja o conceito.
+- Rodar `term_frequency(field = "abstract")` e concluir que a função falhou: o acervo tem o campo, mas vazio, e a saída de zero linhas é um resultado.
+- Comparar contagens de termos entre dois acervos de tamanhos diferentes sem normalizar por documento.
+
+## Gabarito do Exercício 5.2
+
+### Código completo e executável
+
+```{r}
+#| label: tbl-g52
+#| tbl-cap: "Série anual do termo de automação 'machine learning' e do termo mais frequente do acervo, com a grade completa de anos, na Tarefa 5.2."
+# 5.2.1 Série anual de um termo de automação, com a grade de anos completa
+tr_ia <- trend_topics(x_analise)
+termo_ia <- "machine learning"
+serie_ia <- merge(data.frame(year = sort(unique(tr_ia$year))),
+                  tr_ia[tr_ia$keyword == termo_ia, c("year", "n")], all.x = TRUE)
+serie_ia$n[is.na(serie_ia$n)] <- 0L
+serie_ia <- serie_ia[order(serie_ia$year), ]
+
+# 5.2.2 O termo mais frequente do acervo, na mesma grade
+tot_termo <- sort(tapply(tr_ia$n, tr_ia$keyword, sum), decreasing = TRUE)
+termo_top <- names(tot_termo)[1]
+serie_top <- merge(data.frame(year = sort(unique(tr_ia$year))),
+                   tr_ia[tr_ia$keyword == termo_top, c("year", "n")], all.x = TRUE)
+serie_top$n[is.na(serie_top$n)] <- 0L
+serie_top <- serie_top[order(serie_top$year), ]
+
+# 5.2.3 Taxa por obra em cada período, que é o número comparável
+obras_per <- table(ifelse(x_analise$works$year >= 2020L, "2020-2025", "2010-2019"))
+taxas <- data.frame(
+  termo = c(termo_ia, termo_top),
+  mencoes_antes = c(sum(serie_ia$n[serie_ia$year < 2020L]),
+                    sum(serie_top$n[serie_top$year < 2020L])),
+  mencoes_recente = c(sum(serie_ia$n[serie_ia$year >= 2020L]),
+                      sum(serie_top$n[serie_top$year >= 2020L])))
+taxas$por_obra_antes <- taxas$mencoes_antes / as.integer(obras_per["2010-2019"])
+taxas$por_obra_recente <- taxas$mencoes_recente / as.integer(obras_per["2020-2025"])
+taxas$razao <- taxas$por_obra_recente / taxas$por_obra_antes
+
+knitr::kable(taxas, row.names = FALSE, digits = 2,
+  caption = "Série anual do termo de automação 'machine learning' e do termo mais frequente do acervo, com a grade completa de anos, na Tarefa 5.2.")
+
+zeros_ia <- sum(serie_ia$n == 0L)
+```
+
+### Leitura da saída
+
+O primeiro resultado é operacional: a grade de anos tem
+`r nrow(serie_ia)` linhas e `r zeros_ia` delas precisaram de zero explícito,
+porque `trend_topics()` só devolve as combinações ano-termo que existem no dado.
+O termo `r termo_ia` aparece pela primeira vez em
+`r min(serie_ia$year[serie_ia$n > 0])` e está ausente em `r zeros_ia` dos anos da
+série. Aqui a decisão de preencher importa e precisa ser declarada: o acervo tem
+ano para todos os `r nrow(serie_ia)` anos, de modo que a ausência de linha é
+ausência de menção e o zero é a leitura correta. Em um acervo cuja janela
+temporal tenha anos sem nenhum documento importado, o mesmo zero seria falso,
+porque não existe observação alguma naquele ano e o termo não poderia ter sido
+mencionado. É essa distinção que exige declarar a cobertura da janela antes de
+plotar a série.
+
+O segundo resultado é o que o exercício cobra. Contando menções, o termo passa de
+`r taxas$mencoes_antes[1]` no período anterior para
+`r taxas$mencoes_recente[1]` no período recente. Contando **por obra**, a taxa
+sobe de `r round(taxas$por_obra_antes[1], 3)` para
+`r round(taxas$por_obra_recente[1], 3)`, uma razão de
+`r round(taxas$razao[1], 2)`. O termo mais frequente do acervo,
+`r termo_top`, tem comportamento oposto quando normalizado: as menções sobem de
+`r taxas$mencoes_antes[2]` para `r taxas$mencoes_recente[2]`, mas a taxa por obra
+cai de `r round(taxas$por_obra_antes[2], 3)` para
+`r round(taxas$por_obra_recente[2], 3)`, razão de
+`r round(taxas$razao[2], 2)`.
+
+Aí está a resposta à última pergunta da tarefa, e ela é o motivo de o exercício
+existir. Se a conclusão fosse tirada da frequência absoluta, os dois termos
+estariam crescendo e o acervo pareceria estar se expandindo em todas as direções.
+A frequência absoluta cresce porque o acervo cresceu, e não porque o tema ganhou
+espaço. A taxa por obra separa as duas coisas: um termo ganha espaço de verdade e
+o outro apenas acompanha o tamanho do corpus. Em um artigo, a redação correta
+distingue "o número de trabalhos que usam aprendizado de máquina cresceu" de "a
+proporção de trabalhos que usam aprendizado de máquina cresceu", e apenas a
+segunda frase é sustentada pelos números deste gabarito.
+
+### Redação sugerida para o artigo
+
+Palavras-chave foram contabilizadas por ano e normalizadas pelo número de
+documentos publicados em cada período, de modo a separar o crescimento do volume
+do corpus do crescimento da adoção de cada termo. O termo `r termo_ia` passou de
+`r round(taxas$por_obra_antes[1], 3)` para
+`r round(taxas$por_obra_recente[1], 3)` menções por documento entre
+`r "2010-2019"` e `r "2020-2025"`, enquanto o termo mais frequente do corpus,
+`r termo_top`, apresentou redução de densidade no mesmo intervalo, indicando
+deslocamento de vocabulário e não apenas aumento de produção científica.
+
+### Erros comuns a evitar
+
+- Plotar a saída de `trend_topics()` direto em linha: as combinações ausentes não têm linha, e a série fica com buracos que o gráfico interpreta como descontinuidade.
+- Concluir mudança temática a partir de contagem absoluta em corpus que cresce: toda contagem sobe e nenhuma informação sobre adoção é obtida.
+- Comparar dois termos por contagem total sem considerar que um deles é vulnerável a variação de nomenclatura: "machine learning" e "aprendizado de máquina" seriam contados como dois termos distintos.
+- Filtrar termos com `min_total` alto sem declarar o limiar: a contagem de séries muda com o argumento e o número fica irreprodutível.
+- Tratar zero e ausência como a mesma coisa: zero é ausência de menção no acervo, e ausência de linha é ausência de observação na agregação.

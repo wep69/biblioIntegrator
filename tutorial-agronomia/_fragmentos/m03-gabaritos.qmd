@@ -1,0 +1,346 @@
+## Gabarito do Exercício 3.1
+
+### Código completo e executável
+
+```{r}
+# recorte de um biblio_project: a mesma máscara precisa valer para as três tabelas
+# ligadas por work_id, senão sobram vínculos órfãos de autoria e de palavra-chave
+g31_recorta <- function(x, manter) {
+  ids <- x$works$work_id[manter]
+  x$works <- x$works[manter, , drop = FALSE]
+  x$authorships <- x$authorships[x$authorships$work_id %in% ids, , drop = FALSE]
+  x$keywords <- x$keywords[x$keywords$work_id %in% ids, , drop = FALSE]
+  x
+}
+
+# formatação de tabela: inteiro sem casa decimal, quebrado com duas casas
+g31_num <- function(x, d = 2) {
+  ifelse(x == round(x), format(round(x)), formatC(x, format = "f", digits = d))
+}
+
+# o recorte de 2020 a 2025 vem do vetor de grupos montado no Módulo 0; se ele não
+# estiver em memória, o mesmo agrupamento é derivado da coluna de ano
+g31_per <- if (exists("per_B")) per_B else
+  ifelse(x_analise$works$year >= 2020, "2020-2025", "2010-2019")
+g31_x <- g31_recorta(x_analise, g31_per == "2020-2025")
+
+# composição: quanto ficou fora e qual é a citação média de cada bloco
+g31_fica_fora <- !(g31_per == "2020-2025")
+g31_media_fora <- mean(x_analise$works$cited_by_count[g31_fica_fora])
+g31_media_dentro <- mean(g31_x$works$cited_by_count)
+g31_top_obra <- which.max(x_analise$works$cited_by_count)
+g31_rotulo_ref <- function(t) paste0(sub("^([^ ]+).*", "\\1", t), " ",
+                                     sprintf("%03d", as.integer(sub(".*estudo ([0-9]+).*", "\\1", t))))
+
+# retrato descritivo dos dois acervos
+g31_res_completo <- describe_biblio(x_analise)
+g31_res_recorte <- describe_biblio(g31_x)
+g31_resumo <- data.frame(
+  acervo = c("completo (2010-2025)", "recorte (2020-2025)"),
+  obras = g31_num(c(g31_res_completo$n_documents, g31_res_recorte$n_documents)),
+  primeiro_ano = g31_num(c(g31_res_completo$years[1], g31_res_recorte$years[1])),
+  ultimo_ano = g31_num(c(g31_res_completo$years[2], g31_res_recorte$years[2])),
+  citacoes = g31_num(c(g31_res_completo$total_citations, g31_res_recorte$total_citations)),
+  media = g31_num(c(mean(x_analise$works$cited_by_count), mean(g31_x$works$cited_by_count))),
+  mediana = g31_num(c(median(x_analise$works$cited_by_count), median(g31_x$works$cited_by_count))),
+  fontes = g31_num(c(length(unique(x_analise$works$source)), length(unique(g31_x$works$source)))),
+  stringsAsFactors = FALSE)
+knitr::kable(g31_resumo, row.names = FALSE,
+             caption = "Exercício 3.1: retrato do acervo completo e do recorte de 2020 a 2025.")
+
+# citação média por fonte nos dois acervos, lado a lado
+g31_por_fonte <- function(x) {
+  d <- do.call(data.frame, aggregate(cited_by_count ~ source, data = x$works,
+        FUN = function(z) c(n = length(z), media = mean(z))))
+  names(d) <- c("fonte", "obras", "media")
+  d[order(-d$media), c("fonte", "obras", "media")]
+}
+g31_f_completo <- g31_por_fonte(x_analise)
+g31_f_recorte <- g31_por_fonte(g31_x)
+g31_fontes <- merge(g31_f_completo, g31_f_recorte, by = "fonte", all = TRUE,
+                    suffixes = c("_completo", "_recorte"))
+g31_fontes <- g31_fontes[order(-g31_fontes$media_recorte), ]
+knitr::kable(
+  data.frame(fonte = g31_fontes$fonte,
+             obras_completo = g31_num(g31_fontes$obras_completo),
+             media_completo = g31_num(g31_fontes$media_completo),
+             obras_recorte = g31_num(g31_fontes$obras_recorte),
+             media_recorte = g31_num(g31_fontes$media_recorte)),
+  row.names = FALSE,
+  caption = "Exercício 3.1: número de obras e citação média por fonte no acervo completo e no recorte de 2020 a 2025.")
+
+# ranqueamento de autores nos dois acervos
+g31_top_autores <- function(x, k = 5) {
+  b <- biblio_metrics(x)
+  b <- b[order(-b$h_index, -b$citations), ]
+  head(b[, c("author", "documents", "citations", "h_index")], k)
+}
+g31_aut_completo <- g31_top_autores(x_analise)
+g31_aut_recorte <- g31_top_autores(g31_x)
+g31_autores <- data.frame(
+  posicao = seq_len(nrow(g31_aut_completo)),
+  autor_completo = g31_aut_completo$author,
+  h_completo = g31_num(g31_aut_completo$h_index),
+  autor_recorte = g31_aut_recorte$author,
+  h_recorte = g31_num(g31_aut_recorte$h_index))
+knitr::kable(g31_autores, row.names = FALSE,
+             caption = "Exercício 3.1: cinco primeiros autores por índice h no acervo completo e no recorte de 2020 a 2025.")
+```
+
+### Leitura da saída
+
+O recorte muda menos do que se poderia esperar, e entender por quê é o objetivo
+da tarefa. Ele entra com `r g31_res_recorte$n_documents` obras contra
+`r g31_res_completo$n_documents` do acervo completo, ou seja, mais da metade do
+acervo é de 2020 em diante — o desenho da simulação concentrou a produção nos
+anos recentes. A citação média sobe de
+`r g31_num(mean(x_analise$works$cited_by_count))` para
+`r g31_num(mean(g31_x$works$cited_by_count))` e a mediana de
+`r median(x_analise$works$cited_by_count)` para
+`r median(g31_x$works$cited_by_count)`, o que parece contraintuitivo: as obras
+mais recentes têm menos tempo para acumular citações, e ainda assim a média do
+recorte é maior. A explicação está na composição, não na idade: as
+`r nrow(g31_x$works)` obras que ficaram no recorte somam
+`r g31_num(g31_media_dentro)` citações em média, contra
+`r g31_num(g31_media_fora)` das `r sum(g31_fica_fora)` obras anteriores a 2020
+que saíram. O corte mantém a obra mais citada do acervo,
+`r g31_rotulo_ref(x_analise$works$title[g31_top_obra])`, de
+`r x_analise$works$year[g31_top_obra]`, com
+`r max(x_analise$works$cited_by_count)` citações, e retira um bloco de média
+menor, o que eleva a média do subconjunto sem que nenhuma obra tenha passado a ser
+mais citada. Esse é o tipo de leitura que só o cruzamento das duas tabelas
+permite: comparar médias entre recortes sem olhar a composição de cada um leva a
+conclusões invertidas.
+
+O ranking de fontes por citação média permanece estável no topo — as duas fontes
+com bônus plantado continuam nas primeiras posições, com
+`r g31_num(g31_fontes$media_recorte[1])` e
+`r g31_num(g31_fontes$media_recorte[2])` citações por obra —, mas a ordem
+intermediária se reorganiza, porque fontes com poucas obras no recorte oscilam
+muito: `r g31_fontes$fonte[3]` passa de
+`r g31_fontes$obras_completo[3]` obras no acervo completo para
+`r g31_fontes$obras_recorte[3]` no recorte, e a média acompanha essa redução. A
+lição prática é declarar o número de obras junto com a média sempre que a tabela
+for para o artigo, porque em subconjunto pequeno a média de uma fonte é dominada
+por uma ou duas obras. No painel de autores, o recorte confirma a concentração
+descrita no módulo: `r g31_aut_recorte$author[1]` lidera os dois acervos, com
+índice h `r g31_aut_recorte$h_index[1]` no recorte contra
+`r g31_aut_completo$h_index[1]` no acervo completo, e o segundo lugar troca de
+nome, o que mostra que as posições abaixo do primeiro são sensíveis ao período
+escolhido. Essas trocas acontecem porque o índice h depende do conjunto de obras
+considerado, e não de uma propriedade fixa do autor.
+
+### Redação sugerida para o artigo
+
+> A análise descritiva foi conduzida sobre o recorte de 2020 a 2025, que reúne
+> `r g31_res_recorte$n_documents` das `r g31_res_completo$n_documents` obras do
+> acervo analítico e concentra `r g31_res_recorte$total_citations` das
+> `r g31_res_completo$total_citations` citações acumuladas. A produção anual, o
+> número de obras por periódico e as métricas por autor foram recalculados nesse
+> recorte com `describe_biblio()` e `biblio_metrics()`, e comparados ao acervo
+> completo para verificar a sensibilidade dos resultados ao período. A citação
+> média por obra passou de `r g31_num(mean(x_analise$works$cited_by_count))` no
+> acervo completo para `r g31_num(mean(g31_x$works$cited_by_count))` no recorte, e
+> a mediana de `r median(x_analise$works$cited_by_count)` para
+> `r median(g31_x$works$cited_by_count)`; a ordenação dos periódicos por citação
+> média manteve as duas primeiras posições e alterou as posições intermediárias,
+> em razão do número reduzido de obras em alguns veículos. Todas as comparações
+> entre subconjuntos são apresentadas com o número de obras de cada célula, para
+> que a leitura não dependa de médias calculadas sobre poucos casos.
+
+### Erros comuns a evitar
+
+1. **Recortar só a tabela de obras.** O recorte precisa ser aplicado também a
+   `authorships` e `keywords`, pela mesma máscara de identificadores; caso
+   contrário, a produção por autor e a frequência de termos incluem obras que não
+   estão no recorte.
+2. **Comparar médias entre recortes sem olhar a composição.** A citação média do
+   recorte de 2020 a 2025 é maior que a do acervo completo, o que não significa
+   que trabalhos recentes são mais citados: significa que o corte descartou um
+   bloco de obras cuja média é menor. Relate sempre o número de obras e o período
+   junto com a média.
+3. **Interpretar a mudança de posição no ranking de autores como mudança de
+   mérito.** O índice h é calculado dentro do acervo considerado; restringir o
+   período reduz o conjunto de obras de cada autor e desloca posições mesmo sem
+   nenhuma mudança real de desempenho.
+4. **Usar `per_B` fora de ordem.** O vetor de grupos está alinhado às linhas de
+   `x_analise$works`; qualquer reordenação prévia do objeto invalida a
+   correspondência. Recorte pelo próprio vetor que acompanha o acervo ou refaça o
+   agrupamento com `form_groups()`.
+5. **Recortar e esquecer de recalcular o esperado da normalização.** O
+   denominador de `normalized_citations()` é a média do estrato, e o estrato muda
+   quando o acervo muda: normalizar antes de recortar produz razões calculadas
+   sobre um conjunto que não é o do artigo.
+
+## Gabarito do Exercício 3.2
+
+### Código completo e executável
+
+```{r}
+# razão entre as citações observadas e uma referência calculada dentro do estrato;
+# aceita qualquer função de agregação, o que permite comparar média e mediana
+impacto_relativo <- function(x, strata = c("year", "source"), fun = mean) {
+  if (!inherits(x, "biblio_project")) {
+    stop("o objeto precisa ser um biblio_project.", call. = FALSE)
+  }
+  w <- x$works
+  g <- interaction(w[, strata, drop = FALSE], drop = TRUE)
+  referencia <- ave(w$cited_by_count, g, FUN = function(z) fun(z, na.rm = TRUE))
+  data.frame(work_id = w$work_id, titulo = w$title, ano = w$year, fonte = w$source,
+             citacoes = w$cited_by_count, referencia = referencia,
+             razao = ifelse(referencia > 0, w$cited_by_count/referencia, NA_real_))
+}
+
+# o mesmo formatador usado no gabarito anterior
+g32_num <- function(x, d = 2) {
+  ifelse(x == round(x), format(round(x)), formatC(x, format = "f", digits = d))
+}
+
+g32_media <- impacto_relativo(x_analise, fun = mean)
+g32_mediana <- impacto_relativo(x_analise, fun = median)
+
+# a versão com média tem de reproduzir a função do pacote, estrato a estrato
+g32_pacote <- normalized_citations(x_analise, strata = c("year", "source"))
+g32_confere <- isTRUE(all.equal(g32_pacote$normalized, g32_media$razao))
+
+g32_resumo <- data.frame(
+  medida = c("média do estrato", "mediana do estrato"),
+  acima_de_2 = g32_num(c(sum(g32_media$razao > 2, na.rm = TRUE),
+                         sum(g32_mediana$razao > 2, na.rm = TRUE))),
+  exatamente_1 = g32_num(c(sum(g32_media$razao == 1, na.rm = TRUE),
+                           sum(g32_mediana$razao == 1, na.rm = TRUE))),
+  abaixo_de_1 = g32_num(c(sum(g32_media$razao < 1, na.rm = TRUE),
+                          sum(g32_mediana$razao < 1, na.rm = TRUE))),
+  razao_maxima = g32_num(c(max(g32_media$razao, na.rm = TRUE),
+                           max(g32_mediana$razao, na.rm = TRUE))),
+  amplitude_interquartil = g32_num(c(IQR(g32_media$razao, na.rm = TRUE),
+                                     IQR(g32_mediana$razao, na.rm = TRUE))),
+  desvio_padrao = g32_num(c(sd(g32_media$razao, na.rm = TRUE),
+                            sd(g32_mediana$razao, na.rm = TRUE))),
+  stringsAsFactors = FALSE)
+knitr::kable(g32_resumo, row.names = FALSE,
+             caption = "Exercício 3.2: o que muda na razão observado/esperado quando a referência do estrato é a média ou a mediana.")
+
+# a célula por trás da razão mais extrema, para explicar o mecanismo
+g32_celula <- interaction(x_analise$works[, c("year", "source")], drop = TRUE)
+g32_alvo <- which.max(g32_mediana$razao)
+g32_celula_alvo <- sort(x_analise$works$cited_by_count[g32_celula == g32_celula[g32_alvo]])
+# a única obra cuja referência de estrato não é positiva, e por isso não tem razão
+g32_sem_razao <- which(g32_media$referencia <= 0)
+g32_tamanho_celula <- table(g32_celula)
+
+# as cinco obras de topo em cada versão
+g32_rotulo <- function(t) paste0(sub("^([^ ]+).*", "\\1", t), " ",
+                                 sprintf("%03d", as.integer(sub(".*estudo ([0-9]+).*", "\\1", t))))
+g32_media$obra <- g32_rotulo(g32_media$titulo)
+g32_mediana$obra <- g32_rotulo(g32_mediana$titulo)
+g32_topo_media <- head(g32_media[order(-g32_media$razao), c("obra", "ano", "fonte", "citacoes", "referencia", "razao")], 5)
+g32_topo_mediana <- head(g32_mediana[order(-g32_mediana$razao), c("obra", "ano", "fonte", "citacoes", "referencia", "razao")], 5)
+
+knitr::kable(
+  data.frame(obra = g32_topo_media$obra, citacoes = g32_num(g32_topo_media$citacoes),
+             referencia = g32_num(g32_topo_media$referencia),
+             razao = g32_num(g32_topo_media$razao)),
+  row.names = FALSE,
+  caption = "Exercício 3.2: cinco obras de topo quando a referência do estrato é a média.")
+knitr::kable(
+  data.frame(obra = g32_topo_mediana$obra, citacoes = g32_num(g32_topo_mediana$citacoes),
+             referencia = g32_num(g32_topo_mediana$referencia),
+             razao = g32_num(g32_topo_mediana$razao)),
+  row.names = FALSE,
+  caption = "Exercício 3.2: as mesmas cinco posições quando a referência do estrato é a mediana.")
+```
+
+### Leitura da saída
+
+A primeira verificação é a que dá confiança no resto:
+`impacto_relativo(x_analise, fun = mean)` reproduz
+`normalized_citations(x_analise, strata = c("year", "source"))` sem diferença
+numérica — a resposta é `r g32_confere`. Isso significa que a função do pacote
+normaliza pela média do estrato, e que a razão que ela devolve é exatamente a
+"citações observadas sobre citações esperadas" discutida no módulo. Confirmada a
+equivalência, a comparação entre média e mediana vira uma pergunta legítima: a
+referência do estrato deve ser o valor típico ou o valor central?
+
+A troca de média por mediana desloca a distribuição das razões, e o deslocamento
+não é simétrico. O número de obras com razão acima de dois sobe de
+`r sum(g32_media$razao > 2, na.rm = TRUE)` para
+`r sum(g32_mediana$razao > 2, na.rm = TRUE)`, o desvio-padrão de
+`r g32_num(sd(g32_media$razao, na.rm = TRUE))` para
+`r g32_num(sd(g32_mediana$razao, na.rm = TRUE))`, e ao mesmo tempo o número de
+obras abaixo de um cai de `r sum(g32_media$razao < 1, na.rm = TRUE)` para
+`r sum(g32_mediana$razao < 1, na.rm = TRUE)`, com
+`r sum(g32_mediana$razao == 1, na.rm = TRUE)` obras cravadas exatamente em um. A
+causa é a assimetria da citação dentro da célula: como a distribuição é assimétrica
+à direita, a mediana do estrato fica próxima do fundo da célula, enquanto a média
+é puxada para cima pela própria obra mais citada. A célula da razão mais extrema
+mostra o mecanismo inteiro — as
+`r length(g32_celula_alvo)` obras de `r g32_mediana$fonte[g32_alvo]` em
+`r g32_mediana$ano[g32_alvo]` têm
+`r paste(g32_celula_alvo, collapse = ", ")` citações, mediana
+`r g32_num(median(g32_celula_alvo))` e média `r g32_num(mean(g32_celula_alvo))`, e
+por isso a obra de `r max(g32_celula_alvo)` citações sai com razão
+`r g32_num(g32_mediana$razao[g32_alvo])` na referência mediana contra
+`r g32_num(g32_media$razao[g32_alvo])` na referência média. A amplitude
+interquartílica até diminui, de
+`r g32_num(IQR(g32_media$razao, na.rm = TRUE))` para
+`r g32_num(IQR(g32_mediana$razao, na.rm = TRUE))`: o centro da distribuição fica
+mais apertado porque muitas razões valem exatamente um, e a cauda fica muito mais
+longa. Comparar as duas listas de topo confirma o efeito — elas compartilham
+`r length(intersect(g32_topo_media$obra, g32_topo_mediana$obra))` das
+`r nrow(g32_topo_media)` obras listadas, mas as posições de baixo mudam porque
+dependem de um único valor de referência.
+
+A recomendação defensável é usar a média do estrato quando a célula tem poucas
+obras, que é o caso deste acervo: com três a seis obras por estrato, a mediana cai
+no fundo da distribuição assimétrica e transforma obras boas em outliers
+aparentes, enquanto a média produz uma referência que já incorpora a obra de topo.
+Reserve a mediana para acervos em que cada estrato reúna dezenas de obras,
+situação em que a média deixa de ser arrastada por poucos valores extremos e a
+mediana acrescenta robustez em vez de ruído. Seja qual for a escolha, o essencial
+é declarar no artigo qual função de referência foi usada e quantas obras há em
+cada estrato, porque a razão normalizada não tem interpretação sem essa
+informação: com a média, a obra de topo deste acervo vale
+`r g32_num(g32_media$razao[g32_alvo])` vezes o esperado; com a mediana, a mesma
+obra vale `r g32_num(g32_mediana$razao[g32_alvo])`.
+
+### Redação sugerida para o artigo
+
+> O impacto relativo de cada obra foi calculado como a razão entre as citações
+> observadas e as citações esperadas no estrato definido pelo ano de publicação e
+> pelo periódico, e a implementação foi verificada contra a função
+> `normalized_citations()` do pacote, com a qual coincide numericamente. Para
+> avaliar a sensibilidade da medida à escolha da referência, a razão foi
+> recalculada substituindo a média do estrato pela mediana. Com a mediana, o
+> número de obras que superam duas vezes a referência passou de
+> `r sum(g32_media$razao > 2, na.rm = TRUE)` para
+> `r sum(g32_mediana$razao > 2, na.rm = TRUE)`, e o desvio-padrão das razões de
+> `r g32_num(sd(g32_media$razao, na.rm = TRUE))` para
+> `r g32_num(sd(g32_mediana$razao, na.rm = TRUE))`, em razão do pequeno número de
+> obras por estrato, que faz da mediana uma referência instável. Adotou-se,
+> portanto, a média do estrato como referência, e todas as razões são reportadas
+> acompanhadas do número de obras do estrato correspondente.
+
+### Erros comuns a evitar
+
+1. **Achar que a normalização do pacote usa mediana.** `normalized_citations()`
+   usa a média do estrato; a diferença numérica em relação a uma referência
+   mediana é grande e precisa ser declarada quando você optar pela mediana.
+2. **Deixar `NA` passar como se fosse razão válida.** Uma obra do acervo tem
+   citação negativa e está sozinha no seu estrato de ano e fonte, de modo que a
+   referência é `r g32_num(g32_media$referencia[g32_sem_razao])` e a razão não tem
+   interpretação; ela fica ausente tanto em `normalized_citations()` quanto na
+   função da tarefa. Declare o valor ausente e explique o caso, em vez de trocá-lo
+   por zero ou por um.
+3. **Comparar rankings de razões sem verificar quantas obras entram em cada
+   estrato.** O tamanho da célula limita o que a razão pode valer: com uma obra a
+   razão é sempre um, com duas ela fica abaixo de dois, e as razões altas só
+   aparecem em células de `r paste(range(g32_tamanho_celula[g32_celula[!is.na(g32_mediana$razao) & g32_mediana$razao > 2]]), collapse = " a ")`
+   obras, onde a mediana cai no fundo da distribuição assimétrica. Sem o tamanho
+   da célula, o topo da lista parece mérito e é aritmética de célula pequena.
+4. **Usar `ave()` com índice desalinhado.** A referência precisa ser calculada
+   sobre o mesmo vetor de estratos e na mesma ordem das linhas de `x$works`;
+   agrupar por um fator construído de outra tabela desalinha obra e estrato.
+5. **Reportar a razão sem o observado e o esperado.** "Quatro vezes o esperado"
+   não informa nada ao leitor se ele não sabe qual era o esperado; publique as
+   duas colunas junto com a razão, como faz a tabela do módulo.

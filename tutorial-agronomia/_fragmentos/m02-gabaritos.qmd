@@ -1,0 +1,327 @@
+## Gabarito do Exercício 2.1
+
+### Código completo e executável
+
+```{r}
+# recorte de um biblio_project: a mesma máscara precisa valer para as três tabelas
+# ligadas por work_id, senão sobram vínculos órfãos de autoria e de palavra-chave
+g21_recorta <- function(x, manter) {
+  ids <- x$works$work_id[manter]
+  x$works <- x$works[manter, , drop = FALSE]
+  x$authorships <- x$authorships[x$authorships$work_id %in% ids, , drop = FALSE]
+  x$keywords <- x$keywords[x$keywords$work_id %in% ids, , drop = FALSE]
+  x
+}
+
+# o acervo didático vem do Módulo 1; se este trecho for rodado isolado,
+# ele é recriado a partir do exemplo que acompanha o pacote
+if (!exists("x_did")) {
+  x_did <- as_biblio_project(example_biblio(), source = "acervo didático")
+}
+
+# acervo didático: doze obras sem defeito plantado
+g21_h_did <- biblio_health(x_did)
+g21_did <- deduplicate_biblio(x_did, method = "doi_title_year")
+
+# recorte do acervo bruto: obras publicadas de 2020 em diante
+g21_manter <- !is.na(x_bruto$works$year) & x_bruto$works$year >= 2020
+g21_rec <- g21_recorta(x_bruto, g21_manter)
+g21_h_rec <- biblio_health(g21_rec)
+g21_rec_dedup <- deduplicate_biblio(g21_rec, method = "doi_title_year")
+g21_h_rec_dedup <- biblio_health(g21_rec_dedup)
+
+# quantos vínculos de autoria ficariam órfãos se apenas a tabela de obras fosse filtrada
+g21_orfaos <- sum(!x_bruto$authorships$work_id %in% g21_rec$works$work_id)
+
+# ano do par duplicado que sobrevive à deduplicação no acervo completo
+g21_alvo <- paste(tolower(trimws(x_limpo$works$title)), x_limpo$works$year)
+g21_ano_par <- x_limpo$works$year[duplicated(g21_alvo)][1]
+
+# resumo comparativo dos dois acervos nos dois estados
+g21_resumo <- data.frame(
+  acervo = c("didático", "didático", "recorte 2020+", "recorte 2020+"),
+  estado = c("bruto", "após deduplicação", "bruto", "após deduplicação"),
+  registros = c(nrow(x_did$works), nrow(g21_did$works),
+                nrow(g21_rec$works), nrow(g21_rec_dedup$works)),
+  defeitos = c(sum(g21_h_did$n), sum(biblio_health(g21_did)$n),
+               sum(g21_h_rec$n), sum(g21_h_rec_dedup$n)),
+  linhas_da_trilha = c(nrow(audit_biblio(x_did)), nrow(audit_biblio(g21_did)),
+                       nrow(audit_biblio(g21_rec)), nrow(audit_biblio(g21_rec_dedup))),
+  stringsAsFactors = FALSE)
+knitr::kable(g21_resumo, row.names = FALSE,
+             caption = "Exercício 2.1: tamanho, número de defeitos acusados e tamanho da trilha em cada acervo e em cada estado.")
+
+# diagnóstico detalhado do recorte, antes e depois
+knitr::kable(
+  data.frame(defeito = g21_h_rec$check,
+             bruto = g21_h_rec$n,
+             pos_dedup = g21_h_rec_dedup$n),
+  row.names = FALSE,
+  caption = "Exercício 2.1: diagnóstico do recorte 2020+ antes e depois da deduplicação automática.")
+
+# a trilha do recorte mostra a operação registrada mesmo quando nada é removido
+knitr::kable(audit_biblio(g21_rec_dedup), row.names = FALSE,
+             caption = "Exercício 2.1: trilha de proveniência do recorte 2020+.")
+```
+
+### Leitura da saída
+
+Os dois acervos respondem de forma oposta à mesma rotina, e é isso que a tarefa
+queria expor. No acervo didático, o diagnóstico não acusa nada em nenhuma das
+seis verificações, a deduplicação remove `r nrow(attr(g21_did, "dedup_log"))`
+registros e o acervo continua com `r nrow(g21_did$works)` obras de
+`r nrow(x_did$works)`. Aqui a rotina automática foi suficiente porque não havia o
+que resolver: o acervo do pacote é limpo por construção. A trilha, ainda assim,
+acumula `r nrow(audit_biblio(g21_did))` linhas, e a segunda traz
+`r audit_biblio(g21_did)$details[2]`. A leitura disso é que a proveniência
+registra a operação, não o resultado dela: um `removed=0` é a prova de que a
+deduplicação rodou e nada achou, o que é informação útil para quem audita o
+encadeamento e não apenas para quem lê o número final.
+
+No recorte de 2020 em diante o cenário é outro. O recorte entra com
+`r nrow(g21_rec$works)` registros e o diagnóstico acusa
+`r sum(g21_h_rec$n)` defeitos, entre eles
+`r g21_h_rec$n[g21_h_rec$check == "duplicate_doi"]` DOI repetido e
+`r g21_h_rec$n[g21_h_rec$check == "duplicate_title_year"]` par de título e ano. A
+deduplicação remove `r nrow(attr(g21_rec_dedup, "dedup_log"))` registro e zera as
+duas verificações de duplicação, mas deixa `r sum(g21_h_rec_dedup$n)` defeitos de
+campo: o título em branco e a citação negativa continuam ali, porque nenhum dos
+dois é duplicação e nenhuma rotina de duplicação tem como adivinhar o título
+correto. Vale registrar o que o recorte fez com a terceira duplicata: o par
+remanescente é de `r g21_ano_par`, anterior ao corte, e por isso não aparece no
+recorte — o defeito não foi resolvido, apenas ficou fora do quadro. A consequência
+metodológica é direta: ao relatar um recorte temporal, diga qual é o recorte,
+porque a visibilidade dos defeitos depende dele.
+
+Há ainda o cuidado de integridade que a função de recorte resolve. Filtrar apenas
+a tabela de obras deixaria `r g21_orfaos` vínculos de autoria apontando para obras
+que não estão mais no acervo, e esses vínculos órfãos voltariam como produção de
+autores que não publicaram no período recortado. Filtrar as três tabelas pela
+mesma máscara de identificadores é o que mantém a integridade referencial, e é a
+razão de o recorte ser feito por uma função e não por três subconjuntos
+independentes escritos à mão.
+
+### Redação sugerida para o artigo
+
+> Os registros exportados foram harmonizados em um objeto relacional único com
+> `as_biblio_project()` e submetidos a diagnóstico de qualidade com
+> `biblio_health()`, que verifica título, ano, DOI, duplicação de DOI, duplicação
+> de título e ano e contagens de citação negativas. A deduplicação automática foi
+> aplicada com `deduplicate_biblio(method = "doi_title_year")`, que compara os
+> registros por chave construída a partir do DOI, quando disponível, e do par
+> título-ano nos demais casos. No recorte analítico de 2020 a 2025, a rotina
+> removeu os registros duplicados e zerou as verificações de duplicação, mantendo
+> como pendências os campos ausentes e a contagem negativa de citações, tratados
+> individualmente. Cada recorte aplicado à tabela de obras foi replicado nas
+> tabelas de autoria e de palavras-chave pela mesma máscara de identificadores,
+> para preservar a integridade referencial. A trilha de operações foi recuperada
+> com `audit_biblio()` e arquivada como material suplementar.
+
+### Erros comuns a evitar
+
+1. **Passar o quadro plano em vez do projeto relacional.** `biblio_health(dB)`
+   devolve os seis defeitos iguais a zero, porque procura a tabela `works` dentro
+   de um data frame e não a encontra. O atestado de limpeza é falso: harmonize
+   com `as_biblio_project()` antes de diagnosticar. Das três funções do módulo,
+   apenas essa falha em silêncio; `audit_biblio()` e `deduplicate_biblio()` param
+   com erro.
+2. **Filtrar só a tabela de obras.** O recorte por ano aplicado apenas a
+   `x$works` deixa vínculos de autoria e de palavra-chave apontando para obras
+   ausentes, o que infla a produção por autor. Filtre as três tabelas pela mesma
+   máscara de identificadores.
+3. **Esperar que o argumento `method` troque o algoritmo.** Nesta versão o
+   argumento é aceito e ignorado: `deduplicate_biblio(x_bruto, method = "title")`
+   devolve `r nrow(deduplicate_biblio(x_bruto, method = "title")$works)` registros,
+   exatamente o mesmo resultado do padrão. Não conte com outra regra de
+   comparação além da documentada.
+4. **Ler `removed=0` como falha.** A linha da trilha é gravada mesmo quando nada
+   é removido, e é justamente ela que prova que a etapa rodou. Ausência de linha
+   significa etapa não executada.
+5. **Confundir recorte com correção.** O corte temporal esconde o par duplicado
+   de ano anterior ao corte sem resolver o defeito. Recorte é decisão analítica;
+   correção é decisão de qualidade, e as duas precisam ser relatadas
+   separadamente.
+
+## Gabarito do Exercício 2.2
+
+### Código completo e executável
+
+```{r}
+# devolve apenas os defeitos que a rotina automática NÃO resolve,
+# cada um com a ação esperada do pesquisador
+relatar_pendencias <- function(x) {
+  if (!inherits(x, "biblio_project")) {
+    stop("o objeto precisa ser um biblio_project; harmonize antes com as_biblio_project().",
+         call. = FALSE)
+  }
+  w <- x$works
+  saida <- list()
+
+  # 1. título igual no mesmo ano: o critério do diagnóstico, que a chave por DOI não vê
+  chave_ta <- paste(tolower(trimws(w$title)), w$year)
+  marcado <- duplicated(chave_ta) | duplicated(chave_ta, fromLast = TRUE)
+  if (any(marcado)) {
+    saida[[length(saida) + 1L]] <- data.frame(
+      tipo = "titulo e ano repetidos",
+      ocorrencias = sum(marcado),
+      exemplo = w$title[which(marcado)[1]],
+      acao = "recuperar o DOI na base de origem ou excluir a linha sem DOI e registrar a decisao")
+  }
+
+  # 2. identificador compartilhado por obras distintas: quebra qualquer junção por work_id
+  g22_ids_rep <- names(which(table(w$work_id) > 1))
+  if (length(g22_ids_rep)) {
+    saida[[length(saida) + 1L]] <- data.frame(
+      tipo = "identificador repetido",
+      ocorrencias = sum(w$work_id %in% g22_ids_rep),
+      exemplo = paste(g22_ids_rep, collapse = ", "),
+      acao = "declarar work_id unico na importacao e refazer as juncoes por autor")
+  }
+
+  # 3. campos obrigatórios vazios
+  for (campo in c("titulo", "ano", "doi")) {
+    vazio <- switch(campo,
+                    titulo = !nzchar(trimws(w$title)),
+                    ano = is.na(w$year),
+                    doi = !nzchar(w$doi))
+    if (any(vazio)) {
+      saida[[length(saida) + 1L]] <- data.frame(
+        tipo = paste("campo vazio:", campo),
+        ocorrencias = sum(vazio),
+        exemplo = if (campo == "titulo") "(titulo em branco)" else w$work_id[vazio][1],
+        acao = "completar na base de origem ou excluir a obra do recorte analitico")
+    }
+  }
+
+  # 4. contagem negativa de citações: correção interna da base, não dado ausente
+  g22_neg <- !is.na(w$cited_by_count) & w$cited_by_count < 0
+  if (any(g22_neg)) {
+    saida[[length(saida) + 1L]] <- data.frame(
+      tipo = "citacoes negativas",
+      ocorrencias = sum(g22_neg),
+      exemplo = w$work_id[g22_neg][1],
+      acao = "consultar a base de origem e nao tratar como zero")
+  }
+
+  if (!length(saida)) {
+    return(data.frame(tipo = "nenhuma pendencia", ocorrencias = 0L, exemplo = "", acao = ""))
+  }
+  do.call(rbind, saida)
+}
+
+g22_limpo <- relatar_pendencias(x_limpo)
+g22_analise <- relatar_pendencias(x_analise)
+
+knitr::kable(g22_limpo, row.names = FALSE,
+             caption = "Exercício 2.2: pendências que a deduplicação automática não resolve no acervo deduplicado.")
+knitr::kable(g22_analise, row.names = FALSE,
+             caption = "Exercício 2.2: as mesmas pendências no recorte analítico, depois de excluir a obra sem ano.")
+
+# o acervo didático não tem pendência: a função precisa dizer isso, não devolver tabela vazia
+knitr::kable(relatar_pendencias(x_did), row.names = FALSE,
+             caption = "Exercício 2.2: verificação de controle em acervo sem defeito plantado.")
+
+# a função recusa objeto que não seja biblio_project, em vez de devolver zero
+cat("mensagem ao passar o quadro plano:",
+    tryCatch({ relatar_pendencias(dB); "sem erro" },
+             error = function(e) conditionMessage(e)), "\n")
+```
+
+```{r}
+# decisão registrada: opção (b), excluir a linha órfã e documentar a exclusão
+g22_decidido <- x_limpo
+g22_alvo <- paste(tolower(trimws(g22_decidido$works$title)), g22_decidido$works$year)
+g22_orfao <- which(duplicated(g22_alvo) & !nzchar(g22_decidido$works$doi))
+g22_id_orfao <- g22_decidido$works$work_id[g22_orfao]
+g22_decidido$works <- g22_decidido$works[-g22_orfao, , drop = FALSE]
+g22_decidido$authorships <- g22_decidido$authorships[g22_decidido$authorships$work_id != g22_id_orfao, , drop = FALSE]
+g22_decidido$keywords <- g22_decidido$keywords[g22_decidido$keywords$work_id != g22_id_orfao, , drop = FALSE]
+
+knitr::kable(
+  data.frame(defeito = biblio_health(g22_decidido)$check,
+             antes = biblio_health(x_limpo)$n,
+             depois = biblio_health(g22_decidido)$n),
+  row.names = FALSE,
+  caption = "Exercício 2.2: efeito da exclusão manual e documentada da linha sem DOI.")
+```
+
+### Leitura da saída
+
+A função devolve `r nrow(g22_limpo)` pendências no acervo deduplicado e
+`r nrow(g22_analise)` no recorte analítico, e a diferença entre as duas listas é o
+ano ausente: o recorte analítico exclui essa obra por decisão de desenho, de modo
+que a pendência desaparece da lista sem ter sido resolvida na origem. A primeira
+pendência é o achado do módulo, com
+`r g22_limpo$ocorrencias[g22_limpo$tipo == "titulo e ano repetidos"]` linhas
+marcadas para o par de título e ano repetido, e a ação proposta é a decisão que o
+software não pode tomar. A segunda é o defeito estrutural: o identificador
+repetido ocorre em
+`r g22_limpo$ocorrencias[g22_limpo$tipo == "identificador repetido"]` linhas, e
+para esse caso a ação não é excluir nada, é corrigir a chave na importação e
+refazer as junções. As três pendências de campo restantes são operacionais:
+completar na base de origem ou retirar a obra do recorte, decisão que precisa
+estar na seção de Métodos.
+
+O controle com o acervo didático prova que a função distingue "sem pendência" de
+"diagnóstico não executado": ela devolve uma linha com
+`r relatar_pendencias(x_did)$tipo`, em vez de uma tabela de zero linhas que o
+leitor interpretaria como erro. Já a chamada com o quadro plano para com a
+mensagem "`r tryCatch({ relatar_pendencias(dB); "" }, error = function(e) conditionMessage(e))`",
+o que é o comportamento certo: a validação de classe na entrada evita o falso
+atestado de limpeza que `biblio_health()` produz quando recebe objeto não
+harmonizado.
+
+A exclusão manual da linha órfã fecha o ciclo e mostra o preço da decisão. O
+acervo passa de `r nrow(x_limpo$works)` para `r nrow(g22_decidido$works)` obras, o
+par de título e ano repetido vai a
+`r biblio_health(g22_decidido)$n[biblio_health(g22_decidido)$check == "duplicate_title_year"]`
+e os DOIs vazios caem de
+`r biblio_health(x_limpo)$n[biblio_health(x_limpo)$check == "missing_doi"]` para
+`r biblio_health(g22_decidido)$n[biblio_health(g22_decidido)$check == "missing_doi"]`,
+porque a linha excluída era uma das duas sem DOI. O que a tabela não mostra é o
+custo: a obra agora é representada pela linha que tem DOI, o que é correto quando
+as duas linhas são o mesmo trabalho, e seria perda de metadado se a linha sem DOI
+trouxesse informação que a outra não tem — razão pela qual a primeira opção,
+recuperar o DOI na base de origem, é sempre preferível à exclusão. Excluir é
+aceitável como último recurso, desde que a decisão fique escrita, porque a trilha
+de proveniência registra operações do pacote e não julgamentos do pesquisador.
+
+### Redação sugerida para o artigo
+
+> Após a deduplicação automática, as pendências remanescentes foram levantadas por
+> uma função de verificação que reporta os defeitos não resolvidos pela rotina de
+> chave: um par de registros com título e ano idênticos em que apenas um possui
+> DOI, identificadores compartilhados por obras distintas e campos obrigatórios
+> ausentes. O par duplicado foi resolvido pela consulta à base de origem, que
+> restituiu o DOI do registro incompleto; nos casos em que a recuperação não foi
+> possível, o registro sem DOI foi excluído e a exclusão registrada como decisão
+> metodológica. A verificação final indicou ausência de duplicação por DOI e por
+> título e ano no recorte analítico, e os registros com contagem negativa de
+> citações foram sinalizados, por resultarem de correções internas da base e não
+> de ausência de dados. Todas as decisões de qualidade estão descritas nesta seção
+> e o log de registros removidos acompanha o material suplementar.
+
+### Erros comuns a evitar
+
+1. **Achar que deduplicar encerra a limpeza.** A rotina remove o que a chave
+   alcança, não o que o critério de conteúdo alcança: o par título-ano fica, e a
+   diferença entre `biblio_health()` antes e depois é a medida honesta do que
+   foi feito.
+2. **Excluir a linha com DOI em vez da linha sem DOI.** A linha completa é a que
+   carrega o metadado bom; excluí-la troca uma duplicata por uma obra sem
+   identificador na base.
+3. **Contar pares duplicados com `duplicated()` sem `fromLast = TRUE`.** O
+   comando marca apenas a segunda ocorrência: o par aparece com
+   `r sum(duplicated(paste(tolower(trimws(x_limpo$works$title)), x_limpo$works$year)))`
+   linha em vez de
+   `r sum(duplicated(paste(tolower(trimws(x_limpo$works$title)), x_limpo$works$year)) |
+           duplicated(paste(tolower(trimws(x_limpo$works$title)), x_limpo$works$year), fromLast = TRUE))`,
+   e o relato subestima o problema por um fator de dois.
+4. **Comparar títulos sem normalizar.** `tolower()` e `trimws()` antes da
+   comparação evitam tratar "Silício…" e "silício… " como obras diferentes; em
+   acervo com acentuação heterogênea, vale também remover a pontuação.
+5. **Deixar a decisão só no console.** A trilha guarda operações do pacote, não a
+   sua justificativa. A exclusão manual precisa aparecer na seção de Métodos, com
+   o identificador da obra excluída e o motivo, porque é isso que o revisor vai
+   conferir quando a contagem de obras do artigo não fechar com a do arquivo
+   suplementar.

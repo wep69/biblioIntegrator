@@ -1,0 +1,113 @@
+## Gabarito do Exercício 7.2
+
+### Código completo e executável
+
+```{r gab-7-2}
+autores <- x_analise$authors[, c("author_id", "display_name")]
+
+# as duas fracoes de reamostragem, com a semente fixada antes de cada chamada
+estab_80 <- network_stability(x_analise, type = "coauthor", B = 20, fraction = 0.8, seed = SEED)
+estab_50 <- network_stability(x_analise, type = "coauthor", B = 20, fraction = 0.5, seed = SEED)
+estab_80 <- merge(estab_80, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+estab_50 <- merge(estab_50, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+
+comparacao <- merge(
+  estab_80[, c("display_name", "mean_rank", "sd_rank")],
+  estab_50[, c("display_name", "mean_rank", "sd_rank")],
+  by = "display_name", suffixes = c("_80", "_50"))
+comparacao$aumento_sd <- round(comparacao$sd_rank_50 - comparacao$sd_rank_80, 4)
+comparacao <- comparacao[order(-comparacao$aumento_sd), ]
+knitr::kable(utils::head(comparacao, 8), row.names = FALSE, digits = c(0, 2, 3, 2, 3, 4),
+             caption = "Estabilidade do posto de centralidade com 80% e com 50% das obras reamostradas, ordenada pelo aumento do desvio-padrão do posto.")
+
+cat("desvio-padrao medio do posto com 80%:", round(mean(estab_80$sd_rank), 4), "\n")
+cat("desvio-padrao medio do posto com 50%:", round(mean(estab_50$sd_rank), 4), "\n")
+cat("razao entre os dois:", round(mean(estab_50$sd_rank) / mean(estab_80$sd_rank), 4), "\n")
+cat("autores cujo desvio-padrao do posto aumenta:", sum(comparacao$aumento_sd > 0),
+    "de", nrow(comparacao), "\n")
+cat("autor que mais se degrada:", comparacao$display_name[1],
+    "| aumento:", comparacao$aumento_sd[1], "\n")
+cat("correlacao de Spearman entre os postos medios:",
+    round(cor(comparacao$mean_rank_80, comparacao$mean_rank_50, method = "spearman"), 4), "\n")
+```
+
+### Leitura da saída
+
+O desvio-padrão médio do posto sobe de `r round(mean(estab_80$sd_rank), 4)` com
+80% das obras para `r round(mean(estab_50$sd_rank), 4)` com 50% — uma razão de
+`r round(mean(estab_50$sd_rank) / mean(estab_80$sd_rank), 4)`, ou seja, a incerteza
+da posição cresce cerca de `r round(100 * (mean(estab_50$sd_rank) / mean(estab_80$sd_rank) - 1))`
+por cento quando o acervo reamostrado encolhe de 224 para 140 obras. O aumento
+ocorre para `r sum(comparacao$aumento_sd > 0)` dos `r nrow(comparacao)` autores, e
+o autor cuja posição mais se degrada é
+**`r comparacao$display_name[1]`**, com aumento de
+`r comparacao$aumento_sd[1]` posições no desvio-padrão.
+
+Há duas leituras que precisam ser feitas em conjunto, e a segunda é a que costuma
+faltar. A primeira é a magnitude absoluta: as posições médias continuam estáveis —
+a correlação de Spearman entre os dois rankings de posto médio é
+`r round(cor(comparacao$mean_rank_80, comparacao$mean_rank_50, method = "spearman"), 4)` —,
+de modo que **encolher a amostra não reordena o ranking, apenas torna cada posição
+individual menos precisa**. A segunda é a forma da degradação: ela não é uniforme.
+Autores na base do ranking, como `r comparacao$display_name[1]`, ganham incerteza
+muito maior que autores no topo, porque o número de parceiros distintos de um autor
+periférico depende de poucas obras, e perder uma dessas obras por sorteio pode
+mudar a posição dele em vários lugares. Quem está no topo tem tantas coautorias que
+a remoção de 20% ou 50% das obras quase não mexe na contagem.
+
+A lição metodológica é que **confiabilidade de ranking não é uma propriedade do
+método, é uma propriedade de cada posição**. Declarar "o ranking é estável" depois
+de olhar a correlação de Spearman geral é insuficiente: o número que interessa é o
+desvio-padrão do posto do autor sobre o qual se está afirmando algo. Para a
+coordenação do programa, isso significa que a decisão de investimento pode se
+apoiar com segurança nos autores do topo — cujas posições resistem a perder metade
+do acervo — e não deve se apoiar na diferença entre o décimo e o décimo segundo
+colocados.
+
+Vale registrar um limite do exercício. A função reamostra sempre o **mesmo**
+acervo, retirando obras; ela não simula a existência de obras que o levantamento
+não encontrou. O desvio-padrão calculado aqui é um limite inferior da incerteza
+real, porque assume que as 280 obras são a população e não uma amostra incompleta
+dela.
+
+### Redação sugerida para o artigo
+
+> A estabilidade do ranking de centralidade foi avaliada por reamostragem de 80% e
+> de 50% das obras, com 20 réplicas e semente fixa, em ambos os casos. O
+> desvio-padrão do posto subiu de `r round(mean(estab_80$sd_rank), 2)` para
+> `r round(mean(estab_50$sd_rank), 2)` posições, indicando que a precisão da
+> posição individual depende da fração reamostrada. A ordenação geral, no entanto,
+> permaneceu praticamente inalterada (ρ de Spearman =
+> `r round(cor(comparacao$mean_rank_80, comparacao$mean_rank_50, method = "spearman"), 3)`),
+> e a maior perda de precisão ocorreu entre autores de menor centralidade
+> (`r comparacao$display_name[1]`, aumento de `r comparacao$aumento_sd[1]` posições
+> no desvio-padrão). Concluímos que a identificação dos autores mais centrais é
+> robusta ao recorte do acervo, enquanto a ordenação das posições intermediárias
+> não deve ser interpretada.
+
+### Erros comuns a evitar
+
+1. **Rodar as duas chamadas sem semente e comparar diretamente.** Sem
+   `seed = SEED`, cada chamada usa o estado corrente do gerador e a diferença entre
+   as duas frações mistura o efeito do recorte com o sorteio.
+2. **Comparar `mean_rank` entre as duas frações sem comparar `sd_rank`.** O posto
+   médio é parecido nas duas, e é justamente o desvio-padrão que responde à
+   pergunta sobre confiabilidade.
+3. **Interpretar o aumento de `sd_rank` como piora da rede.** O que aumenta é a
+   incerteza da estimativa, não a centralidade do autor; a rede do acervo completo
+   permanece a mesma.
+4. **Tratar o desvio-padrão da reamostragem como erro-padrão da média.** Cada
+   réplica é um ranking completo do mesmo acervo reduzido, e o desvio-padrão
+   descreve a dispersão da posição, o que é o que se quer, mas não é um intervalo
+   de confiança.
+5. **Esquecer que a função sempre usa `engine = "native"` e ranqueia por grau.**
+   Se a análise principal foi feita com outro motor ou outra medida, o resultado
+   desta tarefa não se transfere para ela.
+# Gabaritos do Módulo 8
+
+Os gabaritos abaixo foram executados no mesmo documento que gera o módulo, de
+modo que todos os números citados vêm da execução real. As três funções
+exercitadas são `biblio_store()`, `biblio_load()` e `biblio_query()`, e o
+acervo usado é o simulado, `x_analise`, com
+`r nrow(x_analise$works)` obras.
+

@@ -1,0 +1,128 @@
+## Gabarito do Exercício 12.1
+
+### Código completo e executável
+
+```{r gab-m12-1}
+# Semente do tutorial: SEED == 2026L, criada por _setup_corpora.R.
+# O plano declara o agrupamento por periodo (g_per), mas o modulo "groups"
+# NAO entra na lista: a inferencia fica fora do plano descritivo.
+plano_12_1 <- form_plan(
+  analyses = c("health", "descriptive", "temporal", "network", "text"),
+  network  = "coauthor",
+  group    = g_per,
+  report   = "markdown",
+  seed     = SEED)
+
+validate_plan(plano_12_1)          # aborta aqui se houver modulo invalido
+
+execucao_12_1 <- run_plan(plano_12_1, x_analise)
+print(names(execucao_12_1))        # o registro do que foi produzido
+
+# Controle de erro que o exercicio pede: um plano com nome errado
+# nao chega a rodar nada.
+plano_com_erro <- form_plan(analyses = c("health", "temporal", "redes"), seed = SEED)
+print(tryCatch(validate_plan(plano_com_erro),
+               error = function(e) conditionMessage(e)))
+
+# Relatorio em dois formatos, sempre com caminho absoluto.
+pasta <- file.path(getwd(), "_m12_saidas", "gabarito-12-1")
+dir.create(pasta, showWarnings = FALSE, recursive = TRUE)
+arq_md   <- biblio_report(x_analise, file.path(pasta, "suplemento.md"),
+                          format = "markdown",
+                          title = "Silício e salinidade: relatório do acervo")
+arq_docx <- biblio_report(x_analise, file.path(pasta, "suplemento.docx"),
+                          format = "docx",
+                          title = "Silício e salinidade: relatório do acervo")
+
+# Exportacao nos dois formatos e medicao do tamanho real.
+dir_csv <- file.path(pasta, "dados_csv")
+dir_pq  <- file.path(pasta, "dados_parquet")
+export_biblio(x_analise, dir_csv, "csv")
+export_biblio(x_analise, dir_pq,  "parquet")
+
+tamanhos_12_1 <- data.frame(
+  formato   = c("csv", "parquet"),
+  arquivos  = c(length(list.files(dir_csv)), length(list.files(dir_pq))),
+  bytes     = c(sum(file.size(list.files(dir_csv, full.names = TRUE))),
+                sum(file.size(list.files(dir_pq, full.names = TRUE)))))
+tamanhos_12_1$kB <- round(tamanhos_12_1$bytes / 1024, 1)
+print(tamanhos_12_1)
+
+# Conferencia final do exercicio: os arquivos existem?
+print(file.exists(c(arq_md, arq_docx)))
+```
+
+A frase de Material e Métodos que fecha a tarefa pode ser escrita assim:
+
+> A análise bibliométrica foi executada sobre `r nrow(x_analise$works)` obras
+> recuperadas e harmonizadas com o pacote `biblioIntegrator`, segundo um plano
+> declarado antes da execução que incluiu os módulos de qualidade dos dados,
+> estatística descritiva, dinâmica temporal, rede de coautoria e análise textual
+> de termos; todas as etapas estocásticas usaram a semente
+> `r SEED`, e o relatório completo do acervo, os dados exportados e o plano
+> executado estão depositados no material suplementar.
+
+### Leitura da saída
+
+O primeiro resultado a conferir é `names(execucao_12_1)`, porque ele é a prova do
+que o plano fez. Com os cinco módulos declarados, a lista devolve
+`r paste(names(execucao_12_1), collapse = ", ")`: o acervo entra como `project`,
+cada módulo acrescenta o seu elemento e a rede de coautoria acrescenta dois, a
+própria rede e a tabela de centralidade. Não há elemento `groups`, exatamente
+porque o módulo não foi pedido – o plano declarado e o resultado executado batem,
+e é essa conferência que você faz antes de escrever uma linha de Resultados.
+
+O segundo resultado é a mensagem de erro do bloco `tryCatch`:
+`Unknown analyses: redes`. Ela não deve ser lida como falha do exercício, e sim
+como o comportamento desejado: o nome errado é barrado por `validate_plan()` antes
+de qualquer cálculo, de modo que a sessão não gasta tempo produzindo metade de uma
+análise. Note também que `form_plan()` aceitou `"redes"` sem reclamar: a lista de
+módulos válidos é conferida na validação, não na construção do plano.
+
+O terceiro resultado é a tabela de tamanhos. Os dois formatos gravam
+`r unique(tamanhos_12_1$arquivos)` arquivos cada, porque `export_biblio()` exporta
+o projeto relacional inteiro, e o Parquet sai
+`r round(tamanhos_12_1$kB[tamanhos_12_1$formato == "csv"] /
+         tamanhos_12_1$kB[tamanhos_12_1$formato == "parquet"], 1)`
+vezes menor que o CSV. Se você precisa que o revisor *veja* os dados, mande o CSV;
+se precisa que o repositório *guarde* os dados em escala, mande o Parquet.
+
+### Redação sugerida para o artigo
+
+> O plano de análise foi declarado antes da execução, com os módulos de qualidade
+> dos dados, estatística descritiva, dinâmica temporal, rede de coautoria e análise
+> textual de termos, rede de coautoria e semente `r SEED` fixada para todas as
+> etapas estocásticas, incluindo a construção da rede. O plano foi validado
+> programaticamente antes da execução, o que impede a execução parcial de análises
+> por erro de especificação. O relatório completo do acervo, contendo o resumo do
+> corpus, o diagnóstico de qualidade, a produção anual, os termos líderes e as
+> medidas de centralidade, é disponibilizado como material suplementar em dois
+> formatos, e os dados analíticos são depositados em formato aberto
+> (`r tamanhos_12_1$kB[tamanhos_12_1$formato == "parquet"]` kB em Parquet e
+> `r tamanhos_12_1$kB[tamanhos_12_1$formato == "csv"]` kB em CSV). Os resíduos de
+> qualidade apontados pelo diagnóstico são tratados como limitação do estudo e
+> estão declarados na seção de limitações.
+
+### Erros comuns a evitar
+
+1. **Escrever `run_plan(plano)` esquecendo o acervo.** A chamada falha com a
+   mensagem obscura `argumento tem comprimento zero`, porque a função tenta buscar
+   os dados em `plan$source`, que veio `NULL`. Passe o acervo explicitamente:
+   `run_plan(plano, x_analise)`.
+2. **Pular a validação.** Rodar `run_plan()` direto em um plano com nome de módulo
+   errado parece funcionar por alguns instantes e depois aborta com
+   `Unknown analyses: redes`, no meio do processo. A validação existe para que o
+   erro apareça na primeira linha, não no meio da execução.
+3. **Usar caminho relativo em `biblio_report()`.** Nos formatos renderizados, o
+   arquivo é montado em um diretório temporário e o caminho relativo passa a
+   apontar para o lugar errado; o erro é
+   `The directory '.../Temp/Rtmp.../pasta' does not exist`. Use
+   `file.path(getwd(), "pasta")`.
+4. **Esperar um único arquivo de `export_biblio()`.** O argumento `path` é um
+   diretório e a função grava seis tabelas dentro dele. Pior: se você passar um
+   caminho com extensão, como `"dados.csv"`, o diretório `dados.csv` é criado e os
+   arquivos ficam escondidos dentro dele.
+5. **Confundir o plano com a análise.** Mudar a semente depois de executar e
+   reportar o resultado antigo quebra a reprodutibilidade. Se a semente faz parte
+   do plano, ela vai também para a seção de Material e Métodos.
+

@@ -1,0 +1,105 @@
+## Gabarito do Exercício 8.1
+
+**Enunciado.** Grave o acervo didático (`x_did`) em um diretório Parquet e em um
+arquivo DuckDB, dentro de `tempdir()`. Recarregue cada um, confirme que o número
+de obras é o mesmo do objeto original e informe quantos arquivos o motor `arrow`
+produziu e quantos quilobytes cada artefato ocupa. Em seguida, tente gravar uma
+segunda vez no mesmo caminho sem `overwrite` e descreva o que aconteceu.
+
+### Código completo e executável
+
+```{r gab-8-1}
+# duas etapas: gravar e conferir a volta; depois, testar a recusa de sobrescrita.
+# os caminhos ficam em tempdir() para nao sujar o diretorio do tutorial.
+dir_gab <- file.path(tempdir(), "gabarito_m08")
+dir.create(dir_gab, showWarnings = FALSE)
+p_did_ar <- file.path(dir_gab, "didatico_arrow")
+p_did_dk <- file.path(dir_gab, "didatico.duckdb")
+unlink(c(p_did_ar, p_did_dk), recursive = TRUE)
+
+# 1. gravacao nos dois motores
+invisible(biblio_store(x_did, p_did_ar, engine = "arrow"))
+invisible(sem_eco(biblio_store(x_did, p_did_dk, engine = "duckdb")))
+
+# 2. volta: quantas obras cada motor devolve
+volta_did <- c(original = nrow(x_did$works),
+               arrow    = nrow(biblio_load(p_did_ar, "arrow")$works),
+               duckdb   = nrow(sem_eco(biblio_load(p_did_dk, "duckdb"))$works))
+
+# 3. tamanho dos artefatos
+n_arq_ar <- length(list.files(p_did_ar, pattern = "\\.parquet$"))
+kb_ar <- sum(file.size(list.files(p_did_ar, full.names = TRUE))) / 1024
+kb_dk <- file.size(p_did_dk) / 1024
+
+# 4. segunda gravacao no mesmo caminho, sem overwrite
+msg_gab <- sem_eco(tryCatch(biblio_store(x_did, p_did_ar, engine = "arrow"),
+                            error = function(e) conditionMessage(e)))
+
+cat("obras por motor:", paste(names(volta_did), volta_did, sep = " = ", collapse = " | "), "\n")
+cat("arquivos Parquet:", n_arq_ar, "| total:", round(kb_ar, 1), "kB\n")
+cat("arquivo DuckDB:", round(kb_dk, 1), "kB\n")
+cat("razão de tamanho duckdb/arrow:", round(kb_dk / kb_ar, 1), "vezes\n")
+cat("segunda gravação sem overwrite:", msg_gab, "\n")
+```
+
+### Leitura da saída
+
+A saída responde às quatro perguntas do enunciado, uma por linha. Os três valores
+de obras são iguais — `r volta_did[["original"]]` no objeto em memória,
+`r volta_did[["arrow"]]` depois de voltar do Parquet e
+`r volta_did[["duckdb"]]` depois de voltar do banco —, o que é o teste mínimo de
+integridade de qualquer persistência: gravar e reler não pode mudar a contagem de
+registros. O motor `arrow` produziu `r n_arq_ar` arquivos, um por tabela do
+projeto, somando `r round(kb_ar, 1)` kB, contra `r round(kb_dk, 1)` kB do arquivo
+único do DuckDB, uma razão de `r round(kb_dk / kb_ar, 1)` vezes. A diferença de
+tamanho é estrutural, não um defeito: o Parquet comprime colunas, e o banco
+reserva catálogo e espaço transacional.
+
+A última linha é a que interessa para o resto do doutorado. A segunda gravação no
+mesmo caminho não sobrescreveu nada: ela parou e devolveu
+`r msg_gab`. Repare que a mensagem não traz número de linha nem eco da chamada, o
+que indica que o erro foi lançado com `call. = FALSE`, e que o texto sugere
+diretamente a solução. O efeito prático é que um `biblio_store()` repetido duas
+vezes no mesmo script não destrói o acervo da primeira execução por acidente, e
+transforma a sobrescrita numa decisão que você precisa escrever.
+
+### Redação sugerida para o artigo
+
+> O acervo analítico foi persistido em dois formatos complementares, para
+> garantir a reprodutibilidade das análises e permitir a retomada do trabalho
+> independentemente das bases de dados originais. O primeiro é um conjunto de
+> arquivos Parquet gravado pelo motor `arrow` do pacote `biblioIntegrator`
+> (versão `r as.character(packageVersion("biblioIntegrator"))`), com um arquivo
+> por tabela do modelo relacional; o segundo é um arquivo único de banco de
+> dados gravado pelo motor `duckdb`, que responde a consultas SQL sobre o acervo
+> sem carregá-lo em memória. A gravação foi feita com a verificação de
+> integridade incluída no próprio fluxo: as contagens de obras, autorias e
+> termos foram comparadas antes e depois da ida ao disco e coincidiram em todos
+> os casos. O procedimento adotado recusa sobrescrever um caminho já existente,
+> o que exige a confirmação explícita da substituição e evita a perda acidental
+> de um acervo previamente persistido.
+
+### Erros comuns a evitar
+
+1. **Apagar o diretório do acervo no início do script** para "evitar o erro".
+   Isso funciona e destrói exatamente a proteção que o pacote oferece: se a
+   variável `p_arrow` apontar por engano para o acervo de outro capítulo, o
+   `unlink()` não pergunta nada. Prefira deixar `biblio_store()` recusar e
+   responder com `overwrite = TRUE`.
+2. **Conferir a volta pelo número de linhas apenas.** Contagem igual não garante
+   conteúdo igual: uma coluna pode ter sido truncada ou renomeada sem alterar o
+   número de linhas. Compare ao menos os nomes das colunas e as classes, como faz
+   o bloco do módulo com `all.equal(check.attributes = FALSE)`.
+3. **Comparar objetos com `identical()` sobre o `data.frame` inteiro.** A ida ao
+   disco reordena atributos internos (`names`, `class`, `row.names`) e o Parquet
+   não guarda nomes de linha, de modo que `identical()` reprova quadros com
+   valores idênticos. O resultado é um falso alarme que consome uma tarde.
+4. **Esperar que o caminho do motor `duckdb` seja um diretório.** É um arquivo, e
+   a extensão não é obrigatória, mas `file.exists()` e `dir.exists()` verificam
+   coisas diferentes; o pacote testa os dois, e o seu script de limpeza também
+   precisa testar os dois.
+5. **Gravar em `tempdir()` e usar o acervo em outro dia.** O diretório temporário
+   é apagado ao fim da sessão de R. Use `tempdir()` para exercício, como pede a
+   tarefa, e um diretório do projeto — de preferência versionado, como
+   `_cache/` — para o acervo de trabalho.
+

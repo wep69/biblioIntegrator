@@ -1,0 +1,189 @@
+## Gabarito do Exercício 10.1
+
+### Código completo e executável
+
+```{r gab-m10-1}
+# ---------------------------------------------------------------------------
+# Tarefa 10.1: validacao cruzada em quatro combinacoes
+#   dois agrupamentos (periodo e tema) x duas entidades (keyword e author)
+# ---------------------------------------------------------------------------
+
+# Autossuficiência: este gabarito também é entregue como arquivo isolado, então
+# o status do backend é obtido aqui se o corpo do módulo não tiver rodado.
+if (!exists("pbs10")) pbs10 <- python_backend_status()
+
+# Funcao auxiliar: captura a saida textual do Python e devolve o objeto
+# de comparacao. Sem isso, o aviso "Groups are disjoint" e impresso a cada
+# chamada e polui a saida do documento.
+validar_sem_ruido <- function(x, grupos, entity = "keyword",
+                              permutations = 499, seed = NULL) {
+  reticulate::py_capture_output(
+    v <- validate_biblium(x, grupos, entity = entity,
+                          permutations = permutations, seed = seed))
+  v
+}
+
+# Os dois agrupamentos, nomeados para entrarem na tabela final.
+agrupamentos <- list(periodo = g_per, tema = g_tema)
+
+# Grade completa: uma linha por combinacao agrupamento x entidade.
+grade101 <- do.call(rbind, lapply(names(agrupamentos), function(ga) {
+  do.call(rbind, lapply(c("keyword", "author"), function(en) {
+    v <- validar_sem_ruido(x_analise, agrupamentos[[ga]], entity = en,
+                           permutations = 499, seed = SEED)
+    cmp <- v$comparison
+    # Indices nomeados: cada metrica e localizada pelo nome, nunca pela posicao.
+    pega <- function(m, motor) cmp[[motor]][cmp$metric == m]
+    data.frame(
+      agrupamento = ga,
+      entidade = en,
+      chi_nativo = pega("chi_square", "native"),
+      chi_biblium = pega("chi_square", "biblium"),
+      dif_rel_pct = 100 * abs(pega("chi_square", "difference")) /
+        abs(pega("chi_square", "native")),
+      p_nativo = pega("p_value", "native"),
+      p_biblium = pega("p_value", "biblium"),
+      v_nativo = pega("cramers_v", "native"),
+      v_biblium = pega("cramers_v", "biblium"),
+      dim_nativo = paste(dim(v$native$observed), collapse = " x "),
+      dim_biblium = paste(dim(v$biblium$observed), collapse = " x "),
+      # As duas implementacoes usam os mesmos rotulos de coluna?
+      rotulos_iguais = setequal(colnames(v$native$observed),
+                                colnames(v$biblium$observed)),
+      stringsAsFactors = FALSE)
+  }))
+}))
+
+# Tabela final do exercicio, com tudo formatado como texto.
+tab101 <- data.frame(
+  agrupamento = grade101$agrupamento,
+  entidade = grade101$entidade,
+  chi_nativo = formatC(grade101$chi_nativo, format = "f", digits = 3),
+  chi_biblium = formatC(grade101$chi_biblium, format = "f", digits = 3),
+  dif_rel = sprintf("%.3f%%", grade101$dif_rel_pct),
+  p_nativo = formatC(grade101$p_nativo, format = "f", digits = 3),
+  p_biblium = formatC(grade101$p_biblium, format = "f", digits = 3),
+  dim = paste(grade101$dim_nativo, "|", grade101$dim_biblium),
+  rotulos = ifelse(grade101$rotulos_iguais, "iguais", "diferentes"),
+  stringsAsFactors = FALSE)
+
+knitr::kable(tab101, row.names = FALSE,
+             col.names = c("Agrupamento", "Entidade", "chi nativo", "chi Biblium",
+                           "Diferenca relativa", "p nativo", "p Biblium",
+                           "Dimensoes (nat | bib)", "Rotulos de coluna"))
+```
+
+```{r}
+#| label: fig-gab-m10-1
+#| fig-cap: "Diferenca relativa percentual do chi-quadrado entre os dois motores, nas quatro combinacoes de agrupamento e entidade."
+#| fig-alt: "Barras horizontais com a diferenca relativa percentual por combinacao, coloridas pela entidade."
+# Complemento visual da tabela: onde a divergencia e alta e onde e desprezivel.
+# A escala logaritmica e necessaria porque a coluna cobre duas ordens de grandeza.
+grade101$combinacao <- factor(
+  paste(grade101$agrupamento, grade101$entidade, sep = " / "),
+  levels = paste(grade101$agrupamento, grade101$entidade, sep = " / "))
+ggplot(grade101, aes(x = combinacao, y = pmax(dif_rel_pct, 1e-13),
+                       fill = entidade)) +
+  geom_col(width = .68) +
+  geom_text(aes(label = sprintf("%.3f%%", dif_rel_pct)), hjust = -.12, size = 3) +
+  coord_flip() +
+  scale_fill_manual(values = c(keyword = pal_agri[1], author = pal_agri[2]),
+                    name = "Entidade") +
+  scale_y_log10() +
+  expand_limits(y = c(1e-13, 30)) +
+  labs(x = NULL, y = "Diferenca relativa do chi-quadrado (%, escala log)",
+       title = "Onde a validacao cruzada e mais fragil",
+       subtitle = "Diferenca zero aparece no piso do eixo")
+```
+
+### Leitura da saída
+
+A grade mostra três padrões que valem a pena separar.
+
+O primeiro é o efeito da **entidade**. Com `entity = "keyword"` a divergência do
+chi-quadrado é de `r sprintf("%.3f", grade101$dif_rel_pct[1])`% no agrupamento
+por período e `r sprintf("%.3f", grade101$dif_rel_pct[3])`% no agrupamento por
+tema. Com `entity = "author"` a divergência sobe para
+`r sprintf("%.3f", grade101$dif_rel_pct[2])`% e
+`r sprintf("%.3f", grade101$dif_rel_pct[4])`%. O motivo é aritmético: a tabela
+de autores tem `r grade101$dim_nativo[2]` células contra
+`r grade101$dim_nativo[1]` da tabela de palavras-chave, e o mesmo excedente
+absoluto pesa proporcionalmente mais num total menor
+(`r sum(validar_sem_ruido(x_analise, g_per, entity = "author")$native$observed)`
+pares contra
+`r sum(validar_sem_ruido(x_analise, g_per, entity = "keyword")$native$observed)`).
+Divergência relativa, portanto, não se compara entre entidades diferentes.
+
+O segundo é o efeito do **número de grupos**. No agrupamento por tema a tabela tem
+`r ncol(g_tema)` grupos, não dois, e o chi-quadrado salta para
+`r sprintf("%.0f", grade101$chi_nativo[3])`. Como o valor absoluto cresce com os
+graus de liberdade, a mesma quantidade de pares excedentes produz uma diferença
+relativa menor — `r sprintf("%.3f", grade101$dif_rel_pct[3])`% contra
+`r sprintf("%.3f", grade101$dif_rel_pct[1])`%. Também aqui a comparação direta
+entre cenários engana.
+
+O terceiro, e o mais importante, está na coluna de rótulos. Com
+`entity = "keyword"` os dois motores usam os mesmos nomes de coluna. Com
+`entity = "author"` não usam: o motor nativo rotula as colunas com identificadores
+do OpenAlex e o Biblium com nomes de exibição dos autores
+(`r setdiff(colnames(validar_sem_ruido(x_analise, g_per, entity = "author")$biblium$observed),
+           colnames(validar_sem_ruido(x_analise, g_per, entity = "author")$native$observed))[1]`
+de um lado,
+`r setdiff(colnames(validar_sem_ruido(x_analise, g_per, entity = "author")$native$observed),
+           colnames(validar_sem_ruido(x_analise, g_per, entity = "author")$biblium$observed))[1]`
+do outro). Os totais são os mesmos — ambas as tabelas têm
+`r grade101$dim_nativo[2]` colunas —, mas qualquer comparação posicional entre
+as duas é inválida, e uma comparação por nome falha com erro de subscrição.
+
+A conclusão é que a validação cruzada foi mais convincente na combinação
+**período × palavra-chave**: menor diferença relativa
+(`r sprintf("%.3f", min(grade101$dif_rel_pct))`%), rótulos de coluna idênticos
+e conclusão qualitativa preservada (p abaixo de 0,05 nos dois motores:
+`r grade101$p_nativo[1]` e `r grade101$p_biblium[1]`).
+
+### Redação sugerida para o artigo
+
+> Para assegurar que as medidas de associação reportadas não dependessem da
+> implementação computacional, cada análise foi executada em dois motores
+> independentes: o motor nativo do `biblioIntegrator` (R) e a biblioteca Biblium
+> `r pbs10$version` (Python), acessada por ponte de formato. A concordância foi
+> avaliada nas três métricas de associação com `permutations = 499` e semente
+> fixada em `r SEED`. Para o agrupamento por período e entidades do tipo
+> palavra-chave, o chi-quadrado foi de
+> `r sprintf("%.3f", grade101$chi_nativo[1])` no motor nativo e
+> `r sprintf("%.3f", grade101$chi_biblium[1])` no Biblium (diferença relativa de
+> `r sprintf("%.3f", grade101$dif_rel_pct[1])`%), com V de Cramér de
+> `r sprintf("%.4f", grade101$v_nativo[1])` e
+> `r sprintf("%.4f", grade101$v_biblium[1])`. Os p-valores por permutação
+> diferiram (`r grade101$p_nativo[1]` e `r grade101$p_biblium[1]`), como
+> esperado, porque as sequências de permutação são geradas por geradores
+> pseudoaleatórios distintos; a ordem de grandeza da evidência é idêntica. Para o
+> agrupamento por tema, com três grupos, o chi-quadrado foi de
+> `r sprintf("%.1f", grade101$chi_nativo[3])` e
+> `r sprintf("%.1f", grade101$chi_biblium[3])`. A análise por autor apresentou
+> divergência relativa maior (`r sprintf("%.3f", grade101$dif_rel_pct[2])`%) em
+> razão da menor dimensão da tabela de contingência, e por isso os resultados
+> reportados no texto principal baseiam-se na entidade palavra-chave.
+
+### Erros comuns a evitar
+
+1. **Comparar p-valores como se fossem determinísticos.** Os dois motores usam
+   geradores pseudoaleatórios diferentes. Sementes inteiras iguais produzem
+   sorteios diferentes. Comparar `r grade101$p_nativo[1]` com
+   `r grade101$p_biblium[1]` e concluir que há divergência é erro de leitura; o
+   que se compara é a faixa e a conclusão qualitativa.
+2. **Indexar a coluna de métricas por posição.** `cmp[1, ]` devolve chi-quadrado
+   hoje e devolveria outra métrica se a ordem das linhas mudasse. Use sempre
+   `cmp$native[cmp$metric == "chi_square"]`.
+3. **Extrair a tabela por nome de coluna sem conferir os rótulos.** Com
+   `entity = "author"`, `M2[rownames(M1), colnames(M1)]` falha com erro de
+   subscrição, porque o nativo rotula por identificador e o Biblium por nome.
+   Chame `setequal()` antes.
+4. **Ler a diferença relativa de p-valor.** No piso da distribuição de permutação
+   (`1/(permutations + 1)`) a diferença relativa chega a
+   `r sprintf("%.0f", 100 * abs(grade101$p_nativo[1] - grade101$p_biblium[1]) /
+              grade101$p_nativo[1])`% sem nenhum significado estatístico.
+5. **Esquecer de fixar a semente.** Sem `seed`, cada renderização produz um
+   p-valor diferente e o documento deixa de ser reprodutível, mesmo que as
+   estatísticas descritivas permaneçam iguais.
+

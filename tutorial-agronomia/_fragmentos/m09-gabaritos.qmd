@@ -1,0 +1,239 @@
+# Gabaritos do Módulo 9
+
+Os gabaritos abaixo usam o acervo real do OpenAlex, `x_openalex`, com
+`r nrow(x_openalex$works)` obras, e o retorno do OpenCitations para o DOI de
+teste `10.1038/nature12373`. Como as duas funções dependem de rede, tudo passa pelo
+`cache_rds()` ou pelo `tryCatch()`, de modo que a execução continua válida em uma
+máquina sem conexão e reaproveita o material já coletado.
+
+## Gabarito do Exercício 9.1
+
+**Enunciado.** Faça uma consulta nova ao OpenAlex com `n = 25` sobre um tema
+agronômico do seu interesse, guarde o resultado em cache com `cache_rds()` e
+monte a tabela de proveniência da consulta com os dez campos usados neste módulo.
+Informe quantas obras, autores e termos o acervo tem, e qual é o período coberto.
+
+### Código completo e executável
+
+```{r gab-9-1}
+# O gabarito usa um tema diferente do modulo, para que a consulta seja de fato
+# nova: cobertura de residuos e agricultura de conservacao.
+tema_novo <- "cover crops soil carbon no-till"
+n_novo <- 25L
+mailto_gab <- Sys.getenv("OPENALEX_MAILTO", unset = "")
+if (!nzchar(mailto_gab)) mailto_gab <- NULL
+
+# o nome do arquivo de cache precisa ser estavel e descritivo: e ele que será
+# reaproveitado na proxima renderizacao
+acervo_novo <- cache_rds("gabarito_m09_cover_crops",
+                         fetch_openalex(tema_novo, n = n_novo, mailto = mailto_gab))
+tem_novo <- inherits(acervo_novo, "biblio_project")
+if (!tem_novo)
+  cat("consulta indisponível nesta renderização:", acervo_novo, "\n")
+
+if (tem_novo) {
+  # a tabela de proveniencia da consulta, com os dez campos do modulo
+  prov_gab <- data.frame(
+    campo = c("Base consultada", "Interface", "String de busca", "Campo de busca",
+              "Ordenação", "Número de obras pedido", "Data da coleta",
+              "Identificador de contato", "Filtros aplicados", "Cache local"),
+    valor = c("OpenAlex", "API REST, via fetch_openalex()", tema_novo,
+              "título, resumo e palavras-chave (busca padrão da base)",
+              "relevância, critério da base", as.character(n_novo),
+              format(Sys.Date()),
+              if (is.null(mailto_gab)) "não informado nesta execução" else mailto_gab,
+              "nenhum", "_cache/gabarito_m09_cover_crops.rds"),
+    stringsAsFactors = FALSE)
+  print(knitr::kable(prov_gab, row.names = FALSE,
+    caption = "Proveniência da consulta do exercício 9.1."))
+
+  # tamanho e cobertura do acervo obtido
+  wN <- acervo_novo$works
+  tamanho_novo <- data.frame(
+    item = c("Obras", "Autores únicos", "Autorias", "Pares obra-termo",
+             "Termos únicos", "Fontes", "Primeiro ano", "Último ano",
+             "Mediana de citações", "Resumos disponíveis"),
+    valor = c(nrow(wN), nrow(acervo_novo$authors), nrow(acervo_novo$authorships),
+              nrow(acervo_novo$keywords),
+              length(unique(acervo_novo$keywords$keyword)),
+              length(unique(wN$source)), min(wN$year), max(wN$year),
+              median(wN$cited_by_count), sum(nzchar(wN$abstract))))
+  print(knitr::kable(tamanho_novo, row.names = FALSE,
+    caption = "Tamanho e cobertura do acervo obtido na consulta do exercício."))
+}
+```
+
+### Leitura da saída
+
+A primeira tabela é a proveniência, e ela é o produto mais importante do
+exercício: é o que permite que outra pessoa refaça a busca. Repare que dois dos
+dez campos não são obtidos do objeto devolvido pela função, e sim do que você
+sabe sobre a própria execução — o campo de busca e a ordenação. O
+`biblioIntegrator` registra a origem na tabela `provenance` do projeto
+(`r if (tem_novo) acervo_novo$provenance$details[1] else "indisponível"`), mas
+não sabe qual foi o campo de busca, porque a API resolve isso internamente.
+Declarar isso como "busca padrão da base" é mais honesto do que omitir a linha.
+
+A segunda tabela descreve o acervo e responde às três perguntas do enunciado.
+Nesta execução foram `r if (tem_novo) nrow(acervo_novo$works) else NA` obras,
+`r if (tem_novo) nrow(acervo_novo$authors) else NA` autores e
+`r if (tem_novo) nrow(acervo_novo$keywords) else NA` pares obra-termo, cobrindo
+de `r if (tem_novo) min(acervo_novo$works$year) else NA` a
+`r if (tem_novo) max(acervo_novo$works$year) else NA`. Compare esses números com
+os do acervo do módulo: `r nrow(x_openalex$works)` obras, `r nrow(x_openalex$authors)`
+autores e `r nrow(x_openalex$keywords)` pares obra-termo. A diferença mais
+instrutiva costuma estar na razão entre pares obra-termo e obras, que mede quanta
+palavra-chave a base devolve por documento; ela varia por área, porque bases
+diferentes indexam termos com granularidades diferentes. Se o seu acervo
+devolver muito menos termos por obra, verifique se o campo de palavras-chave
+estava preenchido nos documentos — em muitos periódicos de Agronomia, o autor não
+declara palavras-chave e a base indexa apenas termos atribuídos por algoritmo.
+
+### Redação sugerida para o artigo
+
+> O acervo foi obtido por consulta programática à API do OpenAlex, com a string
+> de busca `r tema_novo` e limite de `r if (tem_novo) nrow(acervo_novo$works) else n_novo`
+> registros ordenados por relevância, sem filtros de ano, idioma ou tipo de
+> documento. A consulta foi executada em
+> `r if (tem_novo) format(Sys.Date()) else "data registrada no apêndice"` e o
+> resultado foi armazenado em cache local (`_cache/gabarito_m09_cover_crops.rds`),
+> de modo que a análise é reprodutível sem nova chamada de rede. A proveniência
+> completa da busca — base, interface, string, campo, ordenação, número de
+> registros, data, contato, filtros e arquivo de destino — consta do Material
+> Suplementar. O acervo recuperado contém
+> `r if (tem_novo) nrow(acervo_novo$works) else n_novo` obras publicadas entre
+> `r if (tem_novo) min(acervo_novo$works$year) else "—"` e
+> `r if (tem_novo) max(acervo_novo$works$year) else "—"`, com
+> `r if (tem_novo) nrow(acervo_novo$authors) else "—"` autores únicos e
+> `r if (tem_novo) nrow(acervo_novo$keywords) else "—"` pares obra-termo.
+
+### Erros comuns a evitar
+
+1. **Guardar o resultado em cache com um nome genérico**, como `acervo.rds`,
+   sobrescrevendo a consulta de outro capítulo. O cache é uma tabela de
+   resultados de rede: o nome precisa dizer qual foi a consulta, e é por isso que
+   ele inclui o tema e o número de obras.
+2. **Deixar o `mailto` em branco e não anotar isso.** A política do OpenAlex pede
+   identificação; não informar funciona, mas a tabela de proveniência precisa
+   registrar que não foi informado, em vez de deixar a lacuna invisível.
+3. **Descrever o resultado como "amostra" da literatura.** `n = 25` com ordenação
+   por relevância é um recorte intencional das obras mais relevantes, e chamá-lo
+   de amostra sugere representatividade que ele não tem.
+4. **Esquecer de registrar a data.** A base cresce, os metadados são corrigidos e
+   a mesma consulta devolve outro conjunto depois de alguns meses. Sem data, o
+   número de obras do acervo deixa de ser verificável.
+5. **Achar que o cache torna a análise imune a erro de digitação na consulta.**
+   Se você corrigir a string e o arquivo de cache já existir, a execução continua
+   usando o resultado antigo. Apague o arquivo do cache — ou mude o nome dele —
+   sempre que a consulta mudar; é o preço de não depender de rede.
+
+## Gabarito do Exercício 9.2
+
+**Enunciado.** No acervo real deste módulo, selecione as cinco obras mais citadas
+e verifique, pelo título, se todas tratam diretamente de silício. Calcule a
+fração das citações totais concentrada nessas obras e compare com a fração
+equivalente no acervo simulado. Depois, escreva um parágrafo de duas a três
+frases discutindo o que essa diferença implica para a decisão de reportar média
+ou mediana de citações na seção de Resultados.
+
+### Código completo e executável
+
+```{r gab-9-2}
+# 1. as cinco obras mais citadas do acervo real
+top5 <- head(x_openalex$works[order(-x_openalex$works$cited_by_count),
+                              c("title", "year", "source", "cited_by_count")], 5)
+# o teste de mencao ao termo e textual e proposital: e o que o leitor faria a mao
+top5$menciona_silicio <- grepl("silicon|silício|Si ", top5$title, ignore.case = TRUE)
+print(knitr::kable(top5, row.names = FALSE,
+  caption = "As cinco obras mais citadas do acervo real e a verificação textual da menção a silício no título."))
+
+# 2. concentração das citacoes nessas obras, nos dois acervos
+fracao_top5 <- function(x) sum(sort(x, decreasing = TRUE)[1:5]) / sum(x)
+conc <- data.frame(
+  acervo = c("real (OpenAlex)", "simulado (corpus B)"),
+  obras = c(nrow(x_openalex$works), nrow(x_analise$works)),
+  citacoes_totais = c(sum(x_openalex$works$cited_by_count),
+                      sum(x_analise$works$cited_by_count)),
+  fracao_top5 = c(fracao_top5(x_openalex$works$cited_by_count),
+                  fracao_top5(x_analise$works$cited_by_count)))
+conc$fracao_top5_pct <- sprintf("%.0f%%", 100 * conc$fracao_top5)
+# quantas obras seriam necessarias para reunir metade das citacoes
+n_metade <- function(x) { s <- sort(x, decreasing = TRUE)
+                          min(which(cumsum(s) / sum(s) >= .5)) }
+conc$obras_para_metade <- c(n_metade(x_openalex$works$cited_by_count),
+                            n_metade(x_analise$works$cited_by_count))
+print(knitr::kable(conc, row.names = FALSE,
+  caption = "Concentração de citações nos dois acervos: fração reunida nas cinco obras mais citadas e número de obras necessário para reunir metade das citações."))
+
+cat("obras do top 5 que mencionam silício no título:",
+    sum(top5$menciona_silicio), "de", nrow(top5), "\n")
+cat("títulos sem menção a silício:\n")
+print(top5$title[!top5$menciona_silicio], row.names = FALSE)
+```
+
+### Leitura da saída
+
+A primeira tabela responde à pergunta textual do enunciado.
+Das `r nrow(top5)` obras mais citadas do acervo,
+`r sum(top5$menciona_silicio)` mencionam silício no título. Isso significa que
+`r nrow(top5) - sum(top5$menciona_silicio)` obra(s) entraram no acervo sem tratar
+do mineral como objeto central, e a razão aparece no próprio título: são obras de
+contexto amplo, sobre mecanismos de tolerância à salinidade ou sobre estresse
+salino em plantas de forma geral. O termo "silicon" da consulta contribuiu para
+trazê-las, mas a base julga relevância combinando vários sinais, e uma obra
+fundadora de um tema vizinho pontua alto. A conclusão prática para o seu
+levantamento é que a triagem manual por título e resumo é etapa obrigatória, e
+que o número de obras do acervo depois da triagem é o número que você deve
+reportar — não o número que a API devolveu.
+
+A segunda tabela quantifica a concentração e é onde está o argumento
+metodológico. As cinco obras mais citadas do acervo real reúnem
+`r conc$fracao_top5_pct[1]` das citações totais, contra
+`r conc$fracao_top5_pct[2]` no acervo simulado. O número de obras necessário para
+reunir metade das citações conta a mesma história por outro caminho:
+`r conc$obras_para_metade[1]` obras no acervo real, de
+`r conc$obras[1]`, contra `r conc$obras_para_metade[2]` de
+`r conc$obras[2]` no simulado. Em outras palavras, no acervo real
+`r sprintf("%.0f%%", 100 * conc$obras_para_metade[1] / conc$obras[1])` das obras
+sustentam metade das citações, e a média aritmética dessas contagens é puxada por
+elas. Esse é o motivo pelo qual a mediana é a estatística correta para descrever
+citações por obra, com a média reportada em separado e sempre acompanhada do
+máximo ou de um quantil superior.
+
+### Redação sugerida para o artigo
+
+> A distribuição de citações por obra apresenta forte assimetria à direita nos
+> dois acervos analisados. As cinco obras mais citadas concentram
+> `r conc$fracao_top5_pct[1]` das citações recebidas pelo acervo obtido do
+> OpenAlex e `r conc$fracao_top5_pct[2]` das citações do acervo de referência,
+> sendo necessárias `r conc$obras_para_metade[1]` obras para reunir metade do
+> total de citações no primeiro caso e `r conc$obras_para_metade[2]` no segundo.
+> Em razão dessa concentração, a mediana foi adotada como medida de tendência
+> central para citações por obra, e a média foi reportada apenas de forma
+> complementar, acompanhada do valor máximo observado. A verificação textual dos
+> títulos das obras mais citadas mostrou que
+> `r nrow(top5) - sum(top5$menciona_silicio)` delas não tratam diretamente do
+> mineral investigado, explorando mecanismos gerais de tolerância à salinidade, o
+> que motivou a triagem manual do acervo antes da análise final.
+
+### Erros comuns a evitar
+
+1. **Calcular a fração com `sum(head(x, 5)) / sum(x)` sem ordenar antes.** O
+   `head()` devolve as cinco primeiras linhas na ordem em que estão no quadro, e
+   não as cinco maiores. É preciso `sort(decreasing = TRUE)` ou `order(-x)`.
+2. **Testar a presença de silício com `grepl("silicon", title)` em minúsculas.**
+   A busca padrão do R diferencia maiúsculas de minúsculas, e títulos começam com
+   letra maiúscula. Use `ignore.case = TRUE`, ou normalize com `tolower()` antes.
+3. **Tratar a contagem de citações como propriedade fixa da obra.** Citações
+   crescem todo dia, e o número que você mediu hoje deixa de valer amanhã. Toda
+   figura ou tabela de citações precisa declarar a data da coleta, como fazem as
+   figuras deste módulo.
+4. **Concluir que as obras mais citadas são as mais relevantes para o seu tema.**
+   A mais citada do acervo trata de salinidade em plantas de forma geral, e o
+   fato de estar no acervo decorre de relevância textual combinada com peso de
+   citações. Relevância para a sua pergunta de pesquisa é decisão sua, tomada na
+   triagem.
+5. **Comparar médias entre acervos de tamanhos e idades diferentes.** Média de
+   citações de 40 obras publicadas desde 1999 não é comparável com a média de 280
+   obras publicadas de 2010 a 2025. Quando precisar comparar, use citações
+   normalizadas por ano de publicação, como ensina o Módulo 3.

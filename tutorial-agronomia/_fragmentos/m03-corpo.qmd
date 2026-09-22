@@ -1,0 +1,587 @@
+# Módulo 3. Análise descritiva e impacto
+
+## O problema agronômico
+
+O acervo está limpo, deduplicado e auditado. Falta a parte que a banca lê
+primeiro: o retrato do conjunto. Quantos estudos, publicados quando, em que
+periódicos, por quais grupos e com que citação. Para um doutorando em Agronomia,
+esse retrato não é enfeite de seção de Resultados: é o que sustenta a afirmação
+de que a frente de pesquisa sobre silício e estresse salino amadureceu, que o
+tema migrou de periódicos nacionais para internacionais, ou que um laboratório
+concentra a produção da área. Sem os números descritivos, cada uma dessas frases
+vira impressão pessoal.
+
+A dificuldade é que citação bruta não é medida de impacto comparável. Uma obra
+publicada no início do período teve mais de uma década para acumular citações;
+uma publicada no último ano teve meses. Um artigo em periódico de prestígio
+recebe citações que decorrem da visibilidade da revista, não do mérito do
+trabalho. Comparar os dois números diretamente mistura três efeitos que precisam
+ser separados: idade da obra, prestígio do veículo e mérito próprio. O erro mais
+comum em bibliometria de tese é ranquear por citação bruta e chamar o resultado de
+"os trabalhos mais influentes da área", quando na prática se ranqueou "os
+trabalhos mais antigos e mais bem publicados".
+
+Este módulo constrói o retrato descritivo e depois ataca a comparação. Ele usa
+`describe_biblio()` para o panorama, `biblio_metrics()` para o desempenho por
+autor e `normalized_citations()` para o impacto relativo, e verifica duas
+verdades plantadas no corpus simulado: duas fontes que receberam bônus de
+citações e um estrato de coautoria internacional. As duas verificações ensinam a
+mesma lição por caminhos opostos — a primeira mostra um efeito de veículo que
+sobrevive a um ajuste ingênuo, a segunda mostra um efeito que parece existir e
+que o teste não sustenta.
+
+## O retrato do acervo
+
+```{r}
+#| label: tbl-m3-resumo
+#| tbl-cap: "Retrato do acervo analítico: tamanho, período, citações, veículos e autoria."
+m3_w <- x_analise$works
+m3_res <- describe_biblio(x_analise)
+
+# formatação de tabela: inteiro sem casa decimal, quebrado com duas casas
+m3_num <- function(x, d = 2) {
+  ifelse(x == round(x), format(round(x)), formatC(x, format = "f", digits = d))
+}
+
+m3_resumo <- data.frame(
+  indicador = c("obras no recorte analítico", "identificadores distintos de obra",
+                "primeiro ano", "último ano", "citações acumuladas",
+                "citações por obra (média)", "citações por obra (mediana)",
+                "obra mais citada", "obras sem nenhuma citação",
+                "fontes distintas", "autores distintos",
+                "vínculos obra-autor", "pares obra-termo"),
+  valor = m3_num(c(m3_res$n_documents, length(unique(m3_w$work_id)),
+                   m3_res$years[1], m3_res$years[2], m3_res$total_citations,
+                   mean(m3_w$cited_by_count), median(m3_w$cited_by_count),
+                   max(m3_w$cited_by_count), sum(m3_w$cited_by_count == 0),
+                   length(unique(m3_w$source)), nrow(x_analise$authors),
+                   nrow(x_analise$authorships), nrow(x_analise$keywords))),
+  stringsAsFactors = FALSE)
+
+knitr::kable(m3_resumo, row.names = FALSE,
+             caption = "Retrato do acervo analítico: tamanho, período, citações, veículos e autoria.")
+```
+
+A primeira leitura é de escala e de assimetria. O acervo tem
+`r m3_res$n_documents` obras distribuídas em `r length(unique(m3_w$source))`
+periódicos e `r nrow(x_analise$authors)` autores, e acumula
+`r m3_res$total_citations` citações. A média é de
+`r round(mean(m3_w$cited_by_count), 2)` citações por obra, mas a mediana é
+`r median(m3_w$cited_by_count)`: como a média é
+`r round(mean(m3_w$cited_by_count)/median(m3_w$cited_by_count), 1)` vezes a
+mediana, a distribuição é assimétrica à direita, com muitas obras pouco citadas e
+poucas obras muito citadas, uma delas com `r max(m3_w$cited_by_count)` citações.
+A consequência prática é que citar a média sem a mediana esconde o padrão real do
+acervo, e que qualquer ranking por citação bruta será dominado por um punhado de
+obras. Vale registrar também as `r sum(m3_w$cited_by_count == 0)` obras sem
+nenhuma citação e a única com contagem negativa, que permaneceu no acervo porque
+o recorte analítico não a remove — o defeito é de campo e foi discutido no Módulo
+2. Do lado da estrutura relacional, as
+`r m3_res$n_documents` obras geram `r nrow(x_analise$authorships)` vínculos de
+autoria e `r nrow(x_analise$keywords)` pares obra-termo, o que mostra o ganho do
+modelo: um autor que assina dez obras entra uma vez na tabela de autores e dez
+vezes na de vínculos, sem repetir a linha da obra.
+
+```{r}
+#| label: fig-m3-anual
+#| fig-cap: "Produção anual do acervo, em número de obras, e citações acumuladas no período."
+#| fig-alt: "Barras verticais do número de obras por ano, de 2010 a 2025, sobrepostas por uma linha de citações acumuladas."
+# série anual que o próprio describe_biblio devolve
+m3_an <- describe_biblio(x_analise)$annual
+m3_an$acumulado <- cumsum(m3_an$citations)
+# fator de escala entre o eixo das barras e o eixo da linha
+m3_escala <- max(m3_an$acumulado)/max(m3_an$documents)
+
+ggplot(m3_an, aes(x = year)) +
+  geom_col(aes(y = documents), fill = pal_agri[1], width = .72) +
+  geom_line(aes(y = acumulado/m3_escala), colour = pal_agri[2], linewidth = .9) +
+  geom_point(aes(y = acumulado/m3_escala), colour = pal_agri[2], size = 1.7) +
+  scale_x_continuous(breaks = m3_an$year) +
+  scale_y_continuous(
+    name = "obras publicadas por ano",
+    sec.axis = sec_axis(~ . * m3_escala, name = "citações acumuladas")) +
+  labs(x = NULL, title = "Produção anual e citações acumuladas",
+       subtitle = "Barras: obras publicadas; linha: citações acumuladas no período") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+A figura combina duas leituras que respondem a perguntas diferentes. As barras
+mostram que a produção não cresce de forma constante: o acervo passa de
+`r m3_an$documents[1]` obras em `r m3_an$year[1]` para
+`r m3_an$documents[nrow(m3_an)]` em `r m3_an$year[nrow(m3_an)]`, atinge o pico em
+`r m3_an$year[which.max(m3_an$documents)]`, quando entram
+`r max(m3_an$documents)` obras, e recua nos anos seguintes, com
+`r m3_an$documents[m3_an$year == 2023]` obras em 2023 e
+`r m3_an$documents[m3_an$year == 2025]` em 2025. A linha mostra o estoque de
+citações, que sobe sem interrupção até `r m3_res$total_citations` porque citação
+é acumulada por natureza e não cai quando a produção cai. A leitura conjunta é o
+que evita a armadilha: um ano de retração na produção não significa queda de
+impacto, e a distância entre a barra do último ano e a linha acumulada é a medida
+da desvantagem temporal de quem publicou recentemente. É por causa dessa
+desvantagem que a normalização da última seção do módulo existe.
+
+Quanto ao conteúdo, os termos mais frequentes do acervo, contados sobre as
+palavras-chave normalizadas por `describe_biblio()`, são
+`r names(m3_res$top_keywords)[1]` (`r m3_res$top_keywords[1]` ocorrências),
+`r names(m3_res$top_keywords)[2]` (`r m3_res$top_keywords[2]`) e
+`r names(m3_res$top_keywords)[3]` (`r m3_res$top_keywords[3]`). O ranking dos
+veículos começa por `r names(m3_res$top_sources)[1]`, com
+`r m3_res$top_sources[1]` obras, seguido de
+`r names(m3_res$top_sources)[2]`, com `r m3_res$top_sources[2]`. Note que a
+contagem de obras por veículo não diz nada sobre impacto: a fonte que mais publica
+no acervo não está entre as primeiras em citação média, como a seção sobre
+veículos mostra. Confundir volume com impacto é o segundo erro clássico de quem
+descreve acervo, e a correção exige a mesma tabela em duas colunas diferentes.
+
+## Quem publica: produção, citação e índices por autor
+
+```{r}
+#| label: tbl-m3-autores
+#| tbl-cap: "Dez autores mais produtivos por índice h no acervo analítico, com produção, citações e índices."
+# as métricas por autor vêm em um data frame com a coluna author
+m3_bm <- biblio_metrics(x_analise)
+
+# a coluna author já traz o nome de exibição nesta versão; a junção com a tabela
+# de autores acrescenta o identificador e serve de conferência
+m3_autores <- merge(m3_bm, x_analise$authors, by.x = "author", by.y = "display_name")
+m3_autores <- m3_autores[order(-m3_autores$h_index, -m3_autores$citations), ]
+m3_top10 <- head(m3_autores[, c("author", "author_id", "documents", "citations",
+                                "h_index", "g_index", "m_index")], 10)
+# as métricas somam 871 produções para 853 vínculos: o excesso vem da chave repetida
+m3_soma_doc <- sum(m3_bm$documents)
+m3_vinculos <- nrow(x_analise$authorships)
+# a conferência de nomes: a coluna de métricas usa o mesmo nome de exibição da tabela de autores
+m3_nomes_ok <- setequal(m3_bm$author, x_analise$authors$display_name)
+
+knitr::kable(
+  data.frame(autor = m3_top10$author, identificador = m3_top10$author_id,
+             producao = m3_num(m3_top10$documents), citacoes = m3_num(m3_top10$citations),
+             h = m3_num(m3_top10$h_index), g = m3_num(m3_top10$g_index),
+             m = m3_num(m3_top10$m_index, 3)),
+  row.names = FALSE,
+  col.names = c("autor", "identificador", "produção", "citações", "índice h",
+                "índice g", "índice m"),
+  caption = "Dez autores mais produtivos por índice h no acervo analítico, com produção, citações e índices.")
+```
+
+Esta tabela precisa de três avisos, e os três são de método. O primeiro é sobre a
+nomenclatura dos índices: `documents` é o número de vínculos de autoria do autor
+no acervo, `citations` é a soma das citações dessas obras, `h_index` é o maior
+número h tal que o autor tem h obras com pelo menos h citações cada, `g_index`
+avança o mesmo raciocínio sobre a soma acumulada, e `m_index` divide o índice h
+pela extensão da carreira no acervo, o que favorece quem publica cedo e por
+muitos anos. O segundo é que o topo é dominado por um autor:
+`r m3_top10$author[1]` assina `r m3_top10$documents[1]` dos `r nrow(m3_w)`
+registros do acervo, ou `r m3_num(100 * m3_top10$documents[1]/nrow(m3_w), 1)` por
+cento deles, com `r m3_top10$citations[1]` citações e índice h
+`r m3_top10$h_index[1]`. Em um levantamento real isso indica um grupo de pesquisa
+que domina a frente, e a consequência é que qualquer inferência sobre a área
+carrega a marca desse grupo; em um acervo simulado, é a verdade plantada V5
+aparecendo. O terceiro aviso é que o índice h premia longevidade e volume, não
+impacto por obra, e por isso ele não substitui a medida normalizada que fecha o
+módulo. Cabe ainda uma observação sobre a junção feita no código: a coluna
+`author` das métricas já contém o nome de exibição nesta versão do pacote, e não o
+identificador, de modo que a junção com a tabela de autores funciona como
+conferência e como enriquecimento — a comparação entre os dois conjuntos de nomes
+devolve `r m3_nomes_ok`. Se a sua versão trouxer identificadores nessa coluna, a
+mesma junção continua correta, apenas trocando a chave de ligação.
+
+Há ainda um detalhe de infraestrutura que a tabela não mostra e que vale
+conferir. A soma da coluna `documents` dá `r m3_soma_doc`, mas o acervo tem
+`r m3_vinculos` vínculos de autoria: a diferença de
+`r m3_soma_doc - m3_vinculos` não é erro de arredondamento, é o efeito dos
+identificadores repetidos discutidos no Módulo 2, que fazem a junção entre
+vínculos e obras repetir linhas. A verificação é direta e vale a pena incluir no
+seu código sempre que o painel por autor for para o artigo.
+
+```{r}
+#| label: tbl-m3-afetados
+#| tbl-cap: "Autores afetados pelos identificadores repetidos: produção e citações com a chave calculada pelo pacote e com chave única declarada na importação."
+# reconstrução do mesmo acervo com identificador único declarado na entrada
+m3_dR <- dB
+m3_dR$work_id <- sprintf("WB%04d", seq_len(nrow(m3_dR)))
+m3_xR <- deduplicate_biblio(as_biblio_project(m3_dR, source = "corpus B reparado"),
+                            method = "doi_title_year")
+m3_manter <- !is.na(m3_xR$works$year)
+m3_xR$works <- m3_xR$works[m3_manter, , drop = FALSE]
+m3_xR$authorships <- m3_xR$authorships[m3_xR$authorships$work_id %in% m3_xR$works$work_id, , drop = FALSE]
+m3_xR$keywords <- m3_xR$keywords[m3_xR$keywords$work_id %in% m3_xR$works$work_id, , drop = FALSE]
+m3_bmR <- biblio_metrics(m3_xR)
+
+m3_cmp <- merge(m3_bm, m3_bmR, by = "author", suffixes = c("_calculado", "_declarado"))
+m3_cmp <- m3_cmp[m3_cmp$documents_calculado != m3_cmp$documents_declarado |
+                 m3_cmp$citations_calculado != m3_cmp$citations_declarado, ]
+m3_cmp <- m3_cmp[order(-m3_cmp$citations_calculado + m3_cmp$citations_declarado), ]
+
+knitr::kable(
+  data.frame(autor = m3_cmp$author,
+             prod_calc = m3_num(m3_cmp$documents_calculado),
+             prod_decl = m3_num(m3_cmp$documents_declarado),
+             cit_calc = m3_num(m3_cmp$citations_calculado),
+             cit_decl = m3_num(m3_cmp$citations_declarado),
+             h_calc = m3_num(m3_cmp$h_index_calculado),
+             h_decl = m3_num(m3_cmp$h_index_declarado)),
+  row.names = FALSE,
+  col.names = c("autor", "produção (chave calculada)", "produção (chave declarada)",
+                "citações (chave calculada)", "citações (chave declarada)",
+                "índice h (calculada)", "índice h (declarada)"),
+  caption = "Autores afetados pelos identificadores repetidos: produção e citações com a chave calculada pelo pacote e com chave única declarada na importação.")
+```
+
+A tabela mede o tamanho do problema e também o limite dele. São
+`r nrow(m3_cmp)` autores afetados, e o maior desvio de produção é de
+`r max(m3_cmp$documents_calculado - m3_cmp$documents_declarado)` obras, enquanto
+o maior desvio de citações chega a
+`r max(m3_cmp$citations_calculado - m3_cmp$citations_declarado)` citações —
+concentrado em `r m3_cmp$author[which.max(m3_cmp$citations_calculado - m3_cmp$citations_declarado)]`.
+O que a tabela mostra com igual clareza é que as colunas de índice h são
+idênticas nas duas versões: o índice h é robusto a esse tipo de inflação, porque
+acrescentar uma obra duplicada ao conjunto de um autor desloca a contagem de
+títulos, mas raramente muda o ponto em que h obras têm h citações. A conclusão
+prática é fina: o ranqueamento por índice h do acervo não muda, o painel de
+produção e de citações sim. Se o seu artigo apresenta média de citações por autor
+ou produtividade por grupo, declare `work_id` na importação; se apresenta apenas
+índice h, a distorção não alcança a conclusão, embora continue valendo corrigi-la.
+
+## Onde se publica: o efeito do veículo
+
+```{r}
+#| label: tbl-m3-fontes
+#| tbl-cap: "Desempenho por periódico: obras publicadas, citações totais e por obra, e a posição no ranking com e sem o bônus plantado nas duas fontes de maior impacto."
+# desempenho por fonte, com as medidas de posição e de dispersão
+m3_fontes <- do.call(data.frame, aggregate(
+  cited_by_count ~ source, data = m3_w,
+  FUN = function(z) c(n = length(z), total = sum(z), media = mean(z),
+                      mediana = median(z), dp = sd(z))))
+names(m3_fontes) <- c("fonte", "obras", "citacoes", "media", "mediana", "dp")
+m3_fontes <- m3_fontes[order(-m3_fontes$media), ]
+m3_fontes$posicao <- seq_len(nrow(m3_fontes))
+
+# as duas fontes que receberam 12 citações extras por obra no corpus simulado
+m3_bonus <- c("Field Crops Research", "Soil Biology & Biochemistry")
+m3_fontes$bonus <- m3_fontes$fonte %in% m3_bonus
+m3_fontes$media_ajustada <- m3_fontes$media - 12 * m3_fontes$bonus
+m3_fontes$posicao_ajustada <- rank(-m3_fontes$media_ajustada, ties.method = "min")
+
+knitr::kable(
+  data.frame(fonte = m3_fontes$fonte, obras = m3_num(m3_fontes$obras),
+             citacoes = m3_num(m3_fontes$citacoes), media = m3_num(m3_fontes$media),
+             mediana = m3_num(m3_fontes$mediana), dp = m3_num(m3_fontes$dp),
+             posicao = m3_num(m3_fontes$posicao),
+             media_ajustada = m3_num(m3_fontes$media_ajustada),
+             posicao_ajustada = m3_num(m3_fontes$posicao_ajustada)),
+  row.names = FALSE,
+  col.names = c("fonte", "obras", "citações", "média", "mediana", "desvio-padrão",
+                "posição", "média sem o bônus", "posição sem o bônus"),
+  caption = "Desempenho por periódico: obras publicadas, citações totais e por obra, e a posição no ranking com e sem o bônus plantado nas duas fontes de maior impacto.")
+```
+
+A tabela confirma a verdade plantada V2 e mostra por que ela é um alerta
+metodológico. As duas fontes que receberam doze citações extras por obra ocupam
+exatamente as duas primeiras posições por média, com
+`r m3_num(m3_fontes$media[1])` e `r m3_num(m3_fontes$media[2])` citações por
+obra contra uma média geral de `r m3_num(mean(m3_w$cited_by_count))`. Removido
+o bônus, a primeira cai para a posição `r m3_fontes$posicao_ajustada[1]` e a
+segunda para a `r m3_fontes$posicao_ajustada[2]`, ambas dentro da faixa das
+demais: o que parecia supremacia de veículo era um acréscimo constante embutido
+no dado. Note que a mediana resiste melhor que a média nesse cenário —
+`r m3_num(m3_fontes$mediana[1])` contra média `r m3_num(m3_fontes$media[1])` na
+primeira fonte —, e que o desvio-padrão distingue dois tipos de periódico:
+`r m3_num(m3_fontes$dp[1])` na primeira fonte, contra
+`r m3_num(max(m3_fontes$dp))` na fonte de maior dispersão, onde o mesmo
+veículo publica obras ignoradas e obras muito citadas. A consequência para o
+artigo é escolher a medida de acordo com a pergunta: média para comparar o
+desempenho típico do veículo, mediana e desvio-padrão para descrever a
+heterogeneidade dentro dele.
+
+```{r}
+#| label: fig-m3-fontes
+#| fig-cap: "Periódicos ordenados por citação média por obra, com o número de obras anotado e as duas fontes do bônus plantado destacadas."
+#| fig-alt: "Barras horizontais da citação média por periódico, ordenadas da maior para a menor, com o número de obras anotado ao lado de cada barra."
+m3_fontes$rotulo <- sprintf("%s\n(n = %d)", m3_fontes$fonte, m3_fontes$obras)
+m3_fontes$rotulo <- factor(m3_fontes$rotulo, levels = rev(m3_fontes$rotulo))
+
+ggplot(m3_fontes, aes(x = rotulo, y = media, fill = bonus)) +
+  geom_col(width = .7) +
+  geom_text(aes(label = sprintf("%.1f", media)), hjust = -.25, size = 3) +
+  geom_hline(yintercept = mean(m3_w$cited_by_count), linetype = 2, colour = "grey35") +
+  scale_fill_manual(values = c(`TRUE` = pal_agri[2], `FALSE` = pal_agri[1]),
+                    labels = c(`TRUE` = "com bônus plantado (V2)", `FALSE` = "demais fontes"),
+                    name = NULL) +
+  scale_y_continuous(limits = c(0, max(m3_fontes$media) * 1.18)) +
+  coord_flip() +
+  labs(x = NULL, y = "citações por obra (média)",
+       title = "Impacto médio por periódico",
+       subtitle = "Linha tracejada: média geral do acervo")
+```
+
+A figura ordena os veículos por citação média e anota o tamanho de cada um, o que
+permite ler as duas dimensões ao mesmo tempo. As duas barras coloridas são as
+fontes do bônus plantado, e a distância entre elas e o resto do grupo é o efeito
+do acréscimo constante. A linha tracejada marca a média geral do acervo,
+`r m3_num(mean(m3_w$cited_by_count))`:
+`r sum(m3_fontes$media > mean(m3_w$cited_by_count))` dos
+`r nrow(m3_fontes)` veículos ficam acima dela, e o último fica em
+`r m3_num(min(m3_fontes$media))` citações por obra. O número de obras anotado
+mostra que volume e média não caminham juntos — o veículo com mais obras do
+acervo tem `r m3_fontes$obras[m3_fontes$fonte == names(m3_res$top_sources)[1]]`
+delas e média de
+`r m3_num(m3_fontes$media[m3_fontes$fonte == names(m3_res$top_sources)[1]])` —,
+e essa dissociação é o argumento que sustenta a escolha da média por obra no
+lugar da contagem absoluta quando a pergunta é onde a área publica o que é mais
+citado. Cuidado com uma leitura indevida: diferença de média entre periódicos não
+é evidência de que o periódico causa citação, porque autores melhores escolhem
+periódicos melhores, e os dois efeitos não se separam sem dados de qualidade do
+manuscrito.
+
+## Coautoria internacional e impacto
+
+```{r}
+#| label: tbl-m3-grupos
+#| tbl-cap: "Citações por obra em obras com e sem coautoria internacional, com proporção, medidas de posição e teste de Wilcoxon."
+# as quatro assinaturas estrangeiras plantadas no corpus simulado
+m3_int <- c("Smith J", "Chen L", "Müller H", "Rossi G")
+m3_nome <- setNames(x_analise$authors$display_name, x_analise$authors$author_id)
+m3_aut <- x_analise$authorships
+m3_aut$nome <- unname(m3_nome[m3_aut$author_id])
+
+# uma obra tem coautoria internacional quando ao menos um desses autores assina
+m3_por_obra <- split(m3_aut$nome, m3_aut$work_id)
+m3_ids_int <- names(m3_por_obra)[vapply(m3_por_obra,
+                                        function(z) any(z %in% m3_int), logical(1))]
+m3_w$internacional <- ifelse(m3_w$work_id %in% m3_ids_int,
+                             "com coautoria internacional", "sem coautoria internacional")
+m3_w$internacional <- factor(m3_w$internacional,
+                             levels = c("com coautoria internacional", "sem coautoria internacional"))
+
+m3_grupos <- do.call(data.frame, aggregate(
+  cited_by_count ~ internacional, data = m3_w,
+  FUN = function(z) c(n = length(z), media = mean(z), mediana = median(z), dp = sd(z))))
+names(m3_grupos) <- c("grupo", "obras", "media", "mediana", "dp")
+m3_grupos$percentual <- round(100 * m3_grupos$obras/sum(m3_grupos$obras), 1)
+
+m3_teste <- suppressWarnings(wilcox.test(cited_by_count ~ internacional, data = m3_w))
+m3_ttest <- t.test(cited_by_count ~ internacional, data = m3_w)
+
+knitr::kable(
+  data.frame(grupo = m3_grupos$grupo, obras = m3_num(m3_grupos$obras),
+             media = m3_num(m3_grupos$media), mediana = m3_num(m3_grupos$mediana),
+             dp = m3_num(m3_grupos$dp),
+             percentual = m3_num(m3_grupos$percentual, 1)),
+  row.names = FALSE,
+  col.names = c("grupo", "obras", "citações médias", "mediana",
+                "desvio-padrão", "percentual do acervo"),
+  caption = "Citações por obra em obras com e sem coautoria internacional, com proporção, medidas de posição e teste de Wilcoxon.")
+```
+
+A verdade plantada V3 é sobre a proporção, e a proporção medida é
+`r m3_num(m3_grupos$percentual[1], 1)` por cento das obras com pelo menos uma
+assinatura estrangeira — `r m3_grupos$obras[1]` de `r sum(m3_grupos$obras)`
+registros, perto da metade prevista, mas não exatamente metade, o que é a razão de
+medir em vez de afirmar. O efeito no impacto existe na direção esperada: as obras
+com coautoria internacional somam `r m3_num(m3_grupos$media[1])` citações em média
+contra `r m3_num(m3_grupos$media[2])` das demais, uma razão de
+`r m3_num(m3_grupos$media[1]/m3_grupos$media[2])`. O teste de Wilcoxon devolve
+p igual a `r m3_num(m3_teste$p.value, 3)` e o teste t de Welch
+`r m3_num(m3_ttest$p.value, 3)`, e os dois concordam: com este tamanho de acervo,
+uma diferença dessa ordem é compatível com flutuação amostral. A leitura correta
+para o artigo é que a coautoria internacional está associada a citações
+ligeiramente maiores, mas o acervo não separa essa diferença do ruído, e
+transformar o número em afirmação de causalidade seria sobre-interpretação. O
+mesmo cuidado vale para a atribuição do grupo: como a tabela de vínculos carrega
+apenas o identificador da obra, os registros que compartilham identificador
+herdam o mesmo conjunto de autores, e
+`r 2 * sum(table(m3_w$work_id) > 1)` registros ficam com atribuição ambígua de
+coautoria — mais uma razão para declarar chave única na importação.
+
+## A distribuição das citações
+
+```{r}
+#| label: fig-m3-distribuicao
+#| fig-cap: "Distribuição das citações por obra no acervo analítico, com média e mediana marcadas."
+#| fig-alt: "Histograma das citações por obra, assimétrico à direita, com linhas verticais na média e na mediana."
+m3_dist <- data.frame(citacoes = m3_w$cited_by_count)
+m3_ref <- data.frame(x = c(mean(m3_w$cited_by_count), median(m3_w$cited_by_count)),
+                     medida = c("média", "mediana"))
+
+ggplot(m3_dist, aes(x = citacoes)) +
+  geom_histogram(bins = 30, fill = pal_agri[1], colour = "white", linewidth = .2) +
+  geom_vline(data = m3_ref, aes(xintercept = x, colour = medida, linetype = medida),
+             linewidth = .8) +
+  scale_colour_manual(values = c("média" = pal_agri[2], "mediana" = pal_agri[3]), name = NULL) +
+  scale_linetype_manual(values = c("média" = "dashed", "mediana" = "dotted"), name = NULL) +
+  scale_x_continuous(breaks = seq(-10, 90, 10)) +
+  labs(x = "citações por obra", y = "número de obras",
+       title = "Como as citações se distribuem no acervo",
+       subtitle = "Assimetria à direita: a média fica à direita da mediana")
+```
+
+A figura é o argumento visual para não resumir o acervo pela média. A massa
+concentra-se entre zero e vinte citações, com a mediana em
+`r median(m3_w$cited_by_count)` e a média em
+`r round(mean(m3_w$cited_by_count), 2)`, e a cauda se estende até
+`r max(m3_w$cited_by_count)`. Há ainda um ponto isolado à esquerda, a obra com
+contagem negativa, que aparece no primeiro intervalo — ele é um artefato de
+correção da base de dados, não um dado de impacto, e a decisão sobre mantê-lo está
+registrada no Módulo 2. A consequência prática é dupla: primeiro, qualquer
+comparação entre grupos feita por média precisa vir acompanhada de mediana, porque
+a média é sensível a poucas obras muito citadas e a mediana não; segundo, o
+formato da distribuição justifica o uso de teste não paramétrico nas comparações
+entre grupos, que foi o que a seção anterior fez ao reportar Wilcoxon ao lado do
+teste t. Vale notar que as
+`r sum(m3_w$cited_by_count == 0)` obras sem nenhuma citação não são um defeito de
+dados: em um recorte que inclui os anos recentes, ausência de citação é o
+resultado esperado para parte do acervo.
+
+## Impacto relativo ao ano e ao periódico
+
+```{r}
+#| label: fig-m3-normalizado
+#| fig-cap: "Citações observadas contra citações esperadas sob dois estratos: apenas o ano de publicação e o par ano e periódico. A linha tracejada é a identidade, e os eixos usam a mesma escala nos dois painéis."
+#| fig-alt: "Dois painéis de dispersão entre citações observadas e esperadas, com escala idêntica nos eixos; no primeiro a nuvem fica muito acima da linha de identidade e no segundo ela se concentra sobre a linha."
+m3_ncy <- normalized_citations(x_analise, strata = "year")
+m3_ncf <- normalized_citations(x_analise, strata = c("year", "source"))
+# rótulo curto: tema de pesquisa e número do estudo, para identificar os extremos
+m3_curto <- function(t) paste0(sub("^([^ ]+).*", "\\1", t), " ",
+                               sprintf("%03d", as.integer(sub(".*estudo ([0-9]+).*", "\\1", t))))
+m3_curto_w <- m3_curto(m3_w$title)
+
+m3_nc <- rbind(
+  data.frame(estrato = "estrato: ano", m3_ncy, curto = m3_curto_w, fonte = m3_w$source),
+  data.frame(estrato = "estrato: ano + fonte", m3_ncf, curto = m3_curto_w, fonte = m3_w$source))
+m3_nc$estrato <- factor(m3_nc$estrato, levels = c("estrato: ano", "estrato: ano + fonte"))
+m3_nc$extremo <- !is.na(m3_nc$normalized) & m3_nc$normalized > 2
+
+# os dois extremos de cada estrato recebem rótulo para leitura direta
+m3_rot <- do.call(rbind, lapply(split(m3_nc, m3_nc$estrato), function(d)
+  head(d[order(-d$normalized), c("estrato", "expected", "citations", "curto")], 2)))
+m3_limite <- max(m3_nc$citations)
+
+# resumo numérico por estrato, usado na leitura abaixo
+m3_por_estrato <- do.call(rbind, lapply(split(m3_nc, m3_nc$estrato), function(d)
+  data.frame(estrato = d$estrato[1],
+             correlacao = round(cor(d$citations, d$expected), 3),
+             mediana = round(median(d$normalized, na.rm = TRUE), 3),
+             iqr = round(IQR(d$normalized, na.rm = TRUE), 3),
+             acima_de_2 = sum(d$normalized > 2, na.rm = TRUE))))
+
+# média do normalizado por grupo de fonte, para mostrar onde o prestígio se esconde
+m3_nc$grupo_fonte <- ifelse(m3_nc$fonte %in% m3_bonus, "fontes com bônus", "demais fontes")
+m3_grupo_estrato <- do.call(rbind, lapply(split(m3_nc, m3_nc$estrato), function(d)
+  data.frame(estrato = d$estrato[1],
+             bonus = round(mean(d$normalized[d$grupo_fonte == "fontes com bônus"], na.rm = TRUE), 2),
+             demais = round(mean(d$normalized[d$grupo_fonte == "demais fontes"], na.rm = TRUE), 2))))
+
+ggplot(m3_nc, aes(x = expected, y = citations)) +
+  geom_point(aes(colour = extremo), alpha = .65, size = 1.5) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2, colour = "grey25") +
+  geom_text(data = m3_rot, aes(label = curto), size = 2.6,
+            nudge_x = 2.5, hjust = 0, colour = pal_agri[6]) +
+  facet_wrap(~ estrato, ncol = 2) +
+  coord_fixed(ratio = 1, xlim = c(-5, m3_limite), ylim = c(-5, m3_limite)) +
+  scale_colour_manual(values = c(`TRUE` = pal_agri[2], `FALSE` = pal_agri[1]),
+                      labels = c(`TRUE` = "acima de 2× o esperado", `FALSE` = "até 2× o esperado"),
+                      name = NULL) +
+  labs(x = "citações esperadas no estrato", y = "citações observadas",
+       title = "Observado contra esperado sob dois estratos",
+       subtitle = "Linha tracejada: identidade. Eixos com a mesma escala nos dois painéis")
+```
+
+A figura é a comparação central do módulo, e cada painel conta uma história
+diferente. Os dois eixos usam a mesma escala, de modo que a linha tracejada é
+realmente a diagonal e um ponto acima dela está acima do esperado, sem ilusão de
+inclinação. No painel da esquerda, o esperado é a média de citações do ano de
+publicação, e a nuvem de pontos afasta-se da linha de identidade de forma
+sistemática: a correlação entre observado e esperado é de apenas
+`r m3_por_estrato$correlacao[1]`, e a mediana da razão fica em
+`r m3_por_estrato$mediana[1]`. O motivo é que o prestígio do periódico permaneceu
+no resíduo. A prova está na comparação entre grupos de fonte da seção anterior:
+sob o estrato do ano, as obras das duas fontes com bônus têm razão média de
+`r m3_grupo_estrato$bonus[1]` contra `r m3_grupo_estrato$demais[1]` das demais,
+uma diferença de mais de duas vezes que nada tem a ver com a idade da obra. No
+painel da direita, o esperado passa a ser a média do par ano e periódico: as
+médias de razão dos dois grupos de fonte convergem para
+`r m3_grupo_estrato$bonus[2]` e `r m3_grupo_estrato$demais[2]`, ou seja, o bônus
+do veículo deixa de aparecer no resíduo; a nuvem encosta na diagonal, a correlação
+sobe para `r m3_por_estrato$correlacao[2]` e as obras com razão acima de duas
+vezes o esperado caem de `r m3_por_estrato$acima_de_2[1]` para
+`r m3_por_estrato$acima_de_2[2]`. A leitura é que normalizar por ano e fonte
+corrige os dois efeitos ao mesmo tempo — a idade e o prestígio do veículo — e que
+o que sobrevive ao ajuste é o que a obra tem de próprio. Os pontos destacados em
+laranja são os que superam duas vezes o esperado no seu estrato, e os rótulos
+nomeiam os dois maiores de cada painel: são eles que a tabela seguinte detalha.
+
+O preço do ajuste duplo também aparece na figura e precisa ser dito. Com
+`r nrow(m3_ncf)` obras distribuídas em `r length(unique(interaction(m3_w[, c("year","source")], drop = TRUE)))`
+estratos de ano e fonte, muitos estratos ficam com poucas obras:
+`r sum(table(paste(m3_w$year, m3_w$source)) == 1)` estratos têm uma única obra,
+e nesses casos a citação esperada passa a ser a citação da própria obra, o que
+força a razão a valer exatamente um. A dispersão encolhe — o intervalo
+interquartílico cai de `r m3_por_estrato$iqr[1]` para
+`r m3_por_estrato$iqr[2]` —, e a mediana da razão passa a
+`r m3_por_estrato$mediana[2]` por construção, não por mérito do acervo. A
+consequência prática é escolher o estrato de acordo com o tamanho da amostra: em
+acervo de algumas centenas de obras, o par ano e fonte é defensável e informativo;
+em acervo pequeno, o estrato duplo devolve quase tudo igual a um e não discrimina
+nada. Muitos dos pontos sobre a linha de identidade não são obras medianas, são
+obras sozinhas no seu estrato.
+
+```{r}
+#| label: tbl-m3-normalizadas
+#| tbl-cap: "Dez obras com maior citação normalizada no estrato de ano e periódico, com o esperado do estrato e a fonte de publicação."
+m3_ncf$curto <- m3_curto_w
+m3_ncf$ano <- m3_w$year
+m3_ncf$fonte <- m3_w$source
+m3_top_norm <- head(m3_ncf[order(-m3_ncf$normalized),
+                           c("curto", "ano", "fonte", "citations", "expected", "normalized")], 10)
+
+knitr::kable(
+  data.frame(obra = m3_top_norm$curto, ano = m3_num(m3_top_norm$ano),
+             periodico = m3_top_norm$fonte,
+             observadas = m3_num(m3_top_norm$citations),
+             esperadas = m3_num(m3_top_norm$expected),
+             razao = m3_num(m3_top_norm$normalized)),
+  row.names = FALSE,
+  col.names = c("obra", "ano", "periódico", "citações observadas",
+                "citações esperadas", "razão"),
+  caption = "Dez obras com maior citação normalizada no estrato de ano e periódico, com o esperado do estrato e a fonte de publicação.")
+```
+
+A tabela traduz o painel da direita em nomes, e é ela que entra no artigo. O
+rótulo de cada obra combina o primeiro termo do tema com o número do estudo, para
+que a tabela caiba na página sem perder a identificação. A primeira colocada é
+`r m3_top_norm$curto[1]`, de `r m3_top_norm$ano[1]`, publicada em
+`r m3_top_norm$fonte[1]`: com `r m3_top_norm$citations[1]` citações contra
+`r m3_num(m3_top_norm$expected[1])` esperadas para o seu estrato de ano e
+veículo, ela recebeu `r m3_num(m3_top_norm$normalized[1])` vezes o esperado. O
+que chama atenção na lista é a procedência: nenhuma das obras do topo pertence às
+duas fontes com bônus plantado, e várias vêm de periódicos de média modesta, o que
+é exatamente o comportamento esperado de uma medida relativa — ela premia quem
+supera os pares do próprio estrato, não quem publicou no veículo de maior
+prestígio. A última colocada da lista tem razão
+`r m3_num(m3_top_norm$normalized[10])`, o que dá a ordem de grandeza do que
+conta como destaque neste acervo. A leitura para o artigo é que a razão
+normalizada responde a uma pergunta diferente da citação bruta: a citação bruta
+mede reconhecimento acumulado, a razão mede desempenho relativo às condições de
+publicação, e as duas devem ser reportadas juntas quando o acervo cobre quinze
+anos de produção.
+
+## Tarefas do Módulo 3
+
+**Tarefa 3.1 (aplicar).** Refaça o retrato descritivo e o painel de impacto sobre
+o recorte de 2020 a 2025, usando o vetor `per_B` para selecionar as obras (lembre
+que o recorte precisa valer também para as tabelas de autoria e de palavras-chave).
+Rode `describe_biblio()`, `biblio_metrics()` e a tabela de fontes por citação
+média, e compare com o acervo completo: quantas obras entram, como muda a média de
+citações por obra, quais fontes lideram por citação média, e o que acontece com o
+topo do ranking de autores quando o período é restringido.
+
+**Tarefa 3.2 (analisar e criar).** Escreva uma função
+`impacto_relativo(x, strata, fun)` que devolva, para cada obra, a razão entre as
+citações observadas e uma medida de referência calculada dentro do estrato
+indicado, aceitando `fun = mean` ou `fun = median`. Verifique que a versão com
+média reproduz exatamente `normalized_citations()` com os mesmos estratos, rode as
+duas versões sobre `x_analise` e discuta: quantas obras ultrapassam duas vezes a
+referência em cada caso, o que muda no topo da lista e qual das duas medidas você
+adotaria em um acervo com muitos estratos de duas obras, justificando a escolha em
+termos da variabilidade que cada uma introduz.

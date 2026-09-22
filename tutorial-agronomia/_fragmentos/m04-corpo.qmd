@@ -1,0 +1,614 @@
+# Módulo 4. Dinâmica temporal e disrupção
+
+## O problema agronômico
+
+Quem trabalha com fertilidade do solo e estresse abiótico enfrenta hoje uma
+pergunta de política científica antes de qualquer pergunta de campo: a frente de
+pesquisa sobre silício e salinidade está crescendo, estagnada ou apenas
+diversificando o vocabulário? A resposta muda o que se recomenda a um orientando.
+Se a frente cresce em volume, há espaço para uma tese experimental; se o que
+cresce é apenas o número de revisões sobre o mesmo corpo de evidências, o espaço
+está na síntese, não no experimento. Separar produção de consolidação é
+exatamente o que as cinco funções deste módulo fazem.
+
+O segundo problema é de composição. Um acervo pode dobrar de tamanho e continuar
+dizendo a mesma coisa, ou pode manter o tamanho e mudar de assunto. No material
+que usamos aqui, a frente agronômica de silício e salinidade convive com duas
+vizinhas: carbono do solo com plantas de cobertura e sensoriamento remoto com
+aprendizado de máquina. A pergunta prática do doutorando é onde a novidade se
+concentra, porque é ali que a revisão de literatura precisa ser mais recente.
+
+O terceiro problema é o mais delicado e o menos ensinado. Quando um artigo
+propõe um mecanismo novo, ele é *disruptivo*: os trabalhos seguintes discutem a
+proposta dele sem se apoiarem no que ele citou. Quando um artigo apenas organiza
+o que já se sabia, ele é *consolidativo*: quem o cita cita também as mesmas
+referências anteriores. As duas situações produzem contagens de citação
+parecidas, e a contagem de citação sozinha não as distingue. O módulo termina
+com o índice que faz essa separação a partir da própria rede de citações, e com a
+demonstração de como uma tabela de arestas mal nomeada é recusada pelo pacote.
+
+## Crescimento anual da produção
+
+O primeiro recorte é o mais simples e o que mais aparece em artigo: quantos
+documentos por ano e quantas citações esses documentos acumularam. A função
+`temporal_growth()` faz a agregação por ano e acrescenta a taxa de crescimento
+percentual em relação ao ano imediatamente anterior. Como não existe ano anterior
+ao primeiro, a taxa do primeiro ano é ausente por construção, e não por defeito
+do dado.
+
+```{r}
+#| label: tbl-m4-crescimento
+#| tbl-cap: "Crescimento anual do acervo analítico: taxa percentual em relação ao ano anterior e citações acumuladas por coorte."
+# 4.1 Agregação anual: documentos, citações e variação percentual
+cresc <- temporal_growth(x_analise)
+
+# 4.2 Primeiras e últimas linhas: início do crescimento e anos recentes
+# a linha de NA separa os dois blocos e marca a taxa ausente do primeiro ano
+cresc_faixas <- rbind(
+  head(cresc, 3L),
+  data.frame(year = NA_integer_, documents = NA_integer_,
+             citations = NA_integer_, growth_pct = NA_real_),
+  tail(cresc, 3L))
+
+knitr::kable(cresc_faixas, row.names = FALSE,
+  digits = 1, caption = "Crescimento anual do acervo analítico: taxa percentual em relação ao ano anterior e citações acumuladas por coorte. A linha de ausentes separa o início da série do fim, e a taxa do primeiro ano é ausente porque não existe ano anterior.")
+```
+
+Aqui está a primeira assinatura temporal do acervo. O período cobre
+`r nrow(cresc)` anos, de `r min(cresc$year)` a `r max(cresc$year)`, e o primeiro
+deles tem `r cresc$documents[1]` obras: um começo magro, o que é típico de
+recorte por janela temporal em base bibliográfica. A taxa média de crescimento de
+`r min(cresc$year) + 1L` a `r max(cresc$year)` é de
+`r round(mean(cresc$growth_pct[-1], na.rm = TRUE), 1)` por cento ao ano, mas essa
+média esconde o que interessa, porque ela mistura duas fases. A taxa média entre
+`r min(cresc$year) + 1L` e `r 2019L` é de
+`r round(mean(cresc$growth_pct[cresc$year %in% (min(cresc$year) + 1L):2019L], na.rm = TRUE), 1)`
+por cento ao ano, enquanto de `r 2020L` a `r max(cresc$year)` ela cai para
+`r round(mean(cresc$growth_pct[cresc$year >= 2020L], na.rm = TRUE), 1)` por cento
+ao ano.
+
+A leitura ingênua dessa queda seria "a frente está morrendo". A leitura correta
+vem da comparação entre as duas colunas. A coorte de `r 2020L` a
+`r max(cresc$year)` reúne `r sum(cresc$documents[cresc$year >= 2020L])` obras,
+contra `r sum(cresc$documents[cresc$year < 2020L])` obras na década anterior; o
+ano de maior produção do acervo é `r cresc$year[which.max(cresc$documents)]`, com
+`r max(cresc$documents)` obras. O que desacelerou foi a *taxa*, não o volume: com
+o acervo já grande, cada ano novo precisa acrescentar um número absoluto maior
+para manter a mesma taxa percentual. Além disso, as citações por obra sobem de
+`r round(sum(cresc$citations[cresc$year < 2020L]) / sum(cresc$documents[cresc$year < 2020L]), 2)`
+na década anterior para
+`r round(sum(cresc$citations[cresc$year >= 2020L]) / sum(cresc$documents[cresc$year >= 2020L]), 2)`
+no período recente. Volume maior com impacto por obra maior não é cenário de
+declínio; é cenário de frente madura que continua atraindo atenção.
+
+```{r}
+#| label: fig-m4-growth
+#| fig-cap: "Taxa de crescimento anual da produção do acervo analítico. O painel superior isola o crescimento percentual dos anos recentes; o inferior mostra as citações por obra de cada período."
+#| fig-alt: "Gráfico de barras para a taxa de crescimento anual de 2011 a 2025 e, abaixo, barras com as citações médias por obra nos dois períodos."
+#| fig-height: 6.4
+# 4.3 Taxa de crescimento com destaque do período recente
+d_g <- cresc[!is.na(cresc$growth_pct) & cresc$year >= min(cresc$year) + 1L, ]
+d_g$fase <- ifelse(d_g$year >= 2020L, "2020-2025", "2011-2019")
+d_g$rotulo <- paste0(sprintf("%.0f", d_g$growth_pct), "%")
+
+p_g <- ggplot(d_g, aes(x = year, y = growth_pct, fill = fase)) +
+  geom_col(width = .72, colour = "white", linewidth = .2) +
+  geom_hline(yintercept = 0, colour = "grey40", linewidth = .3) +
+  geom_text(aes(label = rotulo), vjust = ifelse(d_g$growth_pct >= 0, -.45, 1.15),
+            size = 2.3, colour = "grey25") +
+  scale_fill_manual(values = c("2011-2019" = pal_agri[2], "2020-2025" = pal_agri[1])) +
+  scale_x_continuous(breaks = sort(unique(d_g$year))) +
+  labs(x = NULL, y = "crescimento (%)", fill = NULL,
+       title = "Crescimento anual da produção",
+       subtitle = "barras coloridas: período de 2020 em diante")
+
+# 4.4 Citações por obra em cada período, calculadas a partir da mesma tabela
+d_p <- data.frame(
+  periodo = c("2010-2019", "2020-2025"),
+  obras = c(sum(cresc$documents[cresc$year < 2020L]),
+            sum(cresc$documents[cresc$year >= 2020L])),
+  citacoes = c(sum(cresc$citations[cresc$year < 2020L]),
+               sum(cresc$citations[cresc$year >= 2020L])))
+d_p$por_obra <- d_p$citacoes / d_p$obras
+
+p_p <- ggplot(d_p, aes(x = periodo, y = por_obra, fill = periodo)) +
+  geom_col(width = .55, colour = "white") +
+  geom_text(aes(label = sprintf("%.1f", por_obra)), vjust = -.5,
+            size = 3.1, colour = "grey25") +
+  scale_y_continuous(expand = expansion(mult = c(0, .22))) +
+  scale_fill_manual(values = c("2010-2019" = pal_agri[3], "2020-2025" = pal_agri[1]),
+                    guide = "none") +
+  labs(x = NULL, y = "citações por obra",
+       title = "Impacto médio por coorte temporal")
+
+gridExtra::grid.arrange(p_g, p_p, ncol = 1, heights = c(2.2, 1))
+```
+
+A Figura mostra duas coisas que juntas desfazem a leitura de declínio. No painel
+superior, as barras de `r 2020L` a `r max(cresc$year)` são menores que as do
+início da série, mas continuam majoritariamente positivas: o acervo segue
+crescendo, apenas mais devagar. No painel inferior, cada obra do período recente
+acumula `r round(d_p$por_obra[2] - d_p$por_obra[1], 2)` citações a mais que uma
+obra da década anterior. Uma frente que desacelera em taxa e ganha em impacto por
+obra está mudando de natureza, e a próxima seção mostra onde essa mudança se
+concentra.
+
+## Velocidade de citação e o efeito da idade
+
+Citações acumuladas não são comparáveis entre obras de idades diferentes. Uma
+obra de `r min(citation_trajectory(x_analise)$year)` teve
+`r max(citation_trajectory(x_analise)$age)` anos para acumular; uma de
+`r max(citation_trajectory(x_analise)$year)` teve
+`r min(citation_trajectory(x_analise)$age)`. A função `citation_velocity()`
+normaliza esse acúmulo pela idade da obra, contada a partir do ano corrente, e
+`citation_trajectory()` acrescenta essa idade e o título à mesma tabela.
+
+```{r}
+#| label: tbl-m4-velocidade
+#| tbl-cap: "Obras com maior velocidade de citação, com idade contada a partir do ano corrente e total acumulado."
+# 4.5 Velocidade normalizada pela idade e trajetória com idade e título
+vel <- citation_velocity(x_analise)
+traj <- citation_trajectory(x_analise)
+
+# 4.6 As cinco obras mais rápidas, com o total acumulado ao lado
+vel_top <- head(traj[order(-traj$velocity), ], 5L)
+cit_top <- head(traj[order(-traj$citations), ], 5L)
+n_vel_no_top_cit <- sum(vel_top$work_id %in% cit_top$work_id)   # coincidência entre rankings
+knitr::kable(
+  vel_top[, c("title", "year", "age", "citations", "velocity")],
+  row.names = FALSE, digits = 2,
+  caption = "Obras com maior velocidade de citação, com idade contada a partir do ano corrente e total acumulado.")
+```
+
+A Tabela é o argumento a favor da normalização. As obras do topo têm
+`r paste(sort(unique(vel_top$age)), collapse = ", ")` anos de idade, contra uma
+idade máxima de `r max(traj$age)` anos no acervo. Se a seleção tivesse sido feita
+pela coluna de citações acumuladas, a lista seria praticamente outra: as duas
+listas de cinco obras coincidem em `r n_vel_no_top_cit` posições, e as demais
+`r 5L - n_vel_no_top_cit` posições do ranking por velocidade só aparecem quando
+o tempo de exposição entra no denominador. O que a velocidade mede é a
+intensidade de recepção por unidade de tempo, e ela responde a uma pergunta
+diferente daquela que a contagem bruta responde.
+
+A correlação entre citações acumuladas e idade no acervo é de
+`r round(cor(traj$citations, traj$age), 2)`, praticamente nula. Esse é um
+resultado sobre o gerador de dados, e vale lê-lo pelo que ele significa: aqui o
+acúmulo de citações não foi simulado em função do tempo de exposição, de modo que
+idade e total não competem entre si. Em acervo real a correlação costuma ser
+positiva e forte, e por isso mesmo a velocidade continua sendo a métrica
+comparável, porque ela não depende do calendário da coleta.
+
+```{r}
+#| label: fig-m4-velocidade
+#| fig-cap: "Velocidade de citação em função da idade da obra. A linha tracejada é a mediana do acervo e a linha cheia é a razão citações por idade."
+#| fig-alt: "Dispersão da velocidade de citação contra a idade da obra, com a mediana do acervo e a curva citações divididas pela idade."
+# 4.7 Dispersão idade por velocidade com mediana e reta de referência
+d_v <- traj
+d_v$acima <- ifelse(d_v$velocity >= median(d_v$velocity), "acima da mediana", "abaixo da mediana")
+idade_max <- max(d_v$age)
+
+g_vel <- ggplot(d_v, aes(x = age, y = velocity)) +
+  geom_hline(yintercept = median(d_v$velocity), linetype = "dashed",
+             colour = "grey35", linewidth = .45) +
+  stat_function(fun = function(a) mean(d_v$citations) / a, colour = pal_agri[2],
+                linewidth = .7, linetype = "solid") +
+  geom_jitter(aes(colour = acima), width = .22, height = 0, alpha = .6, size = 1.5) +
+  scale_colour_manual(values = c("acima da mediana" = pal_agri[1],
+                                 "abaixo da mediana" = pal_agri[3]), name = NULL) +
+  scale_x_continuous(breaks = sort(unique(d_v$age))) +
+  labs(x = "idade da obra (anos desde a publicação)",
+       y = "velocidade (citações por ano)",
+       title = "Velocidade de citação e efeito da idade",
+       subtitle = "tracejada: mediana do acervo; cheia: citações médias divididas pela idade")
+
+sup_med <- sum(d_v$velocity >= median(d_v$velocity))
+g_vel
+```
+
+A Figura tem três leituras. A primeira é que a mediana separa o acervo em
+`r sup_med` obras acima e `r nrow(d_v) - sup_med` abaixo, e a fronteira é
+convencional: metade do acervo fica de cada lado por definição, e um artigo que
+destaque apenas a metade superior estará destacando metade da literatura. A
+segunda é que a velocidade cai com a idade, com coeficiente de correlação de
+`r round(cor(d_v$velocity, d_v$age), 2)`, porque cada ano adicional no
+denominador reduz a razão enquanto as citações não acompanham. A terceira é a
+reta cheia, que é a velocidade *esperada* de uma obra com o número médio de
+citações do acervo: tudo o que fica acima dela recebeu mais do que o padrão da
+frente, e é essa a lista que serve para montar um estado da arte. O acervo
+sintético é generoso com obras recentes porque as citações foram sorteadas sem
+memória temporal; em acervo real, a cauda recente é sempre mais curta.
+
+## Mudança de composição temática
+
+A produção que cresce em volume pode estar crescendo em qualquer direção. Para
+saber em qual, é preciso olhar o conteúdo e não só o número de documentos. A
+tabela de palavras-chave normalizadas do acervo permite contar menções por bloco
+temático e por período, e o resultado é a segunda assinatura temporal deste
+módulo.
+
+```{r}
+#| label: tbl-m4-composicao
+#| tbl-cap: "Composição temática do acervo por período: menções de palavras-chave por obra em cada bloco temático."
+# 4.8 Blocos temáticos derivados das palavras-chave normalizadas
+kw <- x_analise$keywords
+kw$ano <- x_analise$works$year[match(kw$work_id, x_analise$works$work_id)]
+kw$periodo <- ifelse(kw$ano >= 2020L, "2020-2025", "2010-2019")
+
+blocos_tema <- list(
+  "Silicio"  = c("silicon", "silicon fertilization", "salinity", "sorghum", "rice",
+                 "nutrient uptake", "abiotic stress", "drought stress"),
+  "Carbono"  = c("soil carbon", "cover crops", "no-till", "soil organic matter",
+                 "carbon sequestration", "soil aggregation", "crop rotation",
+                 "green manure"),
+  "Automacao" = c("machine learning", "deep learning", "uav", "hyperspectral",
+                  "remote sensing", "yield prediction", "vegetation index",
+                  "phenotyping"))
+kw$bloco <- NA_character_
+for (b in names(blocos_tema)) kw$bloco[kw$keyword %in% blocos_tema[[b]]] <- b
+stopifnot(!any(is.na(kw$bloco)))       # todo termo do acervo pertence a um bloco
+
+# 4.9 Menções por bloco em cada período, normalizadas pelo número de obras
+cont_bloco <- as.data.frame(table(kw$bloco, kw$periodo), stringsAsFactors = FALSE)
+names(cont_bloco) <- c("bloco", "periodo", "mencoes")
+obras_per <- table(kw$periodo[!duplicated(kw$work_id)])
+cont_bloco$obras <- as.integer(obras_per[cont_bloco$periodo])
+cont_bloco$por_obra <- cont_bloco$mencoes / cont_bloco$obras
+
+comp <- reshape(cont_bloco[, c("bloco", "periodo", "por_obra")],
+                idvar = "bloco", timevar = "periodo", direction = "wide")
+names(comp) <- c("bloco", "antes", "recente")
+comp$variacao <- 100 * (comp$recente / comp$antes - 1)
+comp$antes <- round(comp$antes, 2); comp$recente <- round(comp$recente, 2)
+comp$variacao <- round(comp$variacao, 1)
+comp <- comp[order(-comp$variacao), ]
+
+knitr::kable(comp, row.names = FALSE,
+  caption = "Composição temática do acervo por período: menções de palavras-chave por obra em cada bloco temático.")
+```
+
+A Tabela é a evidência da verdade plantada V4 do acervo simulado. O bloco de
+automação passa de `r comp$antes[comp$bloco == "Automacao"]` para
+`r comp$recente[comp$bloco == "Automacao"]` menções por obra, uma variação de
+`r comp$variacao[comp$bloco == "Automacao"]` por cento, enquanto os dois blocos
+agronômicos variam
+`r comp$variacao[comp$bloco == "Carbono"]` e
+`r comp$variacao[comp$bloco == "Silicio"]` por cento. Traduzindo: das
+`r sum(cont_bloco$mencoes[cont_bloco$periodo == "2020-2025"]) -
+   sum(cont_bloco$mencoes[cont_bloco$periodo == "2010-2019"])` menções
+acrescentadas pelo período recente,
+`r round(100 * (cont_bloco$mencoes[cont_bloco$bloco == "Automacao" & cont_bloco$periodo == "2020-2025"] -
+                cont_bloco$mencoes[cont_bloco$bloco == "Automacao" & cont_bloco$periodo == "2010-2019"]) /
+          (sum(cont_bloco$mencoes[cont_bloco$periodo == "2020-2025"]) -
+           sum(cont_bloco$mencoes[cont_bloco$periodo == "2010-2019"])), 1)` por
+cento vêm do bloco de automação. É por isso que a curva de produção do acervo
+cresce e, ao mesmo tempo, muda de assunto: o crescimento recente não é uma
+repetição ampliada do que já havia.
+
+```{r}
+#| label: fig-m4-composicao
+#| fig-cap: "Menções de palavras-chave por obra em cada bloco temático, por período. A ordem dos blocos é a da variação entre os dois períodos."
+#| fig-alt: "Barras facetadas por bloco temático mostrando menções por obra nos períodos anterior e recente."
+# 4.10 Composição temática por período, com o bloco ordenado pela variação
+cont_bloco$bloco <- factor(cont_bloco$bloco, levels = comp$bloco)
+cont_bloco$periodo <- factor(cont_bloco$periodo, levels = c("2010-2019", "2020-2025"))
+
+ggplot(cont_bloco, aes(x = periodo, y = por_obra, fill = periodo)) +
+  geom_col(width = .6, colour = "white") +
+  geom_text(aes(label = sprintf("%.2f", por_obra)), vjust = -.45,
+            size = 2.9, colour = "grey25") +
+  facet_wrap(~ bloco, nrow = 1) +
+  scale_fill_manual(values = c("2010-2019" = pal_agri[3], "2020-2025" = pal_agri[1]),
+                    guide = "none") +
+  labs(x = NULL, y = "menções por obra", title = "Mudança de composição temática",
+       subtitle = "palavras-chave normalizadas, normalizadas pelo número de obras do período")
+```
+
+A Figura mostra o contraste com clareza. Os três blocos crescem em menções
+absolutas, porque o período recente tem mais obras, mas apenas o de automação
+cresce na medida que importa, a que já desconta o tamanho do período. A leitura
+operacional para uma tese: se o seu objeto é silício e salinidade, a fronteira
+metodológica vizinha está em sensoriamento e aprendizado de máquina, e a revisão
+de literatura precisa cobrir esse vocabulário mesmo que o experimento seja de
+casa de vegetação. O `stopifnot` do bloco anterior não é decoração: ele garante
+que nenhum termo ficou fora da classificação, de modo que a coluna `por_obra` não
+esteja calculada sobre um conjunto incompleto.
+
+## RPYS: quais anos de referência fundam a frente
+
+Até aqui contamos obras publicadas. O RPYS faz a pergunta invertida: olhando às
+referências citadas pelo acervo, quais *anos* aparecem com frequência
+desproporcional? Um pico nesse espectro é a assinatura de uma obra fundadora,
+porque dezenas de trabalhos independentes decidiram citar algo publicado naquele
+mesmo ano.
+
+A primeira coisa a saber sobre a função é a forma do argumento. `rpys()` recebe
+um **vetor de anos**, não um projeto bibliométrico: ela não tem como ler as
+referências citadas de dentro do `biblio_project`, porque o objeto guarda as
+arestas de citação entre as obras do próprio acervo, e não a lista de referências
+de cada obra. Esses anos vêm do campo de referências citadas da exportação, e
+tanto Web of Science quanto Scopus e OpenAlex o fornecem. Este acervo simulado
+não traz esse campo, então a seção constrói um vetor declaradamente simulado.
+
+```{r}
+#| label: fig-m4-rpys
+#| fig-cap: "Espectro de anos de referência (RPYS) do vetor de citações simulado: contagem observada por ano, linha de base móvel e o ano de maior desvio positivo em destaque."
+#| fig-alt: "Gráfico de barras com haste dos anos de referência, com a linha de base móvel sobreposta e o pico de maior desvio destacado em vermelho."
+# 4.11 Vetor SIMULADO de anos de referência: para cada obra, seis referências
+#      sorteadas na janela de 45 anos anteriores, mais um ano seminal plantado.
+set.seed(SEED)
+ref_sim <- unlist(lapply(x_analise$works$year, function(a) {
+  sample(seq(max(1975L, a - 45L), a + 2L), 6L, replace = TRUE)
+}))
+ref_sim <- c(ref_sim, rep(1994L, 26L))     # ano seminal plantado nesta simulação
+
+rp <- rpys(reference_years = ref_sim, window = 2)
+pico <- rp[which.max(rp$deviation), ]
+rp$acima <- ifelse(rp$deviation > 0, "acima da base", "na base ou abaixo")
+rp$acima[rp$year == pico$year] <- "pico"
+
+ggplot(rp, aes(x = year, y = n, colour = acima)) +
+  geom_segment(aes(xend = year, y = 0, yend = n), linewidth = .45) +
+  geom_point(size = 1.7) +
+  geom_line(aes(x = year, y = baseline), colour = "grey30",
+            linetype = "dashed", linewidth = .55) +
+  annotate("label", x = pico$year, y = pico$n, size = 3,
+           label = sprintf("%d: %d citações\n%d acima da base", pico$year,
+                           pico$n, pico$deviation)) +
+  scale_colour_manual(values = c("acima da base" = pal_agri[1],
+                                 "na base ou abaixo" = "grey65",
+                                 "pico" = pal_agri[2]), name = NULL) +
+  scale_x_continuous(breaks = seq(min(rp$year), max(rp$year), by = 5)) +
+  labs(x = "ano de referência", y = "número de referências citadas",
+       title = "Espectro RPYS do vetor simulado",
+       subtitle = "linha tracejada: linha de base móvel (mediana de cinco anos)")
+```
+
+O espectro tem a forma esperada. A linha de base é uma mediana móvel de cinco
+anos e serve de piso local, não de média global: a função mede o desvio contra a
+vizinhança, e não contra o acervo inteiro. O ano de
+`r pico$year` reúne `r pico$n` referências contra uma base de
+`r round(pico$baseline, 1)`, um desvio de `r pico$deviation`. Os anos seguintes
+em desvio são
+`r rp$year[order(-rp$deviation)][2]` (desvio `r rp$deviation[order(-rp$deviation)][2]`)
+e `r rp$year[order(-rp$deviation)][3]` (desvio `r rp$deviation[order(-rp$deviation)][3]`).
+O pico é o que foi plantado: `r 26L` referências foram atribuídas ao ano
+`r pico$year` de propósito, e a função o recupera sem que ninguém tenha dito a ela
+onde olhar. Esta é uma **simulação declarada**: o campo de referências citadas
+não existe no objeto, e um RPYS sobre dados reais exige o vetor extraído da
+exportação.
+
+```{r}
+#| label: tbl-m4-rpys
+#| tbl-cap: "Anos de maior desvio positivo do espectro RPYS: contagem observada, linha de base móvel e desvio."
+# 4.12 Anos de maior desvio positivo do espectro
+rp_top <- head(rp[order(-rp$deviation), c("year", "n", "baseline", "deviation")], 5L)
+knitr::kable(rp_top, row.names = FALSE, digits = 1,
+  caption = "Anos de maior desvio positivo do espectro RPYS: contagem observada, linha de base móvel e desvio.")
+```
+
+Duas armadilhas acompanham esse resultado. A primeira é confundir pico de
+referência com pico de publicação. O espectro não conta quantos artigos foram
+publicados em `r pico$year`; conta quantas referências do acervo apontam para
+algo publicado naquele ano. Um ano de intensa produção científica produz muitos
+candidatos, mas só gera pico de RPYS se as obras daquele ano continuarem sendo
+citadas por este acervo específico, o que depende da frente e não do calendário.
+Para deixar a distinção concreta: `temporal_growth()` conta
+`r cresc$documents[cresc$year == 2014L]` obras publicadas em
+`r 2014L` neste acervo, e isso nada diz sobre quantas referências do acervo
+apontam para `r 2014L`; são duas contagens sobre objetos diferentes.
+
+A segunda armadilha é o valor de `window`. Ele controla a largura da mediana
+móvel e, portanto, quão local é a comparação. Testar valores diferentes é parte
+da análise, e o resultado aqui é informativo: com `window` de
+`r paste(c(1, 2, 3, 5), collapse = ", ")` o topo do espectro continua sendo
+`r pico$year`, com o mesmo desvio de `r pico$deviation`. Um pico que sobrevive à
+mudança da largura da janela é um achado robusto; um pico que aparece só numa
+largura é artefato da suavização. Vale rodar sempre mais de um valor antes de
+eleger o ano fundador de uma frente.
+
+## Disrupção: separar inovação de consolidação
+
+A última função do módulo troca a pergunta de novo. Em vez de "quantas vezes este
+trabalho foi citado", ela pergunta "quem o citou deixou de citar o que ele
+citava?". A resposta vem de uma decomposição em três contagens a partir de uma
+tabela de arestas de citação.
+
+O pacote exige que a tabela tenha exatamente as colunas `citing_id` e
+`cited_id`, e para com mensagem clara quando elas não existem. Isso é validação
+de entrada, e vale ver funcionando, porque é o tipo de erro que consome uma tarde
+de quem trabalha com exportação de base: cada base nomeia as colunas de citação
+de um jeito, e o nome errado não produz número errado, produz parada.
+
+```{r}
+#| label: tbl-m4-disrupcao
+#| tbl-cap: "Exemplo numérico do índice de disrupção em quatro cenários de arestas de citação, com a decomposição em N_i, N_j e N_k."
+# 4.13 Exemplo numérico controlado: F é o focal, R1 e R2 são suas referências
+arestas <- data.frame(
+  citing_id = c("C1", "C2", "C3", "C4", "C5", "C6", "C7"),
+  cited_id  = c("F", "F", "F", "R1", "R1", "R2", "F"), stringsAsFactors = FALSE)
+
+di_focal <- disruption_index("F", arestas, c("R1", "R2"))          # 4 citantes de F
+di_cons  <- disruption_index(                                       # C4 também cita F
+  "F", rbind(arestas, data.frame(citing_id = "C4", cited_id = "F")), c("R1", "R2"))
+di_ausente <- disruption_index("ZZZ", arestas, c("R1", "R2"))       # focal inexistente
+di_semref  <- disruption_index("F", arestas, character(0))          # sem referências
+
+di_tab <- rbind(
+  cbind(cenario = "4 citantes, nenhum consolidador", di_focal),
+  cbind(cenario = "C4 passa a citar também as referências", di_cons),
+  cbind(cenario = "focal sem nenhum citante no acervo", di_ausente),
+  cbind(cenario = "focal sem referências declaradas", di_semref))
+knitr::kable(di_tab[, c("cenario", "focal_id", "N_i", "N_j", "N_k", "disruption")],
+  row.names = FALSE, digits = 2,
+  caption = "Exemplo numérico do índice de disrupção em quatro cenários de arestas de citação, com a decomposição em N_i, N_j e N_k.")
+```
+
+A validação de entrada funciona como prometido, e vale conferir com os próprios
+olhos, porque uma função que devolvesse `NA` em silêncio produziria uma tabela de
+aparência normal com um número inventado. O bloco seguinte repete a chamada com
+uma tabela de arestas nomeada como o `export_biblio()` a exporta, com `from` e
+`to`, e captura a mensagem com `tryCatch()`.
+
+```{r}
+#| label: tbl-m4-erro-colunas
+#| tbl-cap: "Mensagem devolvida pelo pacote quando a tabela de arestas não tem as colunas citing_id e cited_id."
+# 4.14 O mesmo cálculo com uma tabela de arestas mal nomeada
+arestas_erradas <- data.frame(from = c("C1", "C2"), to = c("F", "R1"),
+                              stringsAsFactors = FALSE)
+msg_colunas <- tryCatch(
+  disruption_index("F", arestas_erradas, c("R1", "R2")),
+  error = function(e) conditionMessage(e))
+msg_colunas_limpa <- sub("[.]$", "", msg_colunas)   # a mensagem já traz ponto final
+
+knitr::kable(
+  data.frame(entrada = "data.frame(from, to)",
+             colunas_esperadas = "citing_id, cited_id",
+             resposta_do_pacote = msg_colunas),
+  row.names = FALSE,
+  caption = "Mensagem devolvida pelo pacote quando a tabela de arestas não tem as colunas citing_id e cited_id.")
+```
+
+A mensagem devolvida é `r msg_colunas_limpa`. Ela é útil por três motivos: diz
+qual argumento está errado, diz quais colunas eram esperadas e não sugere que o
+problema esteja nos dados. Compare com o comportamento de uma função que apenas
+devolvesse zero: o zero entraria no seu ranking de disrupção como uma obra
+perfeitamente consolidada. Renomeie as colunas da sua exportação antes da análise,
+e não depois de olhar o resultado.
+
+A fórmula é `(N_i - N_j) / (N_i + N_j + N_k)`, e cada contagem tem um significado
+preciso. `N_i` são os citantes que **não** citam nenhuma referência do focal:
+frente citante que ignorou o passado que o focal invocou, ou seja, disrupção.
+`N_j` são os citantes que citam o focal **e** as referências dele: seguiram a
+trilha inteira, ou seja, consolidação. `N_k` são os citantes que citam as
+referências do focal mas não citam o focal: trabalham o mesmo passado sem passar
+por ele. O índice vai de `r -1` a `r 1`, e o zero é o ponto de equilíbrio.
+
+O cenário 1 deixa isso visível: `N_i` de `r di_focal$N_i`, `N_j` de
+`r di_focal$N_j` e `N_k` de `r di_focal$N_k` dão índice
+`r round(di_focal$disruption, 2)`. No cenário 2, basta que C4 passe a citar
+também `R1` para `N_j` subir de `r di_focal$N_j` para `r di_cons$N_j` e `N_k`
+cair de `r di_focal$N_k` para `r di_cons$N_k`, derrubando o índice para
+`r round(di_cons$disruption, 2)`. Nada mudou no focal nem no número de citantes;
+mudou a composição do comportamento citante, que é exatamente o que o índice
+pretende medir.
+
+Os dois últimos cenários são avisos de leitura. Um identificador que não existe
+no acervo devolve `N_i` igual a `r di_ausente$N_i` e índice
+`r round(di_ausente$disruption, 2)`, e esse zero **não significa equilíbrio**:
+significa ausência de dado, e um zero por ausência entra em média e em ranking
+como se fosse medição. Declarar as referências do focal é o que separa disrupção
+de consolidação, e quando a lista vem vazia o índice devolve
+`r round(di_semref$disruption, 2)`, o valor máximo, porque toda citação sem
+trilha declarada é contada como rompimento. Antes de publicar qualquer índice de
+disrupção, confira quantas obras do acervo têm referências declaradas.
+
+```{r}
+#| label: tbl-m4-refs
+#| tbl-cap: "Cobertura das referências declaradas no acervo analítico, condição necessária para interpretar o índice de disrupção."
+# 4.15 Perfil de citação das referências declaradas do acervo
+refs_x <- x_analise$references
+obras_com_ref <- length(unique(refs_x$citing_id))
+txt_pares <- sprintf("%d par%s obra-referência", nrow(refs_x),
+                     if (nrow(refs_x) == 1L) "" else "es")
+resumo_ref <- data.frame(
+  item = c("obras no acervo", "obras com referências declaradas",
+           "pares obra-referência declarados"),
+  valor = c(nrow(x_analise$works), obras_com_ref, nrow(refs_x)))
+
+knitr::kable(resumo_ref, row.names = FALSE,
+  caption = "Cobertura das referências declaradas no acervo analítico, condição necessária para interpretar o índice de disrupção.")
+```
+
+A Tabela fecha a condição de uso do índice. Das `r resumo_ref$valor[1]` obras do
+acervo, `r obras_com_ref` têm referências declaradas, e a tabela de citações
+reúne `r txt_pares`. Sem essa cobertura, o índice de disrupção não é
+calculável para o acervo inteiro, e qualquer média publicada seria calculada
+sobre um subconjunto não declarado. É por isso que a função exige as referências
+do focal como argumento explícito, em vez de tentar adivinhá-las: ela prefere
+devolver um resultado que você pode auditar a devolver um número que ninguém
+sabe de onde veio.
+
+```{r}
+#| label: fig-m4-disrupcao
+#| fig-cap: "Decomposição do índice de disrupção nos três grupos de citantes, para os dois cenários em que o focal existe no acervo. O total de citantes é o mesmo nos dois cenários, e apenas a composição muda."
+#| fig-alt: "Barras empilhadas com o número de citantes em cada grupo e o valor do índice anotado acima de cada barra."
+# 4.16 Decomposição dos dois cenários com focal presente, em barras empilhadas
+d_di <- data.frame(
+  cenario = factor(rep(c("antes: 4 citantes", "depois: C4 também cita as refs"),
+                       each = 3L),
+                   levels = c("antes: 4 citantes", "depois: C4 também cita as refs")),
+  grupo = rep(c("N_i rompem", "N_j consolidam", "N_k citam só o passado"), 2L),
+  n = c(di_focal$N_i, di_focal$N_j, di_focal$N_k,
+        di_cons$N_i, di_cons$N_j, di_cons$N_k),
+  indice = rep(c(di_focal$disruption, di_cons$disruption), each = 3L),
+  total = rep(c(di_focal$N_i + di_focal$N_j + di_focal$N_k,
+                di_cons$N_i + di_cons$N_j + di_cons$N_k), each = 3L))
+
+ggplot(d_di, aes(x = cenario, y = n, fill = grupo)) +
+  geom_col(width = .55, colour = "white") +
+  # rótulo só nas fatias com altura suficiente para receber texto
+  geom_text(aes(label = ifelse(n >= 1L, n, "")),
+            position = position_stack(vjust = .5), size = 3, colour = "white") +
+  # o total e o índice de cada cenário, acima da barra
+  geom_text(data = d_di[!duplicated(d_di$cenario), ],
+            aes(x = cenario, y = total + .55,
+                label = paste0("total = ", total, "  |  índice = ",
+                               sprintf("%.2f", indice))),
+            inherit.aes = FALSE, size = 3.1) +
+  scale_fill_manual(values = c("N_i rompem" = pal_agri[2],
+                               "N_j consolidam" = pal_agri[1],
+                               "N_k citam só o passado" = "grey70"), name = NULL) +
+  scale_y_continuous(expand = expansion(mult = c(0, .22))) +
+  labs(x = NULL, y = "número de obras citantes",
+       title = "Decomposição do índice de disrupção",
+       subtitle = "N_j igual a zero não aparece na pilha; o valor está no rótulo e na legenda")
+```
+
+A Figura mostra o mecanismo em uma imagem, e vale notar com precisão o que muda
+entre os dois cenários. No cenário "antes", o focal tem
+`r di_focal$N_i` citantes que rompem, `r di_focal$N_j` que consolidam e
+`r di_focal$N_k` que citam só o passado dele, o que dá um total de
+`r di_focal$N_i + di_focal$N_j + di_focal$N_k` obras citantes e índice
+`r round(di_focal$disruption, 2)`. No cenário "depois", a obra C4 passa a citar
+também `R1` e, com isso, sai do grupo das que rompem e entra no das que
+consolidam: `N_j` sobe de `r di_focal$N_j` para `r di_cons$N_j`, `N_k` cai de
+`r di_focal$N_k` para `r di_cons$N_k`, e o total de citantes permanece
+`r di_cons$N_i + di_cons$N_j + di_cons$N_k` — exatamente o mesmo. Ou seja: o número
+de citantes não mudou e o índice caiu de `r round(di_focal$disruption, 2)` para
+`r round(di_cons$disruption, 2)`. É essa a informação que uma contagem de citações
+não entrega, e é por isso que o índice existe.
+
+Um detalhe de implementação que vale registrar, porque volta a aparecer em
+qualquer gráfico de composição: uma fatia de altura zero não é desenhada, de modo
+que `N_j` igual a `r di_focal$N_j` no primeiro cenário não tem barra verde. O
+número está no rótulo e na contagem do texto, e a alternativa de inflar a fatia
+para torná-la visível seria pior, porque apresentaria um valor falso. Em uma
+figura de artigo, a solução é a mesma: declarar na legenda que o valor nulo está
+omitido por construção. A consequência prática, para o doutorando em Agronomia, é
+que o índice de disrupção complementa e não substitui a contagem de citações: a
+contagem mede atenção recebida, o índice mede como essa atenção se posicionou em
+relação ao que o trabalho propôs.
+
+## Tarefas do Módulo 4
+
+**Tarefa 4.1 (aplicar).** Use `citation_velocity()` sobre o acervo real do
+OpenAlex, que está no objeto `x_openalex`, e compare a mediana da velocidade com
+a do acervo simulado. Depois rode `disruption_index()` sobre uma tabela de
+arestas construída por você, com as colunas `citing_id` e `cited_id`, e mostre o
+índice resultante. Se a chamada ao OpenAlex falhou nesta máquina, rode a tarefa
+sobre `x_analise` e diga por quê.
+
+**Tarefa 4.2 (analisar).** Construa um vetor de anos de referência com um ano
+seminal plantado por você, diferente de `r pico$year`, rode `rpys()` com dois
+valores de `window` e responda: o pico que você plantou aparece nas duas
+configurações? O que a resposta diz sobre a robustez do achado? Em seguida,
+explique em um parágrafo por que um pico de RPYS não pode ser lido como pico de
+produção científica daquele ano.
+
+::: {.callout-tip}
+## Antes de seguir
+O argumento `window` de `rpys()` e a lista de referências de `disruption_index()`
+são os dois pontos em que este módulo depende de decisão do analista, e não do
+pacote. Registre os dois valores no seu script: daqui a seis meses, o número no
+artigo não será reproduzível sem eles.
+:::

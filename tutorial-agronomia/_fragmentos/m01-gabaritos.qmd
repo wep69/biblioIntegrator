@@ -1,0 +1,89 @@
+## Gabarito do Exercício 1.1
+
+### Código completo e executável
+
+```{r}
+# 1.1.1 Importação do arquivo gerado no módulo
+csv_did <- file.path(tempdir(), "acervo_agronomia.csv")
+write.csv(head(example_biblio(), 6L), csv_did, row.names = FALSE)
+dados <- biblio_import(csv_did)
+
+# 1.1.2 Harmonização com rótulo de origem
+proj <- as_biblio_project(dados, source = "minha base")
+
+# 1.1.3 Dimensões das tabelas do projeto
+dim_proj <- data.frame(
+  tabela = c("works", "authorships", "authors", "keywords"),
+  linhas = c(nrow(proj$works), nrow(proj$authorships),
+             nrow(proj$authors), nrow(proj$keywords)))
+knitr::kable(dim_proj, row.names = FALSE,
+             caption = "Dimensões do projeto harmonizado na Tarefa 1.1.")
+```
+
+### Leitura da saída
+
+A importação produziu um quadro plano com `r nrow(dados)` linhas, e a
+harmonização converteu esse quadro em um projeto com `r nrow(proj$works)` obras,
+`r nrow(proj$authorships)` ligações de autoria, `r nrow(proj$authors)` autores
+únicos e `r nrow(proj$keywords)` pares obra-termo. A leitura importante é a
+relação entre os números: as linhas de `authorships` são maiores que as de
+`works` porque cada obra tem mais de um autor, e `authors` é menor que
+`authorships` porque um mesmo autor assina várias obras. Se você tivesse
+guardado apenas o quadro plano, cada contagem exigiria reinterpretar o campo de
+autoria como texto separado por ponto e vírgula.
+
+### Redação sugerida para o artigo
+
+As referências foram exportadas na base de dados de origem no formato CSV,
+importadas com `biblio_import()` e harmonizadas em um objeto relacional
+(`biblio_project`) com `as_biblio_project()`, preservando a rastreabilidade da
+origem. O acervo final reuniu N obras, M registros de autoria e K pares
+obra-palavra-chave.
+
+### Erros comuns a evitar
+
+- Passar o caminho de um arquivo que não existe e não verificar a mensagem de erro: `biblio_import()` para com erro claro de arquivo ausente, e o caminho relativo depende do diretório de trabalho.
+- Harmonizar sem indicar `source`: o rótulo entra na trilha de proveniência e é o que permite, meses depois, saber de onde veio cada registro.
+- Confundir `authorships` com `authors`: a primeira conta assinaturas, a segunda conta pessoas.
+- Editar o quadro plano depois de harmonizar: o projeto não se atualiza sozinho; refaça a harmonização.
+
+## Gabarito do Exercício 1.2
+
+### Código completo e executável
+
+```{r}
+# 1.2.1 Diagnóstico do acervo didático
+h_did <- biblio_health(x_did)
+knitr::kable(h_did, row.names = FALSE,
+             caption = "Diagnóstico de qualidade do acervo didático de 12 obras.")
+
+# 1.2.2 Quantas verificações passaram sem achado
+n_ok <- sum(h_did$n == 0)
+```
+
+### Leitura da saída
+
+O diagnóstico fez `r nrow(h_did)` verificações e todas as
+`r nrow(h_did)` devolveram zero ocorrências, ou seja, `r n_ok` de
+`r nrow(h_did)` verificações passaram sem achado. A explicação não é que o
+acervo seja grande ou pequeno, e sim que ele foi construído para servir de
+exemplo: títulos preenchidos, anos presentes, DOI normalizado, nenhuma obra
+repetida e nenhuma citação negativa. O valor pedagógico desse resultado está no
+contraste com o acervo simulado do Módulo 2, onde cada defeito plantado aparece
+como uma linha não nula. Em outras palavras, `biblio_health()` não mede a
+qualidade científica do acervo; mede a consistência interna dos metadados, e é
+essa consistência que sustenta as análises seguintes.
+
+### Redação sugerida para o artigo
+
+Antes das análises, os metadados foram submetidos a verificação de consistência
+interna (títulos, anos, identificadores persistentes, duplicatas e valores de
+citação), sem registro de inconsistências no conjunto analisado.
+
+### Erros comuns a evitar
+
+- Interpretar `biblio_health()` como validação de qualidade científica: a função verifica metadados, não o mérito dos estudos.
+- Rodar o diagnóstico só no fim da análise: defeitos de metadados distorcem redes, métricas e comparações, portanto a verificação vem antes.
+- Ignorar a linha de citações negativas: contagem negativa indica erro de importação ou de codificação e quebra médias e normalizações.
+- Supor que acervo pequeno dispensa verificação: o acervo didático tem 12 obras e ainda assim passa por seis verificações.
+- Confundir ausência de achado com ausência de problema: campos vazios podem existir em número baixo e ainda assim concentrar-se justamente nas obras mais influentes.

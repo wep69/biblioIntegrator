@@ -1,0 +1,233 @@
+linhas de prosa com decimais: 56 
+
+ linha valores    
+  416  1.1        
+  420  1.2        
+  760  2.1        
+  768  2.2        
+ 1348  3.1        
+ 1356  3.2        
+ 1959  4.1        
+ 1966  4.2        
+ 2485  5.1        
+ 2492  5.2        
+ 2653  0,002      
+ 2706  0,01       
+ 2943  0,10 | 0,40
+ 3182  6.1        
+ 3190  6.2        
+ 4043  7.1        
+ 4050  7.2        
+ 4051  0.5        
+ 4052  0.8        
+ 4658  8.1        
+ 4665  8.2        
+ 4995  9.2        
+ 5227  9.1        
+ 5233  9.2        
+ 5743  0,05       
+ 5750  4.999      
+ 6007  10.1       
+ 6017  10.2       
+ 6264  0,001      
+ 6646  12.1       
+ 6656  12.2       
+ 6674  1.1        
+ 6723  1.2        
+ 6764  2.1        
+ 6902  2.2        
+ 7086  3.1        
+ 7257  3.2        
+ 7430  4.1        
+ 7519  4.2        
+ 7618  5.1        
+ 7716  5.2        
+ 7813  6.1        
+ 7887  0,05       
+ 7913  0,05       
+ 7927  6.2        
+ 8019  7.1        
+ 8144  7.2        
+ 8258  8.1        
+ 8364  8.2        
+ 8531  9.1        
+ 8653  9.2        
+ 8765  10.1       
+ 8901  0,05       
+ 8950  10.2       
+ 9143  12.1       
+ 9271  12.2       
+ texto                                                                            
+ **Tarefa 1.1 (aplicar).** Importe o arquivo `acervo_agronomia.csv` gerado acima  
+ **Tarefa 1.2 (analisar).** Rode `biblio_health()` sobre o acervo didático e      
+ **Tarefa 2.1 (aplicar).** Rode o encadeamento completo — diagnóstico,            
+ **Tarefa 2.2 (analisar e criar).** Decida o destino da duplicata remanescente e  
+ **Tarefa 3.1 (aplicar).** Refaça o retrato descritivo e o painel de impacto sobre
+ **Tarefa 3.2 (analisar e criar).** Escreva uma função                            
+ **Tarefa 4.1 (aplicar).** Use `citation_velocity()` sobre o acervo real do       
+ **Tarefa 4.2 (analisar).** Construa um vetor de anos de referência com um ano    
+ **Tarefa 5.1 (aplicar).** Rode `term_frequency()` sobre o campo de títulos com e 
+ **Tarefa 5.2 (analisar).** Use `trend_topics()` para montar a série anual de um  
+ não deve ser lido como "0,002 exato": com `r cmp_per$permutations` permutações, o
+ tamanhos diferentes. Escrever "associação altamente significativa (p < 0,01)"    
+ reconhecê-la. Se o V oscilasse de 0,10 a 0,40 entre limiares, a conclusão        
+ **Tarefa 6.1 (aplicar).** O acervo analítico traz obras em nove periódicos. Rode 
+ **Tarefa 6.2 (analisar).** Rode `sensitivity_analysis()` sobre o contraste por   
+ **Tarefa 7.1 (aplicar).** Construa a rede de coautoria com os dois motores,      
+ **Tarefa 7.2 (analisar).** Rode `network_stability()` sobre a rede de coautoria  
+ com `B = 20` e `fraction = 0.5`, e compare com o resultado de                    
+ `fraction = 0.8`. Descreva o que acontece com `sd_rank` quando a fração          
+ **Tarefa 8.1 (aplicar).** Grave o acervo **didático** (`x_did`) em um diretório  
+ **Tarefa 8.2 (analisar).** Escreva uma consulta SQL que devolva, para cada       
+ uma etapa obrigatória — e é o que a tarefa 9.2 pede.                             
+ **Tarefa 9.1 (aplicar).** Faça uma consulta nova ao OpenAlex com `n = 25` sobre  
+ **Tarefa 9.2 (analisar).** No acervo real deste módulo, selecione as             
+ a conclusão qualitativa ("evidência forte de associação, p muito abaixo de 0,05")
+ 4.999 e veja se as faixas de p convergem; se a divergência diminuir com mais     
+ **Tarefa 10.1 (aplicar).** Refaça a validação cruzada trocando o agrupamento por 
+ **Tarefa 10.2 (analisar).** Escreva um diagnóstico automatizado que percorra os  
+ já é menor que 0,001 gasta                                                       
+ **Tarefa 12.1 (aplicar).** Monte o plano de análise do seu próprio projeto com   
+ **Tarefa 12.2 (criar).** Você precisa entregar a um coorientador de outra        
+ ## Gabarito do Exercício 1.1                                                     
+ ## Gabarito do Exercício 1.2                                                     
+ ## Gabarito do Exercício 2.1                                                     
+ ## Gabarito do Exercício 2.2                                                     
+ ## Gabarito do Exercício 3.1                                                     
+ ## Gabarito do Exercício 3.2                                                     
+ ## Gabarito do Exercício 4.1                                                     
+ ## Gabarito do Exercício 4.2                                                     
+ ## Gabarito do Exercício 5.1                                                     
+ ## Gabarito do Exercício 5.2                                                     
+ ## Gabarito do Exercício 6.1                                                     
+ "p > 0,05".                                                                      
+ 2. **Interpretar p > 0,05 como prova de independência.** O p-valor alto apenas   
+ ## Gabarito do Exercício 6.2                                                     
+ ## Gabarito do Exercício 7.1                                                     
+ ## Gabarito do Exercício 7.2                                                     
+ ## Gabarito do Exercício 8.1                                                     
+ ## Gabarito do Exercício 8.2                                                     
+ ## Gabarito do Exercício 9.1                                                     
+ ## Gabarito do Exercício 9.2                                                     
+ ## Gabarito do Exercício 10.1                                                    
+ e conclusão qualitativa preservada (p abaixo de 0,05 nos dois motores:           
+ ## Gabarito do Exercício 10.2                                                    
+ ## Gabarito do Exercício 12.1                                                    
+ ## Gabarito do Exercício 12.2                                                    
+
+--- marcadores nao resolvidos ---
+41 linhas
+ [1] "  title = sprintf(\"%s em %s (estudo %03d)\","                                                                             
+ [2] "m2_rot <- function(t, y) sprintf(\"estudo %s (%d)\", sub(\"^.*\\\\(estudo ([0-9]+)\\\\).*$\", \"\\\\1\", t), y)"           
+ [3] "m3_fontes$rotulo <- sprintf(\"%s\\n(n = %d)\", m3_fontes$fonte, m3_fontes$obras)"                                          
+ [4] "`r sum(cont_bloco$mencoes[cont_bloco$periodo == \"2020-2025\"]) -"                                                         
+ [5] "`r round(100 * (cont_bloco$mencoes[cont_bloco$bloco == \"Automacao\" & cont_bloco$periodo == \"2020-2025\"] -"             
+ [6] "           label = sprintf(\"%d: %d citações\\n%d acima da base\", pico$year,"                                             
+ [7] "txt_pares <- sprintf(\"%d par%s obra-referência\", nrow(refs_x),"                                                          
+ [8] "`r tf_bruto$n[tf_bruto$term == \"estudo\"] +"                                                                              
+ [9] "`r round(100 * (tf_bruto$n[tf_bruto$term == \"estudo\"] +"                                                                 
+[10] "`r round(100 * mean(x_analise$works$work_id %in%"                                                                          
+[11] "`r round(100 * mean(x_analise$works$work_id %in%"                                                                          
+[12] "plantados: `r sum(planta$laboratorio == \"silício\" & planta$comunidade_louvain =="                                        
+[13] "`r sum(planta$laboratorio == \"remoto\" & planta$comunidade_louvain =="                                                    
+[14] "`r sum(planta$laboratorio == \"carbono\" & planta$comunidade_louvain =="                                                   
+[15] "`r sum(planta$laboratorio == \"internacional\" & planta$comunidade_louvain =="                                             
+[16] "  \"SELECT year, COUNT(*) AS obras FROM read_parquet('%s/works.parquet') GROUP BY year\","                                 
+[17] "       subtitle = sprintf(\"%d obras entre %d e %d\", sum(consulta_ano$obras),"                                            
+[18] "  FROM works WHERE cited_by_count >= %d"                                                                                   
+[19] "O limiar de `r limiar` citações deixa `r sem_eco(biblio_query(p_duck, sprintf(\"SELECT COUNT(*) AS n FROM works WHERE cit" 
+[20] "  WHERE k.keyword = '%s' GROUP BY w.periodo ORDER BY w.periodo\", termo_foco)))"                                           
+[21] "  caption = sprintf(\"Obras que declaram o termo '%s', por periodo.\", termo_foco))"                                       
+[22] "  arrow = c(sprintf(\"diretório com %d arquivos Parquet\", length(arq_parquet)),"                                          
+[23] "motores$arrow[2:3] <- sprintf(\"%s (%.1f kB no total)\", motores$arrow[2:3], tam_a)"                                       
+[24] "motores$duckdb[2:3] <- sprintf(\"%s (%.1f kB)\", motores$duckdb[2:3], tam_d)"                                              
+[25] "  \"SELECT COUNT(*) AS n FROM read_parquet('%s/works.parquet')\","                                                         
+[26] "              sprintf(\"%d citações — %s (%d)\", wC$cited_by_count[i_top],"                                                
+[27] "         subtitle = sprintf(\"%d obras entre %d e %d, segundo o OpenAlex\","                                               
+[28] "         subtitle = sprintf(\"Coleta em %s; %d eventos sem data foram excluídos\","                                        
+[29] "  'cat(sprintf(\"available=%-5s version=%-8s reason=%s\",',"                                                               
+[30] "acervo analítico preserva `r paste(sub(\"^\\\\| \", \"\", sub(\" \\\\|$\", \"\","                                          
+[31] "       subtitle = sprintf(\"%d obras, seis tabelas por formato\", nrow(x_analise$works)))"                                 
+[32] "   `r sum(duplicated(paste(tolower(trimws(x_limpo$works$title)), x_limpo$works$year)) |"                                   
+[33] "(`r setdiff(colnames(validar_sem_ruido(x_analise, g_per, entity = \"author\")$biblium$observed),"                          
+[34] "`r setdiff(colnames(validar_sem_ruido(x_analise, g_per, entity = \"author\")$native$observed),"                            
+[35] "   `r sprintf(\"%.0f\", 100 * abs(grade101$p_nativo[1] - grade101$p_biblium[1]) /"                                         
+[36] "`r round(tamanhos_12_1$kB[tamanhos_12_1$formato == \"csv\"] /"                                                             
+[37] "  sprintf(\"- `entrega_json/`: acervo completo de %d obras em seis tabelas JSON, lido em Python com `json.load`.\", nrow(e"
+[38] "  sprintf(\"- `entrega_bibliometrix.csv`: as %d obras no quadro de campo-etiquetas (TI, PY, DI, SO, TC, AU, DE), com auto" 
+[39] "  sprintf(\"Descartei %d obra(s) sem ano de publicação: sem esse campo a obra não entra em nenhuma série temporal.\", sum("
+[40] "  sprintf(\"O acervo bruto tinha %d registros; a deduplicação por DOI, título e ano removeu %d duplicatas antes da anális" 
+[41] "  sprintf(\"Limitação exposta pelo relatório: %d título ausente, %d DOI ausente e %d citação negativa permanecem no acerv" 
+
+--- NA/NaN/NULL visiveis na prosa ---
+70 linhas
+ [1] "        strip.background = element_rect(fill = \"grey92\", colour = NA),"                            
+ [2] "  labs(x = NULL, y = NULL, title = \"Backends opcionais do biblioIntegrator\")"                      
+ [3] "  labs(x = NULL, y = NULL, title = \"Do arquivo exportado ao objeto analítico\") +"                  
+ [4] "  labs(x = NULL, y = \"registros afetados\", fill = NULL,"                                           
+ [5] "  labs(x = NULL, y = \"contagem\","                                                                  
+ [6] "  labs(x = NULL, title = \"Produção anual e citações acumuladas\","                                  
+ [7] "                    name = NULL) +"                                                                  
+ [8] "  labs(x = NULL, y = \"citações por obra (média)\","                                                 
+ [9] "  scale_colour_manual(values = c(\"média\" = pal_agri[2], \"mediana\" = pal_agri[3]), name = NULL) +"
+[10] "  scale_linetype_manual(values = c(\"média\" = \"dashed\", \"mediana\" = \"dotted\"), name = NULL) +"
+[11] "                      name = NULL) +"                                                                
+[12] "# a linha de NA separa os dois blocos e marca a taxa ausente do primeiro ano"                        
+[13] "  labs(x = NULL, y = \"crescimento (%)\", fill = NULL,"                                              
+[14] "  labs(x = NULL, y = \"citações por obra\","                                                         
+[15] "                                 \"abaixo da mediana\" = pal_agri[3]), name = NULL) +"               
+[16] "  labs(x = NULL, y = \"menções por obra\", title = \"Mudança de composição temática\","              
+[17] "                                 \"pico\" = pal_agri[2]), name = NULL) +"                            
+[18] "olhos, porque uma função que devolvesse `NA` em silêncio produziria uma tabela de"                   
+[19] "                               \"N_k citam só o passado\" = \"grey70\"), name = NULL) +"             
+[20] "  labs(x = NULL, y = \"número de obras citantes\","                                                  
+[21] "  labs(x = \"ocorrências no campo de títulos\", y = NULL,"                                           
+[22] "                    name = NULL) +"                                                                  
+[23] "  labs(x = \"menções no acervo\", y = NULL,"                                                         
+[24] "  labs(x = \"ano\", y = NULL,"                                                                       
+[25] "  scale_colour_manual(values = pal_ia, name = NULL) +"                                               
+[26] "  labs(x = NULL, y = \"Resíduo padronizado de Pearson\","                                            
+[27] "       fill = NULL) +"                                                                               
+[28] "termos_plano$rotulo <- ifelse(termos_plano$nome %in% rotular, termos_plano$nome, NA)"                
+[29] "  labs(x = \"Dimensão 1\", y = \"Dimensão 2\", colour = NULL,"                                       
+[30] "  labs(x = \"Dimensão\", y = \"Variância explicada (%)\", fill = NULL,"                              
+[31] "       y = NULL,"                                                                                    
+[32] "  labs(x = NULL, y = \"Trabalhos\", fill = NULL,"                                                    
+[33] "  labs(x = NULL, y = \"Valor da medida\","                                                           
+[34] "                          pontos$display_name == \"Silva AP\", pontos$display_name, NA)"             
+[35] "vertices$rotulo <- ifelse(vertices$display_name %in% mais_centrais, vertices$display_name, NA)"      
+[36] "  labs(x = NULL, y = NULL,"                                                                          
+[37] "       y = NULL,"                                                                                    
+[38] "  labs(x = NULL, y = NULL,"                                                                          
+[39] "  labs(x = NULL, y = \"segundos\","                                                                  
+[40] "  labs(x = NULL, y = \"quilobytes (escala log)\","                                                   
+[41] "  labs(x = NULL, y = \"obras que declaram o termo\","                                                
+[42] "if (!nzchar(mailto_openalex)) mailto_openalex <- NULL"                                               
+[43] "    labs(x = NULL, y = \"citações recebidas\","                                                      
+[44] "         y = \"fração das obras do acervo\", fill = NULL, colour = \"acervo\","                      
+[45] "                               error = function(e) NULL)),"                                          
+[46] "                               error = function(e) NULL)))"                                          
+[47] "                      name = NULL) +"                                                                
+[48] "                              permutations = 499, seed = NULL) {"                                    
+[49] "  labs(x = NULL, y = NULL,"                                                                          
+[50] "                    name = NULL) +"                                                                  
+[51] "  labs(x = NULL, y = \"Pares obra-palavra-chave observados\","                                       
+[52] "                               \"etapa inferencial\" = pal_agri[2]), name = NULL) +"                 
+[53] "  labs(x = \"tempo de execução (milissegundos)\", y = NULL,"                                         
+[54] "  labs(x = NULL, y = \"tamanho no disco (kB)\","                                                     
+[55] "2. **Deixar `NA` passar como se fosse razão válida.** Uma obra do acervo tem"                        
+[56] "   `sensitivity_analysis()` com `seed = NULL` usa o estado corrente do gerador, e"                   
+[57] "rownames(head_fontes) <- NULL"                                                                       
+[58] "   `NULL`, que aparece na tabela como uma categoria e costuma passar despercebida."                  
+[59] "if (!nzchar(mailto_gab)) mailto_gab <- NULL"                                                         
+[60] "Nesta execução foram `r if (tem_novo) nrow(acervo_novo$works) else NA` obras,"                       
+[61] "`r if (tem_novo) nrow(acervo_novo$authors) else NA` autores e"                                       
+[62] "`r if (tem_novo) nrow(acervo_novo$keywords) else NA` pares obra-termo, cobrindo"                     
+[63] "de `r if (tem_novo) min(acervo_novo$works$year) else NA` a"                                          
+[64] "`r if (tem_novo) max(acervo_novo$works$year) else NA`. Compare esses números com"                    
+[65] "                              permutations = 499, seed = NULL) {"                                    
+[66] "  labs(x = NULL, y = \"Diferenca relativa do chi-quadrado (%, escala log)\","                        
+[67] "                               \"Biblium (Python)\" = pal_agri[2]), name = NULL) +"                  
+[68] "  labs(x = NULL, y = \"Chi-quadrado\","                                                              
+[69] "   `year` com `NA` devolve `NA` como rótulo de grupo e cria um grupo fantasma."                      
+[70] "   os dados em `plan$source`, que veio `NULL`. Passe o acervo explicitamente:"                       

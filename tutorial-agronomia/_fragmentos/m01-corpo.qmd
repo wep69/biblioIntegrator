@@ -1,0 +1,89 @@
+# Módulo 1. Arquitetura relacional e importação
+
+## O problema agronômico
+
+Uma equipe de fertilidade do solo exporta 280 referências de três bases
+diferentes. Cada base nomeia as colunas de um jeito: uma chama o periódico de
+`source`, outra de `journal`, outra de `so_title`; uma grava o DOI com prefixo
+completo, outra só o sufixo. Se cada análise começar de um formato próprio, cada
+nova base exigirá reescrever todo o código. A solução do `biblioIntegrator` é
+harmonizar tudo em um objeto relacional único, o `biblio_project`, com seis
+tabelas ligadas por identificadores.
+
+## Do quadro plano ao objeto relacional
+
+```{r tbl-arquitetura}
+x_did <- as_biblio_project(example_biblio(), source = "acervo didático")
+estrutura <- data.frame(
+  tabela = c("works","authorships","authors","keywords","references","provenance"),
+  conteudo = c("uma linha por obra","ligação obra-autor","autores únicos",
+               "palavras-chave normalizadas","arestas de citação","trilha de operações"),
+  linhas_didatico = vapply(x_did, nrow, integer(1)),
+  linhas_analitico = vapply(x_analise, nrow, integer(1)),
+  stringsAsFactors = FALSE)
+knitr::kable(estrutura, row.names = FALSE,
+             caption = "As seis tabelas do biblio_project e o tamanho de cada uma nos dois acervos.")
+```
+
+A Tabela acima é a planta da casa. `works` guarda o documento; `authorships`
+liga documento e autor, o que permite contar produção por autor sem repetir
+linhas de documento; `keywords` normaliza os termos em minúsculas; `provenance`
+registra cada operação aplicada. A coluna `linhas_analitico` mostra que o acervo
+analítico tem `r estrutura$linhas_analitico[1]` obras,
+`r estrutura$linhas_analitico[2]` ligações de autoria e
+`r estrutura$linhas_analitico[4]` pares obra-termo.
+
+```{r}
+#| label: fig-fluxo
+#| fig-cap: "Caminho de importação: o quadro plano é lido, as colunas são reconhecidas por sinônimos e o resultado é o projeto relacional."
+#| fig-alt: "Quatro caixas encadeadas por setas, do arquivo exportado ao objeto analítico."
+#| fig-height: 2.4
+csv_did <- file.path(tempdir(), "acervo_agronomia.csv")
+write.csv(head(example_biblio(), 6L), csv_did, row.names = FALSE)
+x_importado <- biblio_import(csv_did)
+etapas <- c("Arquivo\n(CSV, TSV, JSON)", "biblio_import()\nreconhece sinônimos",
+            "as_biblio_project()\nharmoniza", "biblio_project\n(6 tabelas)")
+graf <- data.frame(etapa = factor(etapas, levels = etapas), x = 1:4)
+ggplot(graf, aes(x = x, y = 1)) +
+  geom_label(aes(label = etapa), fill = "white", colour = pal_agri[1],
+             linewidth = .5, size = 3.1, label.padding = unit(.45, "lines")) +
+  geom_segment(data = data.frame(x = 1:3, xe = 2:4),
+               aes(x = x + .45, xend = xe - .45, y = 1, yend = 1),
+               arrow = arrow(length = unit(.18, "cm")), colour = "grey40") +
+  scale_x_continuous(limits = c(.55, 4.45)) + ylim(.85, 1.15) +
+  labs(x = NULL, y = NULL, title = "Do arquivo exportado ao objeto analítico") +
+  theme_void(base_size = 10) +
+  theme(plot.title = element_text(face = "bold", hjust = .5, size = 11))
+```
+
+A Figura 2 resume o módulo inteiro. A leitura prática é que a etapa de
+harmonização é o único ponto em que nomes de coluna importam; a partir do
+`biblio_project`, todas as funções falam a mesma língua. O arquivo importado
+nesta execução produziu `r nrow(x_importado$works)` obras, o mesmo número de
+linhas do CSV de entrada.
+
+```{r tbl-works}
+knitr::kable(head(x_did$works[, c("work_id","title","year","doi","cited_by_count")], 4),
+             caption = "As quatro primeiras linhas da tabela works do acervo didático.")
+```
+
+Os identificadores `work_id` são derivados do DOI quando ele existe e do título
+com ano quando não existe, o que garante chave estável mesmo com metadados
+incompletos. É essa chave que sustenta a deduplicação do módulo seguinte.
+
+## Tarefas do Módulo 1
+
+**Tarefa 1.1 (aplicar).** Importe o arquivo `acervo_agronomia.csv` gerado acima
+com `biblio_import()`, harmonize com `as_biblio_project()` usando
+`source = "minha base"` e informe quantas obras, autores e termos o projeto tem.
+
+**Tarefa 1.2 (analisar).** Rode `biblio_health()` sobre o acervo didático e
+explique, em duas frases, por que o diagnóstico não encontra problema algum mesmo
+com um acervo tão pequeno.
+
+::: {.callout-tip}
+## Antes de seguir
+Se você não sabe qual backend opcional está instalado na sua máquina, rode
+`backend_status()`. A saída é uma tabela com uma linha por backend e um indicador
+lógico de disponibilidade, sem interromper a sessão.
+:::

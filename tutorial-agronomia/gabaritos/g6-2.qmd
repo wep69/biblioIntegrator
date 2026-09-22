@@ -1,0 +1,103 @@
+## Gabarito do Exercício 6.2
+
+### Código completo e executável
+
+```{r gab-6-2}
+# sensibilidade do contraste por TEMA, com grade mais ampla de limiares
+sens_tema <- sensitivity_analysis(x_analise, g_tema, entity = "keyword",
+                                  thresholds = c(1, 2, 5, 10),
+                                  permutations = 199, seed = SEED)
+knitr::kable(sens_tema, row.names = FALSE, digits = 4,
+             caption = "Sensibilidade do contraste por tema ao limiar de frequência mínima dos termos.")
+
+# numero de OBRAS distintas em que cada termo aparece, que e o criterio do limiar
+contagem_termos <- colSums(table(x_analise$keywords$work_id, x_analise$keywords$keyword) > 0)
+cat("termos distintos no acervo:", length(contagem_termos), "\n")
+cat("termos com pelo menos 10 obras:", sum(contagem_termos >= 10), "\n")
+cat("termo mais raro aparece em", min(contagem_termos), "obra(s)\n")
+cat("termo mais frequente aparece em", max(contagem_termos), "obras\n\n")
+
+# contraste com o periodo e com um cenario de vocabulario concentrado
+sens_per <- sensitivity_analysis(x_analise, g_per, entity = "keyword",
+                                 thresholds = c(1, 2, 5, 10),
+                                 permutations = 199, seed = SEED)
+comparacao <- rbind(
+  data.frame(contraste = "tema", sens_tema),
+  data.frame(contraste = "periodo", sens_per))
+knitr::kable(comparacao, row.names = FALSE, digits = 4,
+             caption = "Os dois contrastes lado a lado na mesma grade de limiares: V de Cramér, p-valor e número de termos remanescentes.")
+```
+
+### Leitura da saída
+
+Para o contraste por tema, o V de Cramér fica em
+`r round(unique(sens_tema$cramers_v), 4)` nos quatro limiares testados, e o
+p-valor é `r min(sens_tema$p_value)` em todos. A coluna `entities` também não se
+move: são `r unique(sens_tema$entities)` termos em todos os limiares, inclusive
+com o corte em 10 obras. O quadro é o de estabilidade total — e de uma estabilidade
+que precisa ser lida com cuidado, porque **nada mudou entre os limiares**: o V do
+contraste por período também é constante
+(`r paste(round(unique(sens_per$cramers_v), 4), collapse = " → ")`) e o p-valor
+dele é `r min(sens_per$p_value)` em toda a grade.
+
+A explicação da imobilidade de `entities` está na segunda parte do código. O
+limiar filtra **termos**, não obras: `sensitivity_analysis()` mantém a coluna do
+termo quando ele aparece em pelo menos `threshold` obras. Neste acervo o termo
+mais raro aparece em `r min(contagem_termos)` obras e o mais frequente em
+`r max(contagem_termos)`, e todos os
+`r length(contagem_termos)` termos passam o corte de 10. Por isso a grade
+`c(1, 2, 5, 10)` mede, na prática, o mesmo contraste quatro vezes. Medir a
+sensibilidade exige escolher limiares que de fato removam termos: o contraste por
+tema perde `r 24 - sensitivity_analysis(x_analise, g_tema, thresholds = 50, permutations = 199, seed = SEED)$entities`
+termos quando o limiar sobe para 50.
+
+Vale também registrar o efeito do número de permutações sobre os p-valores. Com
+199 permutações, o menor valor alcançável é
+`r 1 / (199 + 1)` e os três limiares empatam nele. Repetindo a grade com 499
+permutações, os p-valores passam a
+`r paste(sensitivity_analysis(x_analise, g_per, thresholds = 1:3, permutations = 499, seed = SEED)$p_value, collapse = ", ")`
+— diferentes entre si, embora o qui-quadrado observado seja o mesmo em todos,
+porque o limiar não removeu termo algum. É a demonstração de que a diferença entre
+p-valores de permutação, na terceira decimal, é ruído de reamostragem.
+
+Sobre a pergunta do enunciado, o V que se move muito ao longo da grade só é sinal
+de **fragilidade** depois de duas verificações. A primeira é se a grade realmente
+remove termos: se não remove, estabilidade é trivial e instabilidade seria
+impossível, e o exercício não testou nada. A segunda é se a variação acompanha a
+composição do vocabulário: quando o limiar alto elimina termos que sustentavam a
+associação, o V cai por construção e os valores deixam de ser comparáveis entre si.
+Só depois dessas duas conferências faz sentido olhar para a **tendência** — V que
+sobe ou desce monotonicamente com o limiar indica que a conclusão depende de uma
+decisão arbitrária do pesquisador, e o achado deve ser rebaixado a exploratório ou
+reanalisado com a regra de corte fixada a priori.
+
+### Redação sugerida para o artigo
+
+> A robustez do contraste por tema foi avaliada em quatro limiares de frequência
+> mínima do termo (1, 2, 5 e 10 obras). O V de Cramér permaneceu em
+> `r round(unique(sens_tema$cramers_v), 3)` e o p-valor por permutação em
+> `r min(sens_tema$p_value)` em todos os limiares, e os
+> `r unique(sens_tema$entities)` termos do vocabulário permaneceram na análise
+> porque o termo menos frequente do acervo ocorre em `r min(contagem_termos)`
+> obra. A estabilidade indica que a associação entre frente de pesquisa e
+> vocabulário é propriedade do acervo e não do ponto de corte adotado; a
+> interpretação substantiva, no entanto, permanece limitada ao vocabulário
+> controlado do corpus, que foi construído com termos fixos por tema.
+
+### Erros comuns a evitar
+
+1. **Tratar `entities` como número de obras.** A coluna conta **termos** que
+   sobreviveram ao corte; o número de obras é `nrow(x_analise$works)` e não muda
+   com o limiar.
+2. **Usar uma grade de limiares que não remove nada.** Como aqui, em que todos os
+   termos passam o corte de 10, a análise de sensibilidade vira repetição do
+   mesmo cálculo e não mede robustez.
+3. **Comparar V entre limiares sem verificar que o vocabulário é o mesmo.** Se o
+   limiar elimina termos, os dois V são calculados sobre tabelas diferentes e a
+   comparação direta perde sentido.
+4. **Concluir "estável, logo correto" a partir de um único eixo de sensibilidade.**
+   O limiar de frequência é uma das decisões arbitrárias; a escolha do campo
+   (`keyword` ou `author`), do agrupamento e da semente também afetam o resultado.
+5. **Rodar a análise de sensibilidade sem semente e comparar p-valores.**
+   `sensitivity_analysis()` com `seed = NULL` usa o estado corrente do gerador, e
+   a comparação entre limiares fica contaminada por sorteios diferentes.

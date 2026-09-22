@@ -1,0 +1,264 @@
+# Gabaritos do Módulo 12
+
+## Gabarito do Exercício 12.1
+
+### Código completo e executável
+
+```{r gab-m12-1}
+# Semente do tutorial: SEED == 2026L, criada por _setup_corpora.R.
+# O plano declara o agrupamento por periodo (g_per), mas o modulo "groups"
+# NAO entra na lista: a inferencia fica fora do plano descritivo.
+plano_12_1 <- form_plan(
+  analyses = c("health", "descriptive", "temporal", "network", "text"),
+  network  = "coauthor",
+  group    = g_per,
+  report   = "markdown",
+  seed     = SEED)
+
+validate_plan(plano_12_1)          # aborta aqui se houver modulo invalido
+
+execucao_12_1 <- run_plan(plano_12_1, x_analise)
+print(names(execucao_12_1))        # o registro do que foi produzido
+
+# Controle de erro que o exercicio pede: um plano com nome errado
+# nao chega a rodar nada.
+plano_com_erro <- form_plan(analyses = c("health", "temporal", "redes"), seed = SEED)
+print(tryCatch(validate_plan(plano_com_erro),
+               error = function(e) conditionMessage(e)))
+
+# Relatorio em dois formatos, sempre com caminho absoluto.
+pasta <- file.path(getwd(), "_m12_saidas", "gabarito-12-1")
+dir.create(pasta, showWarnings = FALSE, recursive = TRUE)
+arq_md   <- biblio_report(x_analise, file.path(pasta, "suplemento.md"),
+                          format = "markdown",
+                          title = "Silício e salinidade: relatório do acervo")
+arq_docx <- biblio_report(x_analise, file.path(pasta, "suplemento.docx"),
+                          format = "docx",
+                          title = "Silício e salinidade: relatório do acervo")
+
+# Exportacao nos dois formatos e medicao do tamanho real.
+dir_csv <- file.path(pasta, "dados_csv")
+dir_pq  <- file.path(pasta, "dados_parquet")
+export_biblio(x_analise, dir_csv, "csv")
+export_biblio(x_analise, dir_pq,  "parquet")
+
+tamanhos_12_1 <- data.frame(
+  formato   = c("csv", "parquet"),
+  arquivos  = c(length(list.files(dir_csv)), length(list.files(dir_pq))),
+  bytes     = c(sum(file.size(list.files(dir_csv, full.names = TRUE))),
+                sum(file.size(list.files(dir_pq, full.names = TRUE)))))
+tamanhos_12_1$kB <- round(tamanhos_12_1$bytes / 1024, 1)
+print(tamanhos_12_1)
+
+# Conferencia final do exercicio: os arquivos existem?
+print(file.exists(c(arq_md, arq_docx)))
+```
+
+A frase de Material e Métodos que fecha a tarefa pode ser escrita assim:
+
+> A análise bibliométrica foi executada sobre `r nrow(x_analise$works)` obras
+> recuperadas e harmonizadas com o pacote `biblioIntegrator`, segundo um plano
+> declarado antes da execução que incluiu os módulos de qualidade dos dados,
+> estatística descritiva, dinâmica temporal, rede de coautoria e análise textual
+> de termos; todas as etapas estocásticas usaram a semente
+> `r SEED`, e o relatório completo do acervo, os dados exportados e o plano
+> executado estão depositados no material suplementar.
+
+### Leitura da saída
+
+O primeiro resultado a conferir é `names(execucao_12_1)`, porque ele é a prova do
+que o plano fez. Com os cinco módulos declarados, a lista devolve
+`r paste(names(execucao_12_1), collapse = ", ")`: o acervo entra como `project`,
+cada módulo acrescenta o seu elemento e a rede de coautoria acrescenta dois, a
+própria rede e a tabela de centralidade. Não há elemento `groups`, exatamente
+porque o módulo não foi pedido – o plano declarado e o resultado executado batem,
+e é essa conferência que você faz antes de escrever uma linha de Resultados.
+
+O segundo resultado é a mensagem de erro do bloco `tryCatch`:
+`Unknown analyses: redes`. Ela não deve ser lida como falha do exercício, e sim
+como o comportamento desejado: o nome errado é barrado por `validate_plan()` antes
+de qualquer cálculo, de modo que a sessão não gasta tempo produzindo metade de uma
+análise. Note também que `form_plan()` aceitou `"redes"` sem reclamar: a lista de
+módulos válidos é conferida na validação, não na construção do plano.
+
+O terceiro resultado é a tabela de tamanhos. Os dois formatos gravam
+`r unique(tamanhos_12_1$arquivos)` arquivos cada, porque `export_biblio()` exporta
+o projeto relacional inteiro, e o Parquet sai
+`r round(tamanhos_12_1$kB[tamanhos_12_1$formato == "csv"] /
+         tamanhos_12_1$kB[tamanhos_12_1$formato == "parquet"], 1)`
+vezes menor que o CSV. Se você precisa que o revisor *veja* os dados, mande o CSV;
+se precisa que o repositório *guarde* os dados em escala, mande o Parquet.
+
+### Redação sugerida para o artigo
+
+> O plano de análise foi declarado antes da execução, com os módulos de qualidade
+> dos dados, estatística descritiva, dinâmica temporal, rede de coautoria e análise
+> textual de termos, rede de coautoria e semente `r SEED` fixada para todas as
+> etapas estocásticas, incluindo a construção da rede. O plano foi validado
+> programaticamente antes da execução, o que impede a execução parcial de análises
+> por erro de especificação. O relatório completo do acervo, contendo o resumo do
+> corpus, o diagnóstico de qualidade, a produção anual, os termos líderes e as
+> medidas de centralidade, é disponibilizado como material suplementar em dois
+> formatos, e os dados analíticos são depositados em formato aberto
+> (`r tamanhos_12_1$kB[tamanhos_12_1$formato == "parquet"]` kB em Parquet e
+> `r tamanhos_12_1$kB[tamanhos_12_1$formato == "csv"]` kB em CSV). Os resíduos de
+> qualidade apontados pelo diagnóstico são tratados como limitação do estudo e
+> estão declarados na seção de limitações.
+
+### Erros comuns a evitar
+
+1. **Escrever `run_plan(plano)` esquecendo o acervo.** A chamada falha com a
+   mensagem obscura `argumento tem comprimento zero`, porque a função tenta buscar
+   os dados em `plan$source`, que veio `NULL`. Passe o acervo explicitamente:
+   `run_plan(plano, x_analise)`.
+2. **Pular a validação.** Rodar `run_plan()` direto em um plano com nome de módulo
+   errado parece funcionar por alguns instantes e depois aborta com
+   `Unknown analyses: redes`, no meio do processo. A validação existe para que o
+   erro apareça na primeira linha, não no meio da execução.
+3. **Usar caminho relativo em `biblio_report()`.** Nos formatos renderizados, o
+   arquivo é montado em um diretório temporário e o caminho relativo passa a
+   apontar para o lugar errado; o erro é
+   `The directory '.../Temp/Rtmp.../pasta' does not exist`. Use
+   `file.path(getwd(), "pasta")`.
+4. **Esperar um único arquivo de `export_biblio()`.** O argumento `path` é um
+   diretório e a função grava seis tabelas dentro dele. Pior: se você passar um
+   caminho com extensão, como `"dados.csv"`, o diretório `dados.csv` é criado e os
+   arquivos ficam escondidos dentro dele.
+5. **Confundir o plano com a análise.** Mudar a semente depois de executar e
+   reportar o resultado antigo quebra a reprodutibilidade. Se a semente faz parte
+   do plano, ela vai também para a seção de Material e Métodos.
+
+## Gabarito do Exercício 12.2
+
+### Código completo e executável
+
+```{r gab-m12-2}
+pasta_12_2 <- file.path(getwd(), "_m12_saidas", "gabarito-12-2")
+dir.create(pasta_12_2, showWarnings = FALSE, recursive = TRUE)
+
+# 1. Selecionar o que entra na entrega: fora as obras sem ano.
+#    Em x_analise isso ja foi feito na fundacao do tutorial, entao o descarte
+#    e zero; o mesmo filtro aplicado a x_limpo remove 1 obra. O codigo abaixo
+#    e o que o aluno deve escrever, e a contagem prova que o recorte foi feito.
+sem_ano <- is.na(x_analise$works$year)
+entrega <- x_analise
+entrega$works <- x_analise$works[!sem_ano, , drop = FALSE]
+ids <- entrega$works$work_id
+entrega$authorships <- x_analise$authorships[x_analise$authorships$work_id %in% ids, , drop = FALSE]
+entrega$keywords <- x_analise$keywords[x_analise$keywords$work_id %in% ids, , drop = FALSE]
+entrega$provenance <- x_analise$provenance
+rm(ids)
+
+# 2. Exportar para quem usa Python: JSON e CSV.
+dir_json <- file.path(pasta_12_2, "entrega_json")
+dir_csv2 <- file.path(pasta_12_2, "entrega_csv")
+export_biblio(entrega, dir_json, "json")
+export_biblio(entrega, dir_csv2, "csv")
+
+# 3. Terceiro arquivo: o quadro de campo-etiquetas do bibliometrix.
+quadro_12_2 <- to_bibliometrix(entrega)
+write.csv(quadro_12_2, file.path(pasta_12_2, "entrega_bibliometrix.csv"), row.names = FALSE)
+
+# 4. Relatorio em docx para o coorientador.
+arq_docx_12_2 <- biblio_report(entrega, file.path(pasta_12_2, "relatorio-entrega.docx"),
+                               format = "docx",
+                               title = "Acervo de silício: relatório para a equipe")
+
+# 5. Nota de entrega em markdown, com os numeros medidos.
+duplicatas_removidas <- nrow(x_bruto$works) - nrow(x_limpo$works)
+auditoria <- biblio_health(entrega)
+nota_12_2 <- c(
+  "# Nota de entrega do acervo",
+  "",
+  sprintf("- `entrega_json/`: acervo completo de %d obras em seis tabelas JSON, lido em Python com `json.load`.", nrow(entrega$works)),
+  "- `entrega_csv/`: as mesmas tabelas em CSV, para conferir sem escrever código.",
+  sprintf("- `entrega_bibliometrix.csv`: as %d obras no quadro de campo-etiquetas (TI, PY, DI, SO, TC, AU, DE), com autores e termos separados por ponto e vírgula.", nrow(quadro_12_2)),
+  "- `relatorio-entrega.docx`: resumo do corpus, qualidade dos dados, produção anual, termos líderes e centralidade de coautoria.",
+  "",
+  sprintf("Descartei %d obra(s) sem ano de publicação: sem esse campo a obra não entra em nenhuma série temporal.", sum(sem_ano)),
+  sprintf("O acervo bruto tinha %d registros; a deduplicação por DOI, título e ano removeu %d duplicatas antes da análise.", nrow(x_bruto$works), duplicatas_removidas),
+  "O formato plano do bibliometrix perde os identificadores internos, a tabela de procedência e o campo de resumo; por isso o JSON é a fonte da verdade e o CSV do bibliometrix é uma projeção derivada.",
+  sprintf("Limitação exposta pelo relatório: %d título ausente, %d DOI ausente e %d citação negativa permanecem no acervo como ressalva declarada.",
+          auditoria$n[auditoria$check == "missing_title"],
+          auditoria$n[auditoria$check == "missing_doi"],
+          auditoria$n[auditoria$check == "negative_citations"]))
+arq_nota <- file.path(pasta_12_2, "nota-de-entrega.md")
+writeLines(nota_12_2, arq_nota, useBytes = TRUE)
+
+# 6. Conferencia final: tudo existe e o CSV plano tem as colunas certas.
+print(data.frame(
+  arquivo = c("works.json", "works.csv", "entrega_bibliometrix.csv", "relatorio-entrega.docx", "nota-de-entrega.md"),
+  existe  = c(file.exists(file.path(dir_json, "works.json")),
+              file.exists(file.path(dir_csv2, "works.csv")),
+              file.exists(file.path(pasta_12_2, "entrega_bibliometrix.csv")),
+              file.exists(arq_docx_12_2),
+              file.exists(arq_nota))))
+```
+
+### Leitura da saída
+
+A conferência final devolve cinco linhas com `TRUE`, e o que importa nela é a
+coerência entre os três arquivos de dados: o JSON e o CSV carregam o acervo
+relacional completo, com `r nrow(entrega$works)` obras e as tabelas de autoria,
+termos e procedência; o CSV do bibliometrix carrega o mesmo acervo *projetado* em
+`r ncol(quadro_12_2)` colunas de campo-etiquetas. Os dois primeiros têm
+`r length(list.files(dir_json))` arquivos cada; o terceiro é um arquivo único. Se
+os números de obras do JSON e do quadro plano divergirem, houve erro no recorte, e
+não na exportação.
+
+A segunda leitura é a das contagens na nota. O descarte por ano ausente é
+`r sum(sem_ano)` neste acervo, porque a fundação do tutorial já havia removido as
+obras sem ano antes de criar `x_analise`: um zero honesto, e não um erro. O
+relatório, por outro lado, aponta
+`r auditoria$n[auditoria$check == "missing_title"]` título ausente,
+`r auditoria$n[auditoria$check == "missing_doi"]` DOI ausente e
+`r auditoria$n[auditoria$check == "negative_citations"]` citação negativa dentro do
+acervo entregue. Esses registros não são defeitos da entrega: são o que o
+coorientador precisa saber para interpretar os resultados, e é justamente por isso
+que o relatório vai junto com os dados.
+
+A terceira leitura é sobre o que o formato plano custa. O quadro do `bibliometrix`
+tem as `r ncol(quadro_12_2)` etiquetas clássicas e nenhuma delas guarda o
+identificador interno da obra, a trilha de procedência ou o resumo. Quem recebe
+apenas `entrega_bibliometrix.csv` consegue refazer projeção temática e acoplamento,
+mas não consegue auditar de onde veio cada número. Por isso a nota de entrega
+declara explicitamente que o JSON é a fonte da verdade.
+
+### Redação sugerida para o artigo
+
+> Os dados analíticos são disponibilizados em formato aberto, em JSON e CSV,
+> acompanhados do quadro de campo-etiquetas compatível com o ecossistema
+> `bibliometrix` e de um relatório de acervo em `docx` que documenta o resumo do
+> corpus, o diagnóstico de qualidade, a produção anual, os termos líderes e as
+> medidas de centralidade da rede de coautoria. A conversão para o formato plano
+> preserva título, ano, DOI, periódico, contagem de citações, autoria e
+> palavras-chave, mas descarta os identificadores internos e a trilha de
+> procedência; o conjunto relacional em JSON deve ser considerado a fonte
+> primária dos dados. O acervo entregue preserva
+> `r auditoria$n[auditoria$check == "missing_title"]` registro com título ausente,
+> `r auditoria$n[auditoria$check == "missing_doi"]` sem DOI e
+> `r auditoria$n[auditoria$check == "negative_citations"]` com contagem de citações
+> inconsistente, mantidos na análise por não afetarem as medidas reportadas e
+> declarados como limitação.
+
+### Erros comuns a evitar
+
+1. **Chamar `to_bibliometrix()` em um `data.frame` cru.** A função espera um
+   `biblio_project`; em um quadro comum o erro é
+   `$ operator is invalid for atomic vectors`, sem qualquer pista sobre a causa.
+   Harmonize antes com `as_biblio_project()`.
+2. **Reportar zero obras descartadas sem verificar.** O zero do gabarito é
+   consequência de `x_analise` já vir filtrado. Se você trabalhar com `x_limpo`,
+   aparecerá uma obra sem ano, e a frase do artigo muda. Confira sempre contra o
+   acervo de origem, nunca contra o objeto já limpo.
+3. **Prometer que o CSV do bibliometrix é o conjunto completo.** Ele tem menos
+   informação do que o projeto relacional. Escrever no artigo que "os dados
+   completos estão no CSV do bibliometrix" é uma afirmação falsa que um revisor
+   atento encontra em dois minutos.
+4. **Gerar o docx com caminho relativo.** O formato `docx` é renderizado via
+   pandoc em diretório temporário; caminho relativo produz
+   `path[1]="relatorio.docx": ...` e arquivo nenhum. Caminho absoluto resolve.
+5. **Deixar a nota de entrega sem os números.** "Exportei o acervo em JSON" não
+   permite conferência. A nota precisa dizer quantas obras foram exportadas,
+   quantas foram descartadas e quantas duplicatas a limpeza removeu – foi para
+   isso que a tarefa pediu a contagem.

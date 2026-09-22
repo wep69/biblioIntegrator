@@ -1,0 +1,230 @@
+## Gabarito do Exercício 7.1
+
+### Código completo e executável
+
+```{r gab-7-1}
+# 1. a mesma rede pelos dois motores
+g_nativa <- bibliographic_network(x_analise, "coauthor", engine = "native")
+g_biblio <- bibliographic_network(x_analise, "coauthor", engine = "biblionetwork")
+
+# 2. centralidade nos dois e juncao com os nomes dos autores
+autores <- x_analise$authors[, c("author_id", "display_name")]
+central_nativa <- network_centrality(g_nativa)
+central_biblio <- network_centrality(g_biblio)
+central_nativa <- merge(central_nativa, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+central_biblio <- merge(central_biblio, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+
+# 3. tabela unica, com os dois motores lado a lado
+comparacao <- data.frame(
+  autor = central_nativa$display_name,
+  grau_nativo = central_nativa$degree,
+  grau_biblio = central_biblio$degree[match(central_nativa$node, central_biblio$node)],
+  forca_nativa = central_nativa$strength,
+  forca_biblio = central_biblio$strength[match(central_nativa$node, central_biblio$node)])
+comparacao <- comparacao[order(-comparacao$grau_nativo), ]
+knitr::kable(comparacao, row.names = FALSE,
+             caption = "Grau e força de cada autor nos dois motores de construção da rede de coautoria.")
+
+# 4. o grau distingue os autores em cada motor?
+cat("desvio-padrao do grau no motor nativo:",
+    round(sd(comparacao$grau_nativo), 4), "| amplitude:",
+    min(comparacao$grau_nativo), "a", max(comparacao$grau_nativo), "\n")
+cat("desvio-padrao do grau no motor biblionetwork:",
+    round(sd(comparacao$grau_biblio), 4), "| amplitude:",
+    min(comparacao$grau_biblio), "a", max(comparacao$grau_biblio), "\n")
+cat("forca identica nos dois motores?", all(comparacao$forca_nativa == comparacao$forca_biblio), "\n")
+cat("autor de maior forca:", comparacao$autor[which.max(comparacao$forca_biblio)],
+    "| nos dois motores?", comparacao$autor[which.max(comparacao$forca_biblio)] ==
+      comparacao$autor[which.max(comparacao$forca_nativa)], "\n\n")
+
+# 5. quantos pares de autores distintos cada motor registra
+pares <- function(g) {
+  e <- igraph::as_data_frame(g, "edges")
+  chave <- apply(e[, c("from", "to")], 1, function(z) paste(sort(z), collapse = "|"))
+  c(arestas = nrow(e), pares_distintos = length(unique(chave)))
+}
+cat("motor nativo:", paste(names(pares(g_nativa)), pares(g_nativa), sep = "=", collapse = "  "), "\n")
+cat("motor biblionetwork:", paste(names(pares(g_biblio)), pares(g_biblio), sep = "=", collapse = "  "), "\n\n")
+
+# 6. exportacao da versao escolhida
+escolhida <- g_biblio
+arquivo <- file.path(tempdir(), "rede_tarefa71.txt")
+export_vosviewer(escolhida, arquivo)
+cat("arquivo gravado?", file.exists(arquivo), "\n")
+cat("arestas no arquivo:", length(readLines(arquivo)) - 1L, "\n")
+cat("arestas no grafo exportado:", igraph::ecount(escolhida), "\n")
+```
+
+### Leitura da saída
+
+Os dois motores **distinguem** os autores: o grau varia de
+`r min(comparacao$grau_nativo)` a `r max(comparacao$grau_nativo)` no motor nativo e
+de `r min(comparacao$grau_biblio)` a `r max(comparacao$grau_biblio)` no
+`biblionetwork`, com desvios-padrão de `r round(sd(comparacao$grau_nativo), 3)` e
+`r round(sd(comparacao$grau_biblio), 3)`. Se a resposta que você escreveu foi "o
+grau não distingue no motor nativo porque o grafo é completo", ela precisa de
+correção: o grafo nativo tem `r pares(g_nativa)["arestas"]` arestas, mas apenas
+`r pares(g_nativa)["pares_distintos"]` pares de autores distintos, e o excesso são
+pares registrados duas vezes, um em cada sentido. O grau nativo não é constante,
+apenas inflado e instável — o máximo chega a `r max(comparacao$grau_nativo)` em uma
+rede de 16 vértices, onde o máximo legítimo é 15.
+
+A coluna de **força** é a que se comporta bem: os valores são idênticos nos dois
+motores, autor por autor (`r all(comparacao$forca_nativa == comparacao$forca_biblio)`),
+e o autor de maior força é `r comparacao$autor[which.max(comparacao$forca_biblio)]`
+em ambos. Isso é consequência da forma como o motor nativo distribui o peso de um
+par repetido entre as duas linhas: a soma por vértice se recompõe, mas a contagem
+de arestas não. A conclusão para o método do artigo é que a força e o PageRank
+podem ser relatados com qualquer um dos motores, e o grau, a densidade e a
+intermediação não.
+
+A exportação confirma a aritmética do arquivo: o VOSviewer recebe
+`r length(readLines(arquivo)) - 1L` linhas de aresta, exatamente o
+`r igraph::ecount(escolhida)` do grafo exportado, mais a linha de cabeçalho. Se você
+exportou a versão nativa, o número no arquivo será maior que o número de pares de
+coautores reais do acervo, e é mais um lugar onde o defeito aparece.
+
+O motor que eu recomendo exportar é o `biblionetwork`, porque ele registra
+`r pares(g_biblio)["pares_distintos"]` pares distintos e nenhum repetido. A
+recomendação não é estética: as ferramentas de visualização desenham uma aresta por
+linha, e pares repetidos produzem arestas sobrepostas com pesos que não
+correspondem à coautoria real.
+
+### Redação sugerida para o artigo
+
+> A rede de coautoria foi construída com o motor `biblionetwork`, que registrou
+> `r igraph::ecount(g_biblio)` pares de autores (densidade
+> `r round(igraph::edge_density(g_biblio), 3)`). O motor interno do pacote, testado
+> como verificação, devolve `r igraph::ecount(g_nativa)` arestas sobre o mesmo
+> conjunto de `r igraph::vcount(g_nativa)` autores, das quais
+> `r pares(g_nativa)["pares_distintos"]` correspondem a pares distintos; as
+> `r as.integer(pares(g_nativa)["arestas"]) - as.integer(pares(g_nativa)["pares_distintos"])`
+> linhas restantes repetem pares já contados. Relatamos força e PageRank, medidas
+> que coincidem entre os motores, e não o grau, que difere. A centralidade de força
+> aponta `r comparacao$autor[which.max(comparacao$forca_biblio)]`
+> (força = `r max(comparacao$forca_biblio)`) como o autor mais articulado do
+> acervo.
+
+### Erros comuns a evitar
+
+1. **Concluir que o grafo nativo é completo porque o número de arestas é igual a
+   `n(n-1)/2`.** É coincidência aritmética: as arestas contêm pares repetidos em
+   dois sentidos, e o grafo resultante não é completo nem simples.
+2. **Relatar o grau máximo do motor nativo.** Um grau de
+   `r max(comparacao$grau_nativo)` em 16 vértices é impossível e denuncia o defeito;
+   use o grau do `biblionetwork`, que respeita o limite de 15.
+3. **Comparar intermediação entre motores.** A intermediação depende do conjunto
+   de caminhos mínimos, e o grafo nativo tem arestas duplicadas; os valores
+   diferem mesmo para o autor mais central.
+4. **Esquecer de juntar `author_id` com `display_name`.** A tabela de centralidade
+   traz só identificadores, e comparar rankings sem os nomes leva a conclusões
+   sobre códigos e não sobre pessoas.
+5. **Exportar sem conferir a contagem de linhas do arquivo.** `export_vosviewer()`
+   não avisa se o grafo tem arestas repetidas; a conferência é
+   `length(readLines(arquivo)) - 1 == igraph::ecount(g)`.
+
+## Gabarito do Exercício 7.2
+
+### Código completo e executável
+
+```{r gab-7-2}
+autores <- x_analise$authors[, c("author_id", "display_name")]
+
+# as duas fracoes de reamostragem, com a semente fixada antes de cada chamada
+estab_80 <- network_stability(x_analise, type = "coauthor", B = 20, fraction = 0.8, seed = SEED)
+estab_50 <- network_stability(x_analise, type = "coauthor", B = 20, fraction = 0.5, seed = SEED)
+estab_80 <- merge(estab_80, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+estab_50 <- merge(estab_50, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+
+comparacao <- merge(
+  estab_80[, c("display_name", "mean_rank", "sd_rank")],
+  estab_50[, c("display_name", "mean_rank", "sd_rank")],
+  by = "display_name", suffixes = c("_80", "_50"))
+comparacao$aumento_sd <- round(comparacao$sd_rank_50 - comparacao$sd_rank_80, 4)
+comparacao <- comparacao[order(-comparacao$aumento_sd), ]
+knitr::kable(utils::head(comparacao, 8), row.names = FALSE, digits = c(0, 2, 3, 2, 3, 4),
+             caption = "Estabilidade do posto de centralidade com 80% e com 50% das obras reamostradas, ordenada pelo aumento do desvio-padrão do posto.")
+
+cat("desvio-padrao medio do posto com 80%:", round(mean(estab_80$sd_rank), 4), "\n")
+cat("desvio-padrao medio do posto com 50%:", round(mean(estab_50$sd_rank), 4), "\n")
+cat("razao entre os dois:", round(mean(estab_50$sd_rank) / mean(estab_80$sd_rank), 4), "\n")
+cat("autores cujo desvio-padrao do posto aumenta:", sum(comparacao$aumento_sd > 0),
+    "de", nrow(comparacao), "\n")
+cat("autor que mais se degrada:", comparacao$display_name[1],
+    "| aumento:", comparacao$aumento_sd[1], "\n")
+cat("correlacao de Spearman entre os postos medios:",
+    round(cor(comparacao$mean_rank_80, comparacao$mean_rank_50, method = "spearman"), 4), "\n")
+```
+
+### Leitura da saída
+
+O desvio-padrão médio do posto sobe de `r round(mean(estab_80$sd_rank), 4)` com
+80% das obras para `r round(mean(estab_50$sd_rank), 4)` com 50% — uma razão de
+`r round(mean(estab_50$sd_rank) / mean(estab_80$sd_rank), 4)`, ou seja, a incerteza
+da posição cresce cerca de `r round(100 * (mean(estab_50$sd_rank) / mean(estab_80$sd_rank) - 1))`
+por cento quando o acervo reamostrado encolhe de 224 para 140 obras. O aumento
+ocorre para `r sum(comparacao$aumento_sd > 0)` dos `r nrow(comparacao)` autores, e
+o autor cuja posição mais se degrada é
+**`r comparacao$display_name[1]`**, com aumento de
+`r comparacao$aumento_sd[1]` posições no desvio-padrão.
+
+Há duas leituras que precisam ser feitas em conjunto, e a segunda é a que costuma
+faltar. A primeira é a magnitude absoluta: as posições médias continuam estáveis —
+a correlação de Spearman entre os dois rankings de posto médio é
+`r round(cor(comparacao$mean_rank_80, comparacao$mean_rank_50, method = "spearman"), 4)` —,
+de modo que **encolher a amostra não reordena o ranking, apenas torna cada posição
+individual menos precisa**. A segunda é a forma da degradação: ela não é uniforme.
+Autores na base do ranking, como `r comparacao$display_name[1]`, ganham incerteza
+muito maior que autores no topo, porque o número de parceiros distintos de um autor
+periférico depende de poucas obras, e perder uma dessas obras por sorteio pode
+mudar a posição dele em vários lugares. Quem está no topo tem tantas coautorias que
+a remoção de 20% ou 50% das obras quase não mexe na contagem.
+
+A lição metodológica é que **confiabilidade de ranking não é uma propriedade do
+método, é uma propriedade de cada posição**. Declarar "o ranking é estável" depois
+de olhar a correlação de Spearman geral é insuficiente: o número que interessa é o
+desvio-padrão do posto do autor sobre o qual se está afirmando algo. Para a
+coordenação do programa, isso significa que a decisão de investimento pode se
+apoiar com segurança nos autores do topo — cujas posições resistem a perder metade
+do acervo — e não deve se apoiar na diferença entre o décimo e o décimo segundo
+colocados.
+
+Vale registrar um limite do exercício. A função reamostra sempre o **mesmo**
+acervo, retirando obras; ela não simula a existência de obras que o levantamento
+não encontrou. O desvio-padrão calculado aqui é um limite inferior da incerteza
+real, porque assume que as 280 obras são a população e não uma amostra incompleta
+dela.
+
+### Redação sugerida para o artigo
+
+> A estabilidade do ranking de centralidade foi avaliada por reamostragem de 80% e
+> de 50% das obras, com 20 réplicas e semente fixa, em ambos os casos. O
+> desvio-padrão do posto subiu de `r round(mean(estab_80$sd_rank), 2)` para
+> `r round(mean(estab_50$sd_rank), 2)` posições, indicando que a precisão da
+> posição individual depende da fração reamostrada. A ordenação geral, no entanto,
+> permaneceu praticamente inalterada (ρ de Spearman =
+> `r round(cor(comparacao$mean_rank_80, comparacao$mean_rank_50, method = "spearman"), 3)`),
+> e a maior perda de precisão ocorreu entre autores de menor centralidade
+> (`r comparacao$display_name[1]`, aumento de `r comparacao$aumento_sd[1]` posições
+> no desvio-padrão). Concluímos que a identificação dos autores mais centrais é
+> robusta ao recorte do acervo, enquanto a ordenação das posições intermediárias
+> não deve ser interpretada.
+
+### Erros comuns a evitar
+
+1. **Rodar as duas chamadas sem semente e comparar diretamente.** Sem
+   `seed = SEED`, cada chamada usa o estado corrente do gerador e a diferença entre
+   as duas frações mistura o efeito do recorte com o sorteio.
+2. **Comparar `mean_rank` entre as duas frações sem comparar `sd_rank`.** O posto
+   médio é parecido nas duas, e é justamente o desvio-padrão que responde à
+   pergunta sobre confiabilidade.
+3. **Interpretar o aumento de `sd_rank` como piora da rede.** O que aumenta é a
+   incerteza da estimativa, não a centralidade do autor; a rede do acervo completo
+   permanece a mesma.
+4. **Tratar o desvio-padrão da reamostragem como erro-padrão da média.** Cada
+   réplica é um ranking completo do mesmo acervo reduzido, e o desvio-padrão
+   descreve a dispersão da posição, o que é o que se quer, mas não é um intervalo
+   de confiança.
+5. **Esquecer que a função sempre usa `engine = "native"` e ranqueia por grau.**
+   Se a análise principal foi feita com outro motor ou outra medida, o resultado
+   desta tarefa não se transfere para ela.

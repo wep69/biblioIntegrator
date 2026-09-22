@@ -1,0 +1,96 @@
+## Gabarito do Exercício 5.2
+
+### Código completo e executável
+
+```{r}
+#| label: tbl-g52
+#| tbl-cap: "Série anual do termo de automação 'machine learning' e do termo mais frequente do acervo, com a grade completa de anos, na Tarefa 5.2."
+# 5.2.1 Série anual de um termo de automação, com a grade de anos completa
+tr_ia <- trend_topics(x_analise)
+termo_ia <- "machine learning"
+serie_ia <- merge(data.frame(year = sort(unique(tr_ia$year))),
+                  tr_ia[tr_ia$keyword == termo_ia, c("year", "n")], all.x = TRUE)
+serie_ia$n[is.na(serie_ia$n)] <- 0L
+serie_ia <- serie_ia[order(serie_ia$year), ]
+
+# 5.2.2 O termo mais frequente do acervo, na mesma grade
+tot_termo <- sort(tapply(tr_ia$n, tr_ia$keyword, sum), decreasing = TRUE)
+termo_top <- names(tot_termo)[1]
+serie_top <- merge(data.frame(year = sort(unique(tr_ia$year))),
+                   tr_ia[tr_ia$keyword == termo_top, c("year", "n")], all.x = TRUE)
+serie_top$n[is.na(serie_top$n)] <- 0L
+serie_top <- serie_top[order(serie_top$year), ]
+
+# 5.2.3 Taxa por obra em cada período, que é o número comparável
+obras_per <- table(ifelse(x_analise$works$year >= 2020L, "2020-2025", "2010-2019"))
+taxas <- data.frame(
+  termo = c(termo_ia, termo_top),
+  mencoes_antes = c(sum(serie_ia$n[serie_ia$year < 2020L]),
+                    sum(serie_top$n[serie_top$year < 2020L])),
+  mencoes_recente = c(sum(serie_ia$n[serie_ia$year >= 2020L]),
+                      sum(serie_top$n[serie_top$year >= 2020L])))
+taxas$por_obra_antes <- taxas$mencoes_antes / as.integer(obras_per["2010-2019"])
+taxas$por_obra_recente <- taxas$mencoes_recente / as.integer(obras_per["2020-2025"])
+taxas$razao <- taxas$por_obra_recente / taxas$por_obra_antes
+
+knitr::kable(taxas, row.names = FALSE, digits = 2,
+  caption = "Série anual do termo de automação 'machine learning' e do termo mais frequente do acervo, com a grade completa de anos, na Tarefa 5.2.")
+
+zeros_ia <- sum(serie_ia$n == 0L)
+```
+
+### Leitura da saída
+
+O primeiro resultado é operacional: a grade de anos tem
+`r nrow(serie_ia)` linhas e `r zeros_ia` delas precisaram de zero explícito,
+porque `trend_topics()` só devolve as combinações ano-termo que existem no dado.
+O termo `r termo_ia` aparece pela primeira vez em
+`r min(serie_ia$year[serie_ia$n > 0])` e está ausente em `r zeros_ia` dos anos da
+série. Aqui a decisão de preencher importa e precisa ser declarada: o acervo tem
+ano para todos os `r nrow(serie_ia)` anos, de modo que a ausência de linha é
+ausência de menção e o zero é a leitura correta. Em um acervo cuja janela
+temporal tenha anos sem nenhum documento importado, o mesmo zero seria falso,
+porque não existe observação alguma naquele ano e o termo não poderia ter sido
+mencionado. É essa distinção que exige declarar a cobertura da janela antes de
+plotar a série.
+
+O segundo resultado é o que o exercício cobra. Contando menções, o termo passa de
+`r taxas$mencoes_antes[1]` no período anterior para
+`r taxas$mencoes_recente[1]` no período recente. Contando **por obra**, a taxa
+sobe de `r round(taxas$por_obra_antes[1], 3)` para
+`r round(taxas$por_obra_recente[1], 3)`, uma razão de
+`r round(taxas$razao[1], 2)`. O termo mais frequente do acervo,
+`r termo_top`, tem comportamento oposto quando normalizado: as menções sobem de
+`r taxas$mencoes_antes[2]` para `r taxas$mencoes_recente[2]`, mas a taxa por obra
+cai de `r round(taxas$por_obra_antes[2], 3)` para
+`r round(taxas$por_obra_recente[2], 3)`, razão de
+`r round(taxas$razao[2], 2)`.
+
+Aí está a resposta à última pergunta da tarefa, e ela é o motivo de o exercício
+existir. Se a conclusão fosse tirada da frequência absoluta, os dois termos
+estariam crescendo e o acervo pareceria estar se expandindo em todas as direções.
+A frequência absoluta cresce porque o acervo cresceu, e não porque o tema ganhou
+espaço. A taxa por obra separa as duas coisas: um termo ganha espaço de verdade e
+o outro apenas acompanha o tamanho do corpus. Em um artigo, a redação correta
+distingue "o número de trabalhos que usam aprendizado de máquina cresceu" de "a
+proporção de trabalhos que usam aprendizado de máquina cresceu", e apenas a
+segunda frase é sustentada pelos números deste gabarito.
+
+### Redação sugerida para o artigo
+
+Palavras-chave foram contabilizadas por ano e normalizadas pelo número de
+documentos publicados em cada período, de modo a separar o crescimento do volume
+do corpus do crescimento da adoção de cada termo. O termo `r termo_ia` passou de
+`r round(taxas$por_obra_antes[1], 3)` para
+`r round(taxas$por_obra_recente[1], 3)` menções por documento entre
+`r "2010-2019"` e `r "2020-2025"`, enquanto o termo mais frequente do corpus,
+`r termo_top`, apresentou redução de densidade no mesmo intervalo, indicando
+deslocamento de vocabulário e não apenas aumento de produção científica.
+
+### Erros comuns a evitar
+
+- Plotar a saída de `trend_topics()` direto em linha: as combinações ausentes não têm linha, e a série fica com buracos que o gráfico interpreta como descontinuidade.
+- Concluir mudança temática a partir de contagem absoluta em corpus que cresce: toda contagem sobe e nenhuma informação sobre adoção é obtida.
+- Comparar dois termos por contagem total sem considerar que um deles é vulnerável a variação de nomenclatura: "machine learning" e "aprendizado de máquina" seriam contados como dois termos distintos.
+- Filtrar termos com `min_total` alto sem declarar o limiar: a contagem de séries muda com o argumento e o número fica irreprodutível.
+- Tratar zero e ausência como a mesma coisa: zero é ausência de menção no acervo, e ausência de linha é ausência de observação na agregação.

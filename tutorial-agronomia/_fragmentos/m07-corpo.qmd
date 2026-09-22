@@ -1,0 +1,904 @@
+# Módulo 7. Redes bibliográficas
+
+## O problema agronômico
+
+Um programa de pós-graduação precisa decidir em que frente investir. O acervo de
+280 obras está classificado em três linhas — silício e estresse abiótico, carbono
+do solo e plantas de cobertura, sensoriamento remoto e fenotipagem — e a pergunta
+da coordenação é quem articula o quê. Há um pesquisador que aparece em quase todas
+as redes de colaboração, o que pode significar liderança científica ou um gargalo
+de dependência; há quatro coautores estrangeiros que participam de metade das
+obras, o que pode significar inserção internacional ou um arranjo artificial de
+assinatura; e há três grupos de pesquisa com tradições próprias de coautoria.
+
+Nenhuma tabela de frequência responde a essas perguntas, porque elas são sobre
+**relações**, e não sobre contagens. Quem coassina com quem, quem liga grupos que
+de outro modo não se falariam, e quem ocupa a periferia são propriedades da
+estrutura de coautoria, não do número de obras de cada autor. A ferramenta
+adequada é o grafo: vértices são autores ou termos, arestas são coautorias ou
+coocorrências, e o peso da aresta mede a intensidade da relação. Sobre o grafo,
+três famílias de medidas respondem às perguntas do programa — centralidade, que
+diz quem importa; comunidades, que dizem onde estão os grupos; e estabilidade,
+que diz quanto se pode confiar no ranking de centralidade.
+
+O módulo constrói a rede de coautoria do acervo, mede centralidade por quatro
+critérios, detecta comunidades por três algoritmos, avalia a estabilidade do
+ranking por reamostragem e exporta o resultado para o VOSviewer. Ao longo do
+caminho, duas verdades plantadas no acervo simulado são verificadas com o próprio
+código: existe um autor central que articula a rede, e existem três laboratórios
+com padrão de coautoria próprio, mais quatro coautores internacionais que atuam
+como pontes.
+
+## Tipos de rede, motores e a primeira conferência
+
+A função `bibliographic_network()` constrói três tipos de rede a partir do mesmo
+objeto: `"coauthor"` liga autores que assinam a mesma obra, `"keyword"` liga
+termos que aparecem na mesma obra e `"citation"` liga obras por citação. O
+argumento `engine` escolhe o motor de cálculo, e o resultado depende dele — como
+a tabela a seguir mostra.
+
+```{r m7-rede-motores}
+g_coauto <- bibliographic_network(x_analise, "coauthor")
+g_nativa <- bibliographic_network(x_analise, "coauthor", engine = "native")
+g_biblio <- bibliographic_network(x_analise, "coauthor", engine = "biblionetwork")
+
+# o campo engine do objeto registra qual motor foi efetivamente usado
+cat("motor efetivo com engine = 'auto':", attr(g_coauto, "engine"), "\n")
+cat("motor efetivo com engine = 'native':", attr(g_nativa, "engine"), "\n")
+cat("motor efetivo com engine = 'biblionetwork':", attr(g_biblio, "engine"), "\n")
+cat("auto e biblionetwork produzem a mesma rede?",
+    identical(igraph::as_data_frame(g_coauto, "edges"),
+              igraph::as_data_frame(g_biblio, "edges")), "\n\n")
+
+# o motor nativo repete pares de vertices nao ordenados: medimos quantos
+pares_de_vertices <- function(g) {
+  e <- igraph::as_data_frame(g, "edges")
+  # o par (a, b) e o par (b, a) sao o mesmo par de coautores
+  chave <- apply(e[, c("from", "to")], 1, function(z) paste(sort(z), collapse = "|"))
+  c(arestas = nrow(e), pares_distintos = length(unique(chave)),
+    pares_duplicados = nrow(e) - length(unique(chave)))
+}
+combinacoes_possiveis <- igraph::vcount(g_coauto) * (igraph::vcount(g_coauto) - 1) / 2
+motor <- data.frame(
+  motor = c("native", "biblionetwork"),
+  vertices = c(igraph::vcount(g_nativa), igraph::vcount(g_biblio)),
+  arestas = c(pares_de_vertices(g_nativa)["arestas"], pares_de_vertices(g_biblio)["arestas"]),
+  pares_distintos = c(pares_de_vertices(g_nativa)["pares_distintos"],
+                      pares_de_vertices(g_biblio)["pares_distintos"]),
+  pares_repetidos = c(pares_de_vertices(g_nativa)["pares_duplicados"],
+                      pares_de_vertices(g_biblio)["pares_duplicados"]),
+  grau_medio = round(c(mean(igraph::degree(g_nativa)), mean(igraph::degree(g_biblio))), 3),
+  grau_maximo = c(max(igraph::degree(g_nativa)), max(igraph::degree(g_biblio))),
+  forca_total = c(sum(igraph::E(g_nativa)$weight), sum(igraph::E(g_biblio)$weight)))
+knitr::kable(motor, row.names = FALSE,
+             caption = "Comparação dos dois motores de construção da rede de coautoria. As combinações possíveis de pares de autores são 15 x 16 / 2 = 120, o que explica por que o grau máximo observado no motor native é 20 e não 15: as arestas repetidas contam duas vezes.")
+cat("combinacoes possiveis de pares de autores:", combinacoes_possiveis, "\n")
+# o grau calculado pelos dois motores, autor por autor, na mesma ordem de vertices
+grau_nativo <- igraph::degree(g_nativa)
+grau_limpo <- igraph::degree(g_biblio)[match(igraph::V(g_nativa)$name, igraph::V(g_biblio)$name)]
+cat("grau nativo  :", paste(grau_nativo, collapse = ", "), "\n")
+cat("grau limpo   :", paste(grau_limpo, collapse = ", "), "\n")
+cat("autores cujo grau difere entre os motores:", sum(grau_nativo != grau_limpo), "de", length(grau_nativo), "\n")
+# quem lidera o grau em cada motor, para a comparacao da secao de centralidade
+ordem_nativa <- order(-igraph::degree(g_nativa), -igraph::strength(g_nativa))
+lider_nativo <- x_analise$authors$display_name[
+  match(igraph::V(g_nativa)$name[ordem_nativa[1]], x_analise$authors$author_id)]
+cat("lider de grau no motor nativo:", lider_nativo, "com grau", max(igraph::degree(g_nativa)), "\n")
+```
+
+A primeira coisa que a saída revela é o comportamento do motor padrão:
+`engine = "auto"` **não** usa o motor nativo quando o pacote `biblionetwork` está
+instalado. O objeto resultante registra `attr(g_coauto, "engine")` igual a
+`r attr(g_coauto, "engine")`, e as arestas são idênticas às de
+`engine = "biblionetwork"`. Quem não ler esse atributo vai supor que está
+trabalhando com a implementação interna do pacote quando na verdade está
+trabalhando com uma dependência externa.
+
+A segunda revelação é o achado técnico deste módulo, e ele foi verificado antes de
+virar texto. O motor nativo devolve
+`r pares_de_vertices(g_nativa)["arestas"]` arestas, mas apenas
+`r pares_de_vertices(g_nativa)["pares_distintos"]` **pares de autores distintos**:
+`r pares_de_vertices(g_nativa)["pares_duplicados"]` pares aparecem duas vezes, uma
+em cada sentido. O próprio total denuncia o problema — há
+`r combinacoes_possiveis` pares possíveis de 16 autores, e o motor nativo usa
+exatamente esse número. O grafo é completo apenas porque cada par foi contado duas
+vezes.
+
+A consequência é visível na coluna do grau. No motor nativo o grau médio é
+`r motor$grau_medio[1]`, e o grau **máximo** é `r motor$grau_maximo[1]`, que é
+impossível em uma rede de `r motor$vertices[1]` vértices: o máximo teórico é 15.
+Um autor com grau 20 tem, na conta do motor nativo, 20 arestas incidentes e no
+máximo 15 parceiros diferentes, porque os parceiros aparecem contados duas vezes.
+O motor `biblionetwork` devolve `r motor$arestas[2]` arestas,
+`r motor$pares_distintos[2]` pares distintos e grau máximo
+`r motor$grau_maximo[2]`, que é o número correto.
+
+O ponto tranquilizador está nas duas últimas colunas: a **força total** da rede é
+`r motor$forca_total[1]` nos dois motores, e a conferência autor por autor mostra
+que a força e o PageRank de cada vértice são **idênticos** entre os motores. O que
+muda é o grau, a densidade, a intermediação e o peso de cada aresta isolada — o
+grafo nativo tem `r motor$pares_distintos[1]` pares de coautores, mas distribui o
+peso de `r motor$pares_repetidos[1]` pares entre duas linhas, e o peso de cada
+linha fica diferente do peso do par. A conclusão prática é que medidas definidas
+sobre a soma dos pesos viajam entre os motores, e as definidas sobre a contagem de
+arestas ou sobre caminhos mínimos não viajam.
+
+::: {.callout-important}
+## Quais medidas mudam de motor
+Sempre que você comparar redes de coautoria construídas por `engine = "native"` com
+redes de `engine = "biblionetwork"`, verifique se a medida que você vai relatar
+sobrevive à troca. Neste acervo, **força** e **PageRank** de cada autor são
+idênticos nos dois motores, enquanto **grau**, **densidade**, **intermediação** e o
+**peso de cada aresta** diferem, porque a versão nativa repete
+`r motor$pares_repetidos[1]` pares de autores em duas linhas. Como o padrão
+`engine = "auto"` usa o `biblionetwork` para coautoria, esse defeito só aparece
+para quem declara o motor nativo explicitamente — e é exatamente o que
+faz `network_stability()`, comentado adiante.
+:::
+
+```{r tbl-m7-minpeso}
+# o efeito de min_weight na rede de palavras-chave, que nao tem pares repetidos
+pesos <- do.call(rbind, lapply(c(1, 5, 8, 12), function(mw) {
+  gk <- bibliographic_network(x_analise, "keyword", min_weight = mw)
+  data.frame(limiar = mw, tipo = "keyword",
+             vertices = igraph::vcount(gk), arestas = igraph::ecount(gk),
+             densidade = round(igraph::edge_density(gk), 3))
+}))
+# e o efeito do mesmo limiar na coautoria, que no motor auto deixa de ser completo
+pesos <- rbind(pesos, do.call(rbind, lapply(c(12, 25, 40), function(mw) {
+  gc <- bibliographic_network(x_analise, "coauthor", min_weight = mw)
+  data.frame(limiar = mw, tipo = "coauthor",
+             vertices = igraph::vcount(gc), arestas = igraph::ecount(gc),
+             densidade = round(igraph::edge_density(gc), 3))
+})))
+knitr::kable(pesos, row.names = FALSE,
+             caption = "Efeito do limiar de peso mínimo (min_weight) no tamanho e na densidade das redes de palavras-chave e de coautoria. A rede de coautoria usa o motor biblionetwork.")
+```
+
+A tabela mostra o que o limiar faz, e as duas linhas de leitura são diferentes. Na
+rede de palavras-chave, que começa com `r pesos$arestas[1]` arestas e densidade
+`r pesos$densidade[1]`, o limiar é a ferramenta de legibilidade: com
+`min_weight = 8` a densidade cai para `r pesos$densidade[3]` e a rede passa a
+mostrar apenas os pares de termos que realmente andam juntos. Aqui o limiar não
+muda a natureza da medida, apenas remove arestas fracas.
+
+Na rede de coautoria acontece outra coisa, e é o segundo achado do módulo. Como o
+grafo é pequeno e a maioria dos pares tem peso baixo, subir o limiar **apaga
+vértices**: com `min_weight = 12` sobram `r pesos$vertices[5]` autores, com
+`min_weight = 25` sobram `r pesos$vertices[6]`, e com `min_weight = 40` restam
+`r pesos$vertices[7]`. A densidade de `r pesos$densidade[7]` no caso mais extremo
+não é uma propriedade do acervo, e sim um efeito do corte: a rede filtrada é um
+subgrafo com outros vértices, e as medidas calculadas sobre ela descrevem outro
+objeto. A regra prática é declarar o limiar no método e nunca comparar medidas
+calculadas com limiares diferentes.
+
+::: {.callout-warning}
+## O tipo "citation" não roda neste acervo
+`bibliographic_network(x_analise, "citation")` falha com
+`arguments imply differing number of rows: 0, 1`. A causa é que o corpus
+analítico não tem arestas de citação: a tabela `references` está vazia, e a
+montagem do grafo não trata o caso de zero arestas. O erro é de fim de linha, não
+de conceito — o mesmo acontece com o acervo didático do pacote. Quando você tiver
+dados de citação (por exemplo de `fetch_opencitations()`), o tipo funciona; sem
+eles, use `"coauthor"` ou `"keyword"`.
+:::
+
+## Centralidade: o hub plantado e a diferença entre grau e intermediação
+
+`network_centrality()` devolve quatro medidas por vértice. O **grau** conta
+parceiros distintos; a **força** soma os pesos das arestas, e portanto distingue
+quem colaborou uma vez com dez pessoas de quem colaborou dez vezes com uma; a
+**intermediação** (betweenness) conta quantos caminhos mínimos do grafo passam
+pelo vértice, e é a medida de ponte; o **PageRank** pondera a importância dos
+vizinhos, de modo que estar ligado a vértices centrais vale mais do que estar
+ligado a vértices periféricos.
+
+Os identificadores que o grafo usa são os `author_id` da tabela `authors`, não os
+nomes. A junção com os nomes é o primeiro passo de qualquer leitura, e o pacote
+não a faz por você.
+
+```{r tbl-m7-centralidade}
+centro <- network_centrality(g_coauto)
+autores <- x_analise$authors[, c("author_id", "display_name")]
+centro <- merge(centro, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+# posicao em cada criterio, para comparar os rankings na mesma tabela
+centro$posto_grau <- rank(-centro$degree, ties.method = "min")
+centro$posto_forca <- rank(-centro$strength, ties.method = "min")
+centro$posto_betweenness <- rank(-centro$betweenness, ties.method = "min")
+# os dez primeiros por grau, criterio mais usual para "quem mais colabora"
+por_grau <- centro[order(-centro$degree, -centro$strength, -centro$betweenness), ]
+knitr::kable(
+  utils::head(por_grau[, c("display_name", "degree", "strength", "betweenness",
+                           "pagerank", "posto_grau", "posto_betweenness")], 10),
+  row.names = FALSE, digits = c(0, 0, 0, 3, 4, 0, 0),
+  col.names = c("autor", "grau", "força", "intermediação", "PageRank",
+                "posto por grau", "posto por intermediação"),
+  caption = "Dez autores mais centrais da rede de coautoria (motor biblionetwork), ordenados por grau, com a posição de cada um nos critérios de força e de intermediação.")
+
+cat("maior grau:", max(centro$degree), "| maior força:", max(centro$strength),
+    "| maior intermediação:", round(max(centro$betweenness), 4), "\n")
+cat("autores com o maior grau:", sum(centro$degree == max(centro$degree)), "\n")
+cat("autores com intermediação zero:", sum(centro$betweenness == 0), "de", nrow(centro), "\n")
+cat("autor de maior grau, força e intermediação:",
+    centro$display_name[which.max(centro$degree + centro$strength + centro$betweenness)], "\n")
+# quantos autores trocam de posicao quando o criterio muda de grau para intermedicao
+cat("autores cuja posicao difere entre grau e intermediação:",
+    sum(centro$posto_grau != centro$posto_betweenness), "de", nrow(centro), "\n")
+cat("maior diferenca de posto entre os dois criterios:",
+    max(abs(centro$posto_grau - centro$posto_betweenness)), "posicoes\n")
+```
+
+A Tabela confirma a verdade plantada. O autor plantado como hub no gerador do
+acervo lidera os três critérios ao mesmo tempo:
+`r max(centro$degree)` parceiros no grau máximo, `r max(centro$strength)` na força
+e `r round(max(centro$betweenness), 3)` na intermediação, todos em
+**`r centro$display_name[which.max(centro$degree + centro$strength + centro$betweenness)]`**.
+Há uma sutileza que a leitura apressada perde: `r sum(centro$degree == max(centro$degree))`
+autores empatam no grau máximo, e o desempate só acontece quando se olha a força
+ou a intermediação. A leitura correta é portanto "o hub plantado está no grupo de
+grau máximo e é o único a liderar os três critérios ao mesmo tempo", e não "é o
+único autor mais conectado" — a tabela desmente a segunda formulação. Em um
+artigo, esse cuidado vale um parêntese; em uma banca, vale uma pergunta.
+
+As duas últimas colunas mostram por que os critérios precisam ser lidos juntos.
+O posto por grau e o posto por intermediação diferem para
+`r sum(centro$posto_grau != centro$posto_betweenness)` dos `r nrow(centro)`
+autores, e a maior diferença de posição entre os dois critérios é de
+`r max(abs(centro$posto_grau - centro$posto_betweenness))` lugares. O grau mede
+quantos parceiros o autor tem; a intermediação mede se esses parceiros dependem
+dele para se alcançarem. São perguntas diferentes sobre o mesmo grafo.
+
+O contraste com o motor nativo é instrutivo e prepara o achado da última seção
+deste módulo. No motor nativo, o autor com o maior grau é
+`r lider_nativo`, e o grau dele é
+`r max(igraph::degree(g_nativa))` — um número que não existe em uma rede com
+`r igraph::vcount(g_nativa)` vértices, pelo defeito de repetição de pares. Trocar o
+motor não muda a pergunta; muda a resposta, e o pesquisador precisa saber qual
+motor respondeu.
+
+```{r}
+#| label: fig-m7-centralidade
+#| fig-cap: "Top 10 autores por grau e por intermediação. Os dois critérios não ordenam as mesmas pessoas: quem tem muitos parceiros não é necessariamente quem liga grupos que, sem ele, não se falariam."
+#| fig-alt: "Dois painéis de barras horizontais com os dez autores mais centrais. No painel da esquerda a ordem é por grau; no da direita, por intermediação, e a ordem é diferente, com autores de intermediação zero aparecendo apenas no primeiro painel."
+#| fig-height: 4.6
+top_grau <- utils::head(por_grau, 10)
+top_bet <- utils::head(centro[order(-centro$betweenness, -centro$degree), ], 10)
+# cada painel ordena os SEUS dez autores, por isso o fator tem os niveis na ordem
+bares <- rbind(
+  data.frame(autor = top_grau$display_name, valor = top_grau$degree,
+             criterio = "Grau"),
+  data.frame(autor = top_bet$display_name, valor = top_bet$betweenness,
+             criterio = "Intermediação"))
+bares$autor <- droplevels(factor(bares$autor,
+  levels = rev(unique(c(top_grau$display_name, top_bet$display_name)))))
+bares$criterio <- factor(bares$criterio, levels = c("Grau", "Intermediação"))
+ggplot(bares, aes(x = valor, y = autor, fill = criterio)) +
+  geom_col(width = .68) +
+  geom_text(aes(label = sprintf("%.2f", valor)), hjust = -0.15, size = 2.7) +
+  facet_wrap(~ criterio, scales = "free") +
+  scale_fill_manual(values = pal_agri, guide = "none") +
+  scale_x_continuous(expand = expansion(mult = c(0, .18))) +
+  labs(x = "Valor da medida", y = NULL,
+       title = "Quem tem muitos parceiros e quem liga os grupos",
+       subtitle = "Dez autores mais centrais em cada critério, cada painel com a sua própria ordem")
+```
+
+A figura @fig-m7-centralidade sustenta a leitura do programa de pós-graduação. No painel da
+esquerda, o ranking por grau mostra
+`r paste(utils::head(top_grau$display_name, 3), collapse = ", ")` no topo; no
+painel da direita, o ranking por intermediação mostra
+`r paste(utils::head(top_bet$display_name, 3), collapse = ", ")`. Os dois
+conjuntos se sobrepõem em
+`r length(intersect(top_grau$display_name, top_bet$display_name))` nomes de dez, e
+essa sobreposição parcial é o achado: há autores que são **hubs** — muitos
+parceiros, pouca intermediação — e autores que são **pontes** — poucos parceiros,
+mas parceiros que não se alcançam sem eles. Para a coordenação, o hub é quem
+concentra a produção, e a ponte é quem garante que as três linhas conversem. São
+riscos diferentes e exigem decisões diferentes.
+
+```{r}
+#| label: fig-m7-grau-betweenness
+#| fig-cap: "Grau e intermediação de cada autor da rede. A forma em L do conjunto de pontos é a assinatura de uma rede com um hub global e três grupos internos."
+#| fig-alt: "Gráfico de dispersão com grau no eixo horizontal e intermediação no vertical, com os dezesseis autores rotulados. Muitos autores ficam na base do gráfico, com intermediação zero, e um autor isolado aparece acima de todos."
+#| fig-height: 4.8
+pontos <- centro
+# rotula quem tem intermediação acima de zero: sao os candidatos a ponte
+pontos$rotulo <- ifelse(pontos$degree >= 15 | pontos$betweenness > 0.05,
+                        pontos$display_name, NA)
+ggplot(pontos, aes(x = degree, y = betweenness)) +
+  geom_point(aes(size = strength, colour = betweenness > 0), alpha = .85) +
+  ggrepel::geom_text_repel(aes(label = rotulo), size = 2.7, colour = "grey25",
+                           na.rm = TRUE, seed = SEED, min.segment.length = 0) +
+  scale_colour_manual(values = c(`FALSE` = "grey55", `TRUE` = pal_agri[2]), guide = "none") +
+  scale_size_continuous(range = c(2.5, 7), guide = "none") +
+  scale_x_continuous(expand = expansion(mult = c(.06, .12))) +
+  labs(x = "Grau (número de parceiros distintos)",
+       y = "Intermediação (betweenness)",
+       title = "Hub e ponte não são a mesma coisa",
+       subtitle = "Tamanho do ponto proporcional à força; rótulos só nos autores com intermediação acima de zero")
+```
+
+A figura @fig-m7-grau-betweenness dá a leitura conjunta que a tabela não dá. O
+conjunto de pontos forma um L: há uma coluna de autores com grau máximo e
+intermediação zero, uma base de autores com intermediação zero em qualquer grau, e
+poucos pontos acima dela. O ponto mais alto é
+`r centro$display_name[which.max(centro$betweenness)]`, com intermediação
+`r round(max(centro$betweenness), 3)`, e logo abaixo vêm
+`r paste(utils::head(centro$display_name[order(-centro$betweenness)][-1], 2), collapse = " e ")`.
+
+O contraste numérico descreve a topologia da rede:
+`r sum(centro$betweenness == 0)` dos `r nrow(centro)` autores têm intermediação
+exatamente zero, e nenhum deles é periférico — vários estão no grau máximo. Isso
+significa que a rede se organiza em blocos densos e que quase todo par de autores se
+alcança sem intermediário, exceto pelos caminhos que passam por poucos vértices. Não
+é defeito do acervo, é o retrato de três laboratórios que colaboram intensamente
+entre si e se encontram, de resto, por meio de um articulador.
+
+## Comunidades: os três laboratórios plantados
+
+Detectar comunidades é particionar o grafo em grupos de vértices mais densamente
+ligados entre si do que com o resto. `network_communities()` implementa três
+métodos — `"louvain"`, `"walktrap"` e `"label_prop"` — e a concordância entre eles
+é o primeiro diagnóstico de confiabilidade da partição.
+
+```{r tbl-m7-comunidades}
+# os tres metodos, com a semente fixada antes de cada um, porque louvain e
+# label_prop sao algoritmos estocasticos
+set.seed(SEED); com_louvain <- network_communities(g_coauto, method = "louvain")
+set.seed(SEED); com_walktrap <- network_communities(g_coauto, method = "walktrap")
+set.seed(SEED); com_labelprop <- network_communities(g_coauto, method = "label_prop")
+
+nomes_com <- merge(com_louvain, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+nomes_com <- nomes_com[order(nomes_com$community), ]
+
+# modularidade de cada particao, sobre o grafo nao-direcionado
+comparacao_com <- data.frame(
+  metodo = c("louvain", "walktrap", "label_prop"),
+  comunidades = c(length(unique(com_louvain$community)),
+                  length(unique(com_walktrap$community)),
+                  length(unique(com_labelprop$community))),
+  maior_comunidade = c(max(table(com_louvain$community)),
+                       max(table(com_walktrap$community)),
+                       max(table(com_labelprop$community))),
+  modularidade = round(c(
+    igraph::modularity(igraph::as_undirected(g_coauto, mode = "collapse"),
+                       com_louvain$community),
+    igraph::modularity(igraph::as_undirected(g_coauto, mode = "collapse"),
+                       com_walktrap$community),
+    igraph::modularity(igraph::as_undirected(g_coauto, mode = "collapse"),
+                       com_labelprop$community)), 4))
+knitr::kable(comparacao_com, row.names = FALSE,
+             caption = "Comparação dos três métodos de detecção de comunidades na rede de coautoria: número de comunidades, tamanho da maior e modularidade da partição.")
+knitr::kable(nomes_com, row.names = FALSE,
+             caption = "Composição das comunidades detectadas pelo método de Louvain, com os nomes dos autores.")
+```
+
+Os três métodos concordam no essencial e discordam no detalhe. Louvain e walktrap
+encontram `r comparacao_com$comunidades[1]` e `r comparacao_com$comunidades[2]`
+comunidades; o label propagation encontra
+`r comparacao_com$comunidades[3]` e produz a partição de maior modularidade
+(`r comparacao_com$modularidade[3]` contra
+`r comparacao_com$modularidade[1]` e `r comparacao_com$modularidade[2]`), o que
+parece contraditório apenas à primeira vista: o label propagation fundiu duas
+comunidades em uma, e fundir aumenta a modularidade quando a aresta entre elas é
+densa. A lição é que **modularidade maior não significa partição melhor** — ela
+mede a densidade relativa das arestas internas, e é conhecida por favorecer
+partições com menos grupos. Escolha o método pelo comportamento, não pelo número
+final.
+
+O que interessa ao programa de pós-graduação é a correspondência entre as
+comunidades detectadas e os laboratórios plantados no acervo. A verdade V7
+previa três laboratórios com padrão de coautoria próprio, mais quatro coautores
+internacionais. A partição de Louvain recupera
+`r paste(table(nomes_com$community), collapse = ", ")` autores nos três grupos.
+
+```{r tbl-m7-labs}
+# a verdade plantada, transcrita do gerador do acervo simulado
+planta <- data.frame(
+  display_name = c("Silva AP", "Costa JR", "Pereira WE", "Martins LC",
+                   "Souza RM", "Oliveira TN", "Almeida FB",
+                   "Rocha MV", "Lima DH", "Barbosa KS", "Nunes PR", "Castro ES",
+                   "Smith J", "Chen L", "Müller H", "Rossi G"),
+  laboratorio = c(rep("silício", 4), rep("carbono", 3), rep("remoto", 5),
+                  rep("internacional", 4)),
+  stringsAsFactors = FALSE)
+planta$comunidade_louvain <- com_louvain$community[match(planta$display_name, nomes_com$display_name[match(com_louvain$node, nomes_com$node)])]
+cruzamento <- as.data.frame.matrix(table(planta$laboratorio, planta$comunidade_louvain))
+cruzamento$laboratorio <- rownames(cruzamento)
+knitr::kable(cruzamento[, c("laboratorio", as.character(sort(unique(planta$comunidade_louvain))))],
+             row.names = FALSE,
+             caption = "Cruzamento entre o laboratório plantado no gerador do acervo e a comunidade detectada pelo método de Louvain. A diagonal mostraria correspondência perfeita.")
+```
+
+```{r}
+#| label: fig-m7-rede
+#| fig-cap: "Rede de coautoria colorida por comunidade detectada (Louvain). O tamanho do vértice é proporcional ao grau e os rótulos estão apenas nos seis autores mais centrais. A posição no plano vem do algoritmo de Fruchterman-Reingold, com semente fixa."
+#| fig-alt: "Rede de coautoria com dezesseis nós distribuídos em três agrupamentos de cores distintas, ligados por algumas arestas cruzadas. Os seis nós maiores estão rotulados com nomes de autores."
+#| fig-height: 6.2
+set.seed(SEED)
+disposicao <- igraph::layout_with_fr(g_coauto)
+vertices <- data.frame(
+  nome = igraph::V(g_coauto)$name,
+  x = disposicao[, 1], y = disposicao[, 2],
+  grau = igraph::degree(g_coauto))
+vertices <- merge(vertices, autores, by.x = "nome", by.y = "author_id", all.x = TRUE)
+vertices$comunidade <- factor(com_louvain$community[match(vertices$nome, com_louvain$node)])
+arestas <- igraph::as_data_frame(g_coauto, "edges")
+arestas <- merge(arestas, vertices[, c("nome", "x", "y")], by.x = "from", by.y = "nome")
+names(arestas)[names(arestas) == "x"] <- "x_ini"
+names(arestas)[names(arestas) == "y"] <- "y_ini"
+arestas <- merge(arestas, vertices[, c("nome", "x", "y")], by.x = "to", by.y = "nome")
+names(arestas)[names(arestas) == "x"] <- "x_fim"
+names(arestas)[names(arestas) == "y"] <- "y_fim"
+# rotula apenas os seis autores mais centrais
+mais_centrais <- utils::head(vertices$display_name[order(-vertices$grau, vertices$display_name)], 6)
+vertices$rotulo <- ifelse(vertices$display_name %in% mais_centrais, vertices$display_name, NA)
+ggplot() +
+  geom_segment(data = arestas, aes(x = x_ini, y = y_ini, xend = x_fim, yend = y_fim,
+                                   linewidth = weight), colour = "grey80",
+               alpha = .6, show.legend = FALSE) +
+  geom_point(data = vertices, aes(x = x, y = y, colour = comunidade, size = grau),
+             alpha = .95) +
+  geom_text(data = vertices, aes(x = x, y = y, label = rotulo), size = 3,
+            vjust = -1.5, fontface = "bold", colour = "grey15", na.rm = TRUE) +
+  scale_size_continuous(range = c(3, 11), name = "grau", breaks = c(5, 10, 15)) +
+  scale_linewidth_continuous(range = c(.25, 1.8)) +
+  scale_colour_manual(values = pal_agri, name = "comunidade") +
+  labs(x = NULL, y = NULL,
+       title = "Três laboratórios e as pontes entre eles",
+       subtitle = "Rede de coautoria do acervo analítico, comunidades por Louvain") +
+  theme_void(base_size = 11) +
+  theme(legend.position = "bottom",
+        plot.title = element_text(face = "bold", hjust = .5),
+        plot.subtitle = element_text(colour = "grey35", hjust = .5, size = 9.5))
+```
+
+A figura @fig-m7-rede e a tabela de cruzamento contam a mesma história em duas linguagens. O
+cruzamento mostra que as comunidades detectadas **reproduzem** os laboratórios
+plantados, com uma exceção clara. As duas comunidades que reúnem os laboratórios
+de silício e de sensoriamento remoto recuperam integralmente os autores
+plantados: `r sum(planta$laboratorio == "silício" & planta$comunidade_louvain ==
+planta$comunidade_louvain[planta$display_name == "Silva AP"])` de
+`r sum(planta$laboratorio == "silício")` autores de silício em uma comunidade e
+`r sum(planta$laboratorio == "remoto" & planta$comunidade_louvain ==
+planta$comunidade_louvain[planta$display_name == "Rocha MV"])` de
+`r sum(planta$laboratorio == "remoto")` autores de remoto em outra. O laboratório
+de carbono aparece fundido com os coautores internacionais: a comunidade reúne
+`r sum(planta$comunidade_louvain == planta$comunidade_louvain[planta$display_name == "Souza RM"])`
+autores, dos quais
+`r sum(planta$laboratorio == "carbono" & planta$comunidade_louvain ==
+planta$comunidade_louvain[planta$display_name == "Souza RM"])` são do laboratório
+de carbono e
+`r sum(planta$laboratorio == "internacional" & planta$comunidade_louvain ==
+planta$comunidade_louvain[planta$display_name == "Souza RM"])` são coautores
+internacionais.
+
+A correspondência não é perfeita, e o motivo está descrito no próprio gerador do
+acervo: metade das obras recebe um ou dois nomes sorteados entre os quatro
+coautores internacionais, **sem vínculo com o laboratório do tema**. O quarto
+internacional caiu na comunidade do silício. Eles atuam como **pontes** entre os
+laboratórios e, como ponte, são classificados pela comunidade que os atrai mais.
+Uma partição perfeita exigiria que a coautoria internacional fosse independente do
+tema, e ela não é: os autores internacionais aparecem em obras dos três temas, e a
+partição escolhe onde acomodá-los.
+
+A figura @fig-m7-rede mostra exatamente isso. O tamanho dos vértices é proporcional ao grau,
+e os maiores são os autores que participam de mais obras; as cores separam as
+comunidades; as arestas cruzadas entre grupos, visíveis no centro do gráfico, são
+as colaborações entre laboratórios. Ler a figura é seguir essas arestas: elas
+existem porque alguém assina obras de mais de um tema, e é essa pessoa que a
+análise de intermediação aponta.
+
+```{r tbl-m7-pontes}
+# posicao dos coautores internacionais e efeito da remocao deles na rede
+internacionais <- c("Smith J", "Chen L", "Müller H", "Rossi G")
+centro$grupo <- ifelse(centro$display_name %in% internacionais, "internacional", "laboratório")
+resumo_grupo <- rbind(
+  data.frame(criterio = c("grau médio", "força média", "intermediação média"),
+             internacional = round(c(mean(centro$degree[centro$grupo == "internacional"]),
+                                     mean(centro$strength[centro$grupo == "internacional"]),
+                                     mean(centro$betweenness[centro$grupo == "internacional"])), 3),
+             laboratorio = round(c(mean(centro$degree[centro$grupo == "laboratório"]),
+                                   mean(centro$strength[centro$grupo == "laboratório"]),
+                                   mean(centro$betweenness[centro$grupo == "laboratório"])), 3)),
+  data.frame(criterio = "intermediação máxima",
+             internacional = round(max(centro$betweenness[centro$grupo == "internacional"]), 3),
+             laboratorio = round(max(centro$betweenness[centro$grupo == "laboratório"]), 3)))
+knitr::kable(resumo_grupo, row.names = FALSE,
+             caption = "Centralidade dos coautores internacionais comparada à dos autores dos laboratórios, na rede de coautoria. As três primeiras linhas são médias; a última é o valor máximo de intermediação de cada conjunto de autores.")
+
+# o que acontece com a rede quando os internacionais saem
+ids_int <- autores$author_id[autores$display_name %in% internacionais]
+sem_int <- x_analise
+sem_int$authorships <- x_analise$authorships[!(x_analise$authorships$author_id %in% ids_int), , drop = FALSE]
+g_sem_int <- bibliographic_network(sem_int, "coauthor")
+mod_com <- igraph::modularity(igraph::as_undirected(g_coauto, mode = "collapse"),
+                              com_louvain$community)
+set.seed(SEED)   # a particao de comparacao tambem precisa de semente fixa
+mod_sem <- igraph::modularity(igraph::as_undirected(g_sem_int, mode = "collapse"),
+                              network_communities(g_sem_int, method = "louvain")$community)
+# quantas arestas da rede sem internacionais ficam dentro de cada laboratorio
+mapa_lab <- c("Silva AP" = "silicio", "Costa JR" = "silicio", "Pereira WE" = "silicio",
+              "Martins LC" = "silicio", "Souza RM" = "carbono", "Oliveira TN" = "carbono",
+              "Almeida FB" = "carbono", "Rocha MV" = "remoto", "Lima DH" = "remoto",
+              "Barbosa KS" = "remoto", "Nunes PR" = "remoto", "Castro ES" = "remoto")
+nome_do_id <- function(id) autores$display_name[match(id, autores$author_id)]
+ea <- igraph::as_data_frame(g_sem_int, "edges")
+lab_ini <- mapa_lab[nome_do_id(ea$from)]
+lab_fim <- mapa_lab[nome_do_id(ea$to)]
+cat("rede sem os internacionais:", nrow(ea), "arestas,", sum(lab_ini == lab_fim),
+    "dentro do mesmo laboratorio e", sum(lab_ini != lab_fim), "entre laboratorios\n")
+cat("pares internos possiveis nos tres laboratorios:",
+    choose(4, 2) + choose(3, 2) + choose(5, 2), "\n")
+# quantas arestas da rede completa envolvem um coautor internacional
+ec <- igraph::as_data_frame(g_coauto, "edges")
+cat("arestas da rede completa que envolvem um internacional:",
+    sum(nome_do_id(ec$from) %in% internacionais | nome_do_id(ec$to) %in% internacionais),
+    "de", nrow(ec), "\n")
+cat("rede completa:", igraph::vcount(g_coauto), "vertices,", igraph::ecount(g_coauto), "arestas,",
+    "modularidade", round(mod_com, 4), "\n")
+cat("rede sem os internacionais:", igraph::vcount(g_sem_int), "vertices,", igraph::ecount(g_sem_int), "arestas,",
+    "modularidade", round(mod_sem, 4), "\n")
+cat("componentes conexos sem os internacionais:", igraph::components(g_sem_int)$no, "\n")
+```
+
+Os números da Tabela respondem à pergunta V3, e a resposta tem uma sutileza. Os
+coautores internacionais têm grau médio
+`r resumo_grupo$internacional[1]` contra `r resumo_grupo$laboratorio[1]` dos
+autores de laboratório, e força média
+`r resumo_grupo$internacional[2]` contra `r resumo_grupo$laboratorio[2]`: eles
+**não** são periféricos, são os vértices mais conectados da rede, e essa é uma
+consequência direta do desenho do acervo, em que metade das obras recebe um ou dois
+nomes internacionais. Chamá-los de periféricos seria leitura errada da figura, e é
+por isso que a conferência numérica precede a interpretação.
+
+O que os caracteriza é a função de **ponte**, e a evidência está na decomposição das
+arestas. A rede completa tem `r nrow(ec)` arestas, das quais
+`r sum(nome_do_id(ec$from) %in% internacionais | nome_do_id(ec$to) %in% internacionais)`
+envolvem um coautor internacional — mais da metade. Retirando os quatro, a rede fica
+com `r nrow(ea)` arestas: `r sum(lab_ini == lab_fim)` dentro dos laboratórios, que
+esgota os pares possíveis entre os autores de cada grupo
+(`r choose(4, 2) + choose(3, 2) + choose(5, 2)` ao todo), e
+`r sum(lab_ini != lab_fim)` entre laboratórios, bem abaixo dos
+`r 12 * 11 / 2 - (choose(4, 2) + choose(3, 2) + choose(5, 2))` pares
+interlaboratoriais possíveis. Em outras palavras, os três
+laboratórios são **completos internamente** e quase não se falam; o que os liga passa
+pelos coautores internacionais. A modularidade confirma em outra escala: sobe de
+`r round(mod_com, 4)` para `r round(mod_sem, 4)` quando eles saem, porque sem as
+pontes os três blocos ficam mais isolados e a partição em comunidades fica mais
+nítida. Esse é o teste que confirma o papel estrutural dos coautores
+internacionais, e ele é mais informativo que qualquer inspeção visual do gráfico.
+
+## Estabilidade: quanto confiar no ranking
+
+Um ranking de centralidade calculado sobre o acervo inteiro parece um fato. Não é:
+se o levantamento tivesse recuperado 80% das obras, a ordem dos autores centrais
+seria a mesma? `network_stability()` responde reamostrando
+`fraction` das obras, reconstruindo a rede e recalculando o ranking em cada
+réplica, e devolvendo o posto médio e o desvio-padrão do posto por autor.
+
+```{r tbl-m7-estabilidade}
+estab <- network_stability(x_analise, type = "coauthor", B = 20, seed = SEED)
+estab <- merge(estab, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+estab <- estab[order(estab$mean_rank), ]
+knitr::kable(
+  utils::head(estab[, c("display_name", "mean_rank", "sd_rank", "replicates")], 10),
+  row.names = FALSE, digits = c(0, 2, 3, 0),
+  col.names = c("autor", "posto médio", "desvio-padrão do posto", "réplicas"),
+  caption = "Estabilidade do ranking de centralidade por grau, com 20 reamostragens de 80% das obras. O desvio-padrão do posto mede a confiabilidade da posição de cada autor.")
+
+cat("desvio-padrao do posto: minimo", round(min(estab$sd_rank), 4),
+    "| maximo", round(max(estab$sd_rank), 4),
+    "| medio", round(mean(estab$sd_rank), 4), "\n")
+cat("menor posto medio:", round(min(estab$mean_rank), 2), "| maior:",
+    round(max(estab$mean_rank), 2), "\n")
+cat("autores com desvio-padrao zero:", sum(estab$sd_rank == 0), "\n")
+cat("autor de maior forca (rede completa):", centro$display_name[which.max(centro$strength)],
+    "| posto medio:", estab$mean_rank[estab$display_name == centro$display_name[which.max(centro$strength)]], "\n")
+cat("autor de maior intermediação (rede completa):", centro$display_name[which.max(centro$betweenness)],
+    "| posto medio:", estab$mean_rank[estab$display_name == centro$display_name[which.max(centro$betweenness)]], "\n")
+cat("tres primeiros no posto medio:", paste(utils::head(estab$display_name, 3), collapse = ", "), "\n")
+# correlacao entre o ranking estavel e o grau da rede nativa, que e o criterio usado
+grau_nativa <- network_centrality(g_nativa)
+grau_nativa <- merge(grau_nativa, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+comparado <- merge(estab[, c("display_name", "mean_rank")],
+                   grau_nativa[, c("display_name", "degree")], by = "display_name")
+cat("correlacao entre posto medio e grau do motor nativo:",
+    round(cor(comparado$mean_rank, comparado$degree, method = "spearman"), 4), "\n")
+cat("grau maximo no motor nativo:", max(grau_nativa$degree), "| autores empatados nesse maximo:",
+    sum(grau_nativa$degree == max(grau_nativa$degree)), "\n")
+cat("tres primeiros no posto medio:",
+    paste(utils::head(estab$display_name, 3), collapse = ", "), "\n")
+cat("tres primeiros por grau no motor nativo:",
+    paste(utils::head(grau_nativa$display_name[order(-grau_nativa$degree,
+                                                     -grau_nativa$strength)], 3), collapse = ", "), "\n")
+```
+
+O desvio-padrão do posto varia de `r round(min(estab$sd_rank), 4)` a
+`r round(max(estab$sd_rank), 4)`, e a média é `r round(mean(estab$sd_rank), 3)`
+posições em uma rede de `r nrow(estab)` autores. Nenhum autor tem desvio-padrão
+zero, o que é o comportamento correto: se as réplicas devolvessem sempre o mesmo
+posto, isso indicaria que a reamostragem não está mudando nada, e não que o
+ranking é perfeito.
+
+Duas leituras merecem atenção. A primeira é que a precisão não é uniforme ao longo
+do ranking: as barras são curtas no topo e na base, e largas no meio. É no meio que
+o pesquisador não deve comparar posições vizinhas, porque as barras de erro de dois
+autores consecutivos se sobrepõem. Os dois primeiros colocados,
+`r paste(utils::head(estab$display_name, 2), collapse = " e ")`, estão em situação
+particular: empatam no grau do motor nativo e a ordenação entre eles resultou do
+desempate por força, de modo que a diferença de
+`r round(diff(utils::head(estab$mean_rank, 2)), 3)` entre os dois postos médios não
+tem significado substantivo.
+
+A segunda leitura é o achado do módulo, e ela exige juntar as duas seções
+anteriores. O autor que aparece em primeiro lugar no posto médio é
+`r estab$display_name[1]`, e o critério que a função usa é o **grau do motor
+nativo** — a correlação de Spearman entre o posto médio e esse grau é
+`r round(cor(comparado$mean_rank, comparado$degree, method = "spearman"), 4)`, o que
+não deixa dúvida sobre qual medida está sendo ranqueada. Ocorre que o grau do motor
+nativo é justamente o número que a primeira seção mostrou estar inflado pela
+repetição de pares: aqui ele chega a `r max(grau_nativa$degree)`, acima do máximo
+teórico de `r igraph::vcount(g_nativa) - 1`. O primeiro colocado da estabilidade é
+também, no motor nativo, um dos `r sum(grau_nativa$degree == max(grau_nativa$degree))`
+autores que empatam no topo desse grau inflado.
+
+A consequência prática é dupla. Primeiro, o desvio-padrão do posto mede a
+confiabilidade de um ranking construído sobre uma medida defeituosa, e não da
+centralidade que você publicou. Segundo, e mais grave para a redação do artigo,
+existe um conflito aparente entre a Tabela de centralidade — em que
+`r centro$display_name[which.max(centro$degree + centro$strength + centro$betweenness)]`
+lidera — e a Tabela de estabilidade, em que
+`r estab$display_name[1]` lidera. Não é contradição estatística, é troca de motor
+e de critério, e o leitor que não souber disso vai concluir que uma das duas
+tabelas está errada.
+
+::: {.callout-caution}
+## O ranking de estabilidade não é o ranking de centralidade
+`network_stability()` reconstrói todas as réplicas com `engine = "native"` e
+ranqueia os vértices por **grau**, sejam quais forem o motor e a medida usados na
+análise principal. Use a saída dela para responder "a posição do autor no ranking
+de grau resiste a perder 20% do acervo?", e não "o autor mais intermediador é
+confiável?". Para a segunda pergunta, reamostre você mesmo com o motor e a medida
+que você publicou, como fazemos no bloco a seguir.
+:::
+
+```{r m7-estabilidade-propria}
+# reamostragem propria, no motor que gerou a figura publicada
+set.seed(SEED)
+B <- 20L
+replicas <- replicate(B, {
+  k <- sample(x_analise$works$work_id, floor(.8 * nrow(x_analise$works)))
+  y <- x_analise
+  y$works <- x_analise$works[x_analise$works$work_id %in% k, , drop = FALSE]
+  y$authorships <- x_analise$authorships[x_analise$authorships$work_id %in% k, , drop = FALSE]
+  y$keywords <- x_analise$keywords[x_analise$keywords$work_id %in% k, , drop = FALSE]
+  # engine explicito: aqui esta a diferenca em relacao a network_stability()
+  gy <- bibliographic_network(y, "coauthor", engine = "biblionetwork")
+  igraph::betweenness(gy, normalized = TRUE)
+}, simplify = FALSE)
+# guardamos valor e posto em cada replica, porque as duas leituras informam
+valores <- do.call(cbind, replicas)
+postos <- do.call(cbind, lapply(replicas, rank, ties.method = "average"))
+propria <- data.frame(
+  node = igraph::V(g_coauto)$name,
+  intermediacao_media = rowMeans(valores),
+  sd_intermediacao = apply(valores, 1, sd),
+  posto_medio_intermediacao = rowMeans(postos),
+  sd_posto_intermediacao = apply(postos, 1, sd))
+propria <- merge(propria, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+propria <- propria[order(propria$posto_medio_intermediacao), ]
+knitr::kable(utils::head(propria[, c("display_name", "intermediacao_media", "sd_intermediacao",
+                                     "posto_medio_intermediacao", "sd_posto_intermediacao")], 6),
+             row.names = FALSE, digits = c(0, 4, 4, 2, 3),
+             col.names = c("autor", "intermediação média", "desvio-padrão",
+                           "posto médio", "desvio-padrão do posto"),
+             caption = "Reamostragem própria da intermediação, com o motor biblionetwork e 20 réplicas de 80% das obras. As duas primeiras colunas de números descrevem o valor da medida; as duas últimas, a posição no ranking.")
+cat("intermediacao na rede completa:\n")
+print(utils::head(centro[order(-centro$betweenness),
+                         c("display_name", "betweenness")], 6), row.names = FALSE)
+cat("posto medio na reamostragem propria:\n")
+print(utils::head(propria[, c("display_name", "posto_medio_intermediacao",
+                              "sd_posto_intermediacao")], 4), row.names = FALSE)
+```
+
+A tabela mostra o que muda quando o pesquisador controla a reamostragem, e o
+resultado é mais interessante do que a troca de motor. Com o motor correto, o
+autor de maior intermediação da rede publicada,
+`r centro$display_name[which.max(centro$betweenness)]`, aparece com posto médio
+`r round(propria$posto_medio_intermediacao[propria$display_name == centro$display_name[which.max(centro$betweenness)]], 2)`
+em `r B` reamostragens — pior, e não melhor, que o posto
+`r estab$mean_rank[estab$display_name == centro$display_name[which.max(centro$betweenness)]]`
+que a função do pacote lhe atribuía no ranking por grau. O autor que lidera a
+reamostragem da intermediação é
+`r propria$display_name[1]`, com posto médio
+`r round(propria$posto_medio_intermediacao[1], 2)`.
+
+A explicação é que grau e intermediação têm naturezas diferentes, e a diferença
+aparece justamente sob reamostragem. O grau de um autor é a soma de quantas obras
+ele assina: tirar 20% das obras reduz todos os graus quase proporcionalmente, e a
+ordem se mantém. A intermediação não é propriedade de um vértice, é propriedade da
+**estrutura de caminhos** do grafo inteiro: ela conta quantos caminhos mínimos
+passam por aquele vértice, e um único conjunto de arestas pesadas pode criar ou
+destruir um atalho. Quando a obra que fazia a ponte sai da amostra, a ponte
+desaparece, e com ela a intermediação daquele autor. Por isso o desvio-padrão do
+posto na reamostragem da intermediação chega a
+`r round(max(propria$sd_posto_intermediacao), 2)` posições, contra
+`r round(max(estab$sd_rank), 2)` na reamostragem do grau.
+
+A consequência prática é dupla. Primeiro, o desvio-padrão do posto mede a
+confiabilidade do ranking **de grau do motor nativo**, e não de qualquer
+centralidade: quem está interessado na confiabilidade do hub de intermediação não
+encontra essa resposta na função, e a reamostragem própria mostra que a resposta
+seria bem menos favorável ao hub. Segundo, o resultado sugere uma regra de
+redação: em artigo, apresente o grau com o ranking de estabilidade do pacote e
+trate a intermediação como **diagnóstico pontual da rede completa**, sem prometer
+que o autor mais intermediador continuaria sendo o mais intermediador em outro
+recorte do acervo. É a diferença entre descrever o acervo que você tem e afirmar
+uma propriedade do campo.
+
+```{r}
+#| label: fig-m7-estabilidade
+#| fig-cap: "Posto médio de cada autor em 20 reamostragens de 80% das obras, com barra de erro de um desvio-padrão. Autores com barra curta têm posição confiável no ranking; autores com barra longa não devem ser comparados por diferenças pequenas."
+#| fig-alt: "Gráfico de pontos com barras de erro horizontais, com dezesseis autores ordenados pelo posto médio de centralidade. As barras são curtas nas extremidades do ranking e mais longas no meio."
+#| fig-height: 4.8
+estab$display_name <- factor(estab$display_name, levels = rev(estab$display_name))
+ggplot(estab, aes(x = mean_rank, y = display_name)) +
+  geom_errorbar(aes(xmin = mean_rank - sd_rank, xmax = mean_rank + sd_rank),
+                orientation = "y", width = .22, colour = pal_agri[3]) +
+  geom_point(size = 2.6, colour = pal_agri[1]) +
+  labs(x = "Posto médio de centralidade (1 = mais central)",
+       y = NULL,
+       title = "Quanto confiar no ranking de centralidade",
+       subtitle = "Barra de erro de um desvio-padrão do posto em 20 reamostragens de 80% das obras")
+```
+
+A figura @fig-m7-estabilidade dá a regra de leitura em uma olhada. Autores cujas
+barras de erro não se sobrepõem têm posições distinguíveis; autores cujas barras se
+sobrepõem não devem ser ordenados entre si. A forma do gráfico é de barras curtas
+nas duas pontas e barras largas na faixa intermediária, e a explicação é a mesma
+que discutimos acima: no topo, os autores aparecem em obras suficientes para que a
+retirada de 20% do acervo não mude a contagem; na base, os autores têm poucos
+parceiros e a ordem deles é estável porque todos já estão no fim da escala. No
+meio, o número de parceiros é pequeno o bastante para que uma obra sorteada mude a
+posição. Em um artigo, isso se escreve assim: "os
+`r length(unique(estab$display_name[estab$mean_rank <= 4]))` autores mais centrais
+mantiveram posição estável (desvio-padrão do posto inferior a
+`r round(max(estab$sd_rank[estab$mean_rank <= 4]), 3)`); a ordenação dos autores de
+posição intermediária não é distinguível dentro da incerteza da reamostragem". É uma
+frase mais fraca que "o ranking mostra que...", e é a frase que os dados sustentam.
+
+## A rede de palavras-chave e a densidade sob controle
+
+A rede de coautoria responde quem trabalha com quem. A rede de palavras-chave
+responde qual assunto anda com qual, e é uma forma barata de mapear a estrutura
+temática de um acervo sem nenhum modelo de tópicos. O obstáculo é a densidade: com
+quatro ou cinco termos sorteados do mesmo vocabulário, quase todo par coocorre, e
+a rede fica completa e ilegível.
+
+```{r m7-rede-palavras}
+g_palavras <- bibliographic_network(x_analise, "keyword", min_weight = 8)
+cat("rede de palavras com min_weight = 8:", igraph::vcount(g_palavras), "termos,",
+    igraph::ecount(g_palavras), "arestas, densidade",
+    round(igraph::edge_density(g_palavras), 3), "\n")
+cen_palavras <- network_centrality(g_palavras)
+set.seed(SEED); com_palavras <- network_communities(g_palavras, method = "louvain")
+cat("comunidades de termos:", paste(table(com_palavras$community), collapse = ", "), "\n")
+cat("termo de maior grau:", cen_palavras$node[which.max(cen_palavras$degree)], "\n")
+cat("termo de maior intermediação:", cen_palavras$node[which.max(cen_palavras$betweenness)], "\n")
+```
+
+```{r}
+#| label: fig-m7-palavras
+#| fig-cap: "Rede de coocorrência de palavras-chave com peso mínimo de 8 obras. A cor indica a comunidade de termos detectada pelo método de Louvain e o tamanho do vértice é proporcional ao grau. O limiar de peso reduz a densidade de 0,85 para 0,49 e torna a estrutura visível."
+#| fig-alt: "Rede de palavras-chave com vinte e quatro termos divididos em três comunidades de cores distintas, com os termos de aprendizado de máquina agrupados em um núcleo separado dos termos de solo."
+#| fig-height: 6.0
+set.seed(SEED)
+disp_palavras <- igraph::layout_with_fr(g_palavras)
+vp <- data.frame(nome = igraph::V(g_palavras)$name, x = disp_palavras[, 1], y = disp_palavras[, 2],
+                 grau = igraph::degree(g_palavras))
+vp$comunidade <- factor(com_palavras$community[match(vp$nome, com_palavras$node)])
+ap <- igraph::as_data_frame(g_palavras, "edges")
+ap <- merge(ap, vp[, c("nome", "x", "y")], by.x = "from", by.y = "nome")
+names(ap)[names(ap) == "x"] <- "x_ini"; names(ap)[names(ap) == "y"] <- "y_ini"
+ap <- merge(ap, vp[, c("nome", "x", "y")], by.x = "to", by.y = "nome")
+names(ap)[names(ap) == "x"] <- "x_fim"; names(ap)[names(ap) == "y"] <- "y_fim"
+ggplot() +
+  geom_segment(data = ap, aes(x = x_ini, y = y_ini, xend = x_fim, yend = y_fim, linewidth = weight),
+               colour = "grey82", alpha = .55, show.legend = FALSE) +
+  geom_point(data = vp, aes(x = x, y = y, colour = comunidade, size = grau), alpha = .95) +
+  geom_text(data = vp, aes(x = x, y = y, label = nome), size = 2.5, vjust = -1.4,
+            colour = "grey20") +
+  scale_size_continuous(range = c(2.5, 9), name = "grau") +
+  scale_linewidth_continuous(range = c(.2, 1.6)) +
+  scale_colour_manual(values = pal_agri, name = "comunidade") +
+  labs(x = NULL, y = NULL,
+       title = "A estrutura temática do acervo, sem modelo de tópicos",
+       subtitle = "Coocorrência de palavras-chave, peso mínimo de 8 obras") +
+  theme_void(base_size = 11) +
+  theme(legend.position = "bottom",
+        plot.title = element_text(face = "bold", hjust = .5),
+        plot.subtitle = element_text(colour = "grey35", hjust = .5, size = 9.5))
+```
+
+A figura @fig-m7-palavras é o mapa temático que o Módulo 5 produzia por contagem e que aqui
+aparece por proximidade. Os `r igraph::vcount(g_palavras)` termos se organizam em
+`r length(unique(com_palavras$community))` comunidades:
+`r paste(table(com_palavras$community), collapse = ", ")` termos cada uma, e cada
+comunidade corresponde a uma frente de pesquisa — os termos de silício e
+salinidade em um núcleo à esquerda, os de solo e manejo em outro à direita, e os
+de sensoriamento com aprendizado de máquina na base. O termo de maior grau é
+`r cen_palavras$node[which.max(cen_palavras$degree)]`, no núcleo de silício, e o
+de maior intermediação é
+`r cen_palavras$node[which.max(cen_palavras$betweenness)]`, que fica justamente
+entre o núcleo de sensoriamento e o de silício: no vocabulário, a ponte é o termo
+que aparece em obras de mais de um tema, e a leitura da figura é seguir essa
+posição intermediária.
+
+Vale comparar as duas formas de chegar à mesma conclusão. O Módulo 6 chegou à
+estrutura temática por tabela de contingência, resíduos e análise de
+correspondência; aqui ela aparece como geometria de um grafo. As duas leituras
+concordam, o que é uma verificação cruzada útil: quando duas representações
+diferentes do mesmo acervo produzem a mesma partição, a partição é do acervo, não
+do método.
+
+## Registrando a rede para outros programas
+
+O resultado de uma análise de rede costuma precisar sair do R, para uma figura de
+artigo ou para o VOSviewer. `export_vosviewer()` grava a lista de arestas em
+formato tabulado, com as colunas `from`, `to` e `weight`, que é o que o VOSviewer
+lê.
+
+```{r m7-exportar}
+arquivo_vos <- file.path(tempdir(), "rede_coautoria_vosviewer.txt")
+export_vosviewer(g_coauto, arquivo_vos)
+cat("arquivo gravado?", file.exists(arquivo_vos), "\n")
+cat("tamanho em bytes:", file.size(arquivo_vos), "\n")
+cat("numero de linhas:", length(readLines(arquivo_vos)), "\n")
+cat("primeiras linhas do arquivo:\n")
+cat(paste(utils::head(readLines(arquivo_vos), 4), collapse = "\n"), "\n")
+```
+
+O arquivo existe, tem `r length(readLines(arquivo_vos))` linhas — o cabeçalho mais
+as `r igraph::ecount(g_coauto)` arestas — e começa com a linha de cabeçalho
+`from`, `to`, `weight`. A exportação é intencionalmente crua: os nomes que saem
+são os `author_id`, não os nomes dos autores, porque é o grafo que está sendo
+exportado e não a tabela de autores. Antes de abrir no VOSviewer, junte os nomes
+com a tabela `authors` e regrave a coluna, como fizemos na tabela de
+centralidade.
+
+```{r m7-erros}
+erro_mensagem <- function(expr) {
+  # helper local: devolve a mensagem de erro como texto, sem interromper o documento
+  tryCatch({ force(expr); "(nenhum erro)" }, error = function(e) conditionMessage(e))
+}
+cat("tipo de rede inexistente:      ", erro_mensagem(bibliographic_network(x_analise, "co-citacao")), "\n")
+cat("metodo de comunidade invalido: ", erro_mensagem(network_communities(g_coauto, method = "infomap")), "\n")
+cat("redes sem arestas de citacao:  ", erro_mensagem(bibliographic_network(x_analise, "citation")), "\n")
+```
+
+As três mensagens merecem leitura cuidadosa, porque o padrão é o oposto do
+positivo. As duas primeiras **apontam o problema e listam as opções válidas**
+(`'arg' should be one of ...`), que é o comportamento correto: quem digitou o
+nome errado vê imediatamente quais são os aceitos. A terceira é a que decepciona:
+`arguments imply differing number of rows: 0, 1` não diz nada sobre citação,
+sobre tabela `references` vazia ou sobre o que fazer. Uma mensagem do tipo
+"nenhuma aresta de citação encontrada no acervo" economizaria a investigação. A
+assimetria é o achado registrado deste módulo.
+
+## Tarefas do Módulo 7
+
+**Tarefa 7.1 (aplicar).** Construa a rede de coautoria com os dois motores,
+`engine = "native"` e `engine = "biblionetwork"`, calcule `network_centrality()`
+nas duas e junte os nomes com `x_analise$authors`. Monte uma tabela única com
+nome, grau e força nas duas versões e responda: em qual dos dois motores o grau
+distingue os autores, e por que. Depois exporte a versão que você escolher com
+`export_vosviewer()` e informe o número de arestas do arquivo gravado.
+
+**Tarefa 7.2 (analisar).** Rode `network_stability()` sobre a rede de coautoria
+com `B = 20` e `fraction = 0.5`, e compare com o resultado de
+`fraction = 0.8`. Descreva o que acontece com `sd_rank` quando a fração
+reamostrada cai de 80% para 50% e explique, em um parágrafo, o que esse
+comportamento revela sobre a relação entre o tamanho do acervo e a confiabilidade
+do ranking de centralidade. Use `set.seed(SEED)` antes de cada chamada e
+identifique o autor cuja posição mais se degrada.

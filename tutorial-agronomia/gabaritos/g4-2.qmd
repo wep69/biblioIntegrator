@@ -1,0 +1,98 @@
+## Gabarito do Exercício 4.2
+
+### Código completo e executável
+
+```{r}
+#| label: tbl-g42
+#| tbl-cap: "Efeito da largura da janela do RPYS sobre o ano de maior desvio, na Tarefa 4.2, com o ano seminal plantado em 2003."
+# 4.2.1 Vetor SIMULADO de anos de referência com ano seminal em 2003
+set.seed(SEED)
+ref_t42 <- unlist(lapply(x_analise$works$year, function(a) {
+  sample(seq(max(1975L, a - 45L), a + 2L), 6L, replace = TRUE)
+}))
+ref_t42 <- c(ref_t42, rep(2003L, 30L))       # ano seminal plantado pelo aluno
+
+# 4.2.2 Duas configurações de janela
+rp1 <- rpys(reference_years = ref_t42, window = 1)
+rp5 <- rpys(reference_years = ref_t42, window = 5)
+p1 <- rp1[which.max(rp1$deviation), ]
+p5 <- rp5[which.max(rp5$deviation), ]
+
+sensibilidade <- data.frame(
+  window = c(1, 5),
+  ano_do_pico = c(p1$year, p5$year),
+  n = c(p1$n, p5$n),
+  baseline = c(p1$baseline, p5$baseline),
+  desvio = c(p1$deviation, p5$deviation),
+  segundo_ano = c(rp1$year[order(-rp1$deviation)][2],
+                  rp5$year[order(-rp5$deviation)][2]))
+
+knitr::kable(sensibilidade, row.names = FALSE, digits = 1,
+  caption = "Efeito da largura da janela do RPYS sobre o ano de maior desvio, na Tarefa 4.2, com o ano seminal plantado em 2003.")
+
+# 4.2.3 Quantas obras do acervo têm referências declaradas
+refs_t42 <- x_analise$references
+cobertura_t42 <- data.frame(
+  obras_com_referencias = length(unique(refs_t42$citing_id)),
+  pares_declarados = nrow(refs_t42))
+```
+
+### Leitura da saída
+
+O pico aparece nas duas configurações, e essa é a resposta que o exercício pede.
+Em `window` igual a `r sensibilidade$window[1]` o ano `r sensibilidade$ano_do_pico[1]`
+concentra `r sensibilidade$n[1]` referências contra uma linha de base de
+`r round(sensibilidade$baseline[1], 1)`, um desvio de `r round(sensibilidade$desvio[1], 1)`.
+Em `window` igual a `r sensibilidade$window[2]` o mesmo ano volta ao topo com
+`r sensibilidade$n[2]` referências, desvio de `r round(sensibilidade$desvio[2], 1)`,
+contra uma base que subiu para `r round(sensibilidade$baseline[2], 1)` porque a
+janela mais larga enxerga mais vizinhos e, portanto, uma mediana local mais alta.
+
+Duas lições saem daí. A primeira é que o *ano* do pico é robusto à largura da
+janela, e a *magnitude* do desvio não é: o desvio cai de
+`r round(sensibilidade$desvio[1], 1)` para `r round(sensibilidade$desvio[2], 1)`
+quando a janela alarga, porque o critério fica mais exigente. Um artigo deve
+declarar o valor de `window` junto com o desvio, e não apenas o desvio. A segunda
+lição é que o segundo colocado muda entre as configurações
+(`r sensibilidade$segundo_ano[1]` com janela estreita,
+`r sensibilidade$segundo_ano[2]` com janela larga), o que é o comportamento
+esperado de um ruído de fundo: o sinal plantado é estável, a cauda não é. Anos
+fundadores se identificam pela estabilidade no topo, e não pela posição exata.
+
+Sobre a segunda pergunta, o pico de RPYS e o pico de produção são medidas de
+coisas diferentes. `temporal_growth()` conta quantos documentos deste acervo
+foram *publicados* em cada ano, e o resultado depende apenas do recorte de
+importação. `rpys()` conta quantas *referências citadas* pelo acervo apontam para
+cada ano, e o resultado depende do que os autores deste acervo decidiram citar,
+independentemente de terem publicado naquele ano. Um ano pode liderar a produção
+sem aparecer no espectro, e vice-versa. A consequência prática é que um ano
+fundador identificado por RPYS precisa ser conferido na lista de obras mais
+citadas daquele ano antes de virar afirmação no texto, porque o espectro aponta o
+ano e não o trabalho.
+
+A cobertura de referências fecha a resposta: o acervo tem
+`r cobertura_t42$obras_com_referencias` obras com referências declaradas e
+`r cobertura_t42$pares_declarados` pares obra-referência. Como o vetor de anos foi
+construído por simulação, nenhuma conclusão sobre obras fundadoras reais pode ser
+tirada dele; o exercício demonstra o método, e um RPYS sobre dados reais exige o
+campo de referências citadas da exportação da Web of Science, do Scopus ou do
+OpenAlex.
+
+### Redação sugerida para o artigo
+
+A análise do espectro de anos de referência (RPYS) foi conduzida sobre o vetor de
+anos das referências citadas do corpus, com linha de base calculada por mediana
+móvel e duas larguras de janela testadas para verificar a estabilidade do pico.
+O ano seminal identificado manteve-se no topo do espectro nas duas configurações,
+enquanto a magnitude do desvio variou, o que sustenta a identificação do ano
+fundador e não a do valor numérico do desvio. Nenhuma inferência sobre volume de
+publicação do ano identificado foi feita a partir do espectro, porque RPYS mede
+citações recebidas e não produção científica.
+
+### Erros comuns a evitar
+
+- Passar o objeto `biblio_project` para `rpys()`: a função exige um vetor de anos e para com erro de coerção, porque o campo de referências citadas não vive dentro do projeto — ele vem da exportação da base.
+- Ler o pico do espectro como pico de publicação: são contagens sobre objetos diferentes e um ano pode liderar uma e não aparecer na outra.
+- Publicar o desvio sem declarar o valor de `window`: a magnitude do desvio muda com a largura da janela, e o número fica irreprodutível.
+- Rodar uma única largura de janela e concluir pelo achado: sem a segunda configuração não há como separar sinal estável de artefato da suavização.
+- Manter na coleção de referências anos de publicação posteriores ao próprio artigo citante: a simulação deste gabarito permite isso por construção, e em dado real a limpeza precisa ser feita antes do RPYS.

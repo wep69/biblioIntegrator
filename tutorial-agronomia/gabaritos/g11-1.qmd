@@ -1,0 +1,175 @@
+## Gabarito do Exercício 11.1
+
+### Código completo e executável
+
+```{r gab-m11-1}
+# ---------------------------------------------------------------------------
+# Tarefa 11.1: orcamento e proveniencia de uma analise assistida por LLM,
+# SEM executar nenhuma chamada ao provedor.
+# ---------------------------------------------------------------------------
+
+# (a) Configuracao explicita: provedor, modelo, temperatura baixa.
+#     temperature = 0.1 deixa a resposta quase deterministica, o que e o
+#     desejavel em rotulagem; max_tokens limita o custo por chamada.
+invisible(llm_configure(provider = "ollama", model = "llama3.1:8b",
+                        temperature = 0.1, max_tokens = 4096))
+config_111 <- llm_get_config()
+
+# (b) Medicao do prompt por instrumentacao: nenhuma chamada e feita ao provedor.
+medir_prompt <- function(rotulo, expr) {
+  ns <- asNamespace("biblioIntegrator")
+  original <- get(".llm_chat", envir = ns)
+  travado <- bindingIsLocked(".llm_chat", ns)
+  if (travado) unlockBinding(".llm_chat", ns)
+  chars <- NA_integer_
+  assign(".llm_chat", function(messages, ...) {
+    chars <<- nchar(messages[[2]]$content)
+    '[{"work_id":"W1","title":"t","score":1,"reason":"r"}]'
+  }, envir = ns)
+  on.exit({
+    assign(".llm_chat", original, envir = ns)
+    if (travado) lockBinding(".llm_chat", ns)
+  }, add = TRUE)
+  tryCatch(force(expr), error = function(e) NULL)
+  data.frame(operacao = rotulo, chars_prompt = chars,
+             tokens_por_chamada = ceiling(chars / 4), stringsAsFactors = FALSE)
+}
+
+consulta_111 <- "lacunas de pesquisa sobre silicio e estresse salino"
+orcamento11 <- rbind(
+  medir_prompt("semantic_search",
+               semantic_search(x_analise, consulta_111, n = 10)),
+  medir_prompt("llm_classify",
+               llm_classify(x_analise,
+                            categories = c("fertilizacao", "cobertura",
+                                           "sensoriamento", "irrigacao"))),
+  medir_prompt("llm_gap_analysis", llm_gap_analysis(x_analise)),
+  medir_prompt("llm_summarize", llm_summarize(x_analise, style = "executive")))
+
+# (c) Escala para o acervo alvo: 2.800 obras em lotes de 100.
+#     Apenas as operacoes que enviam o TEXTO das obras crescem com o numero de
+#     lotes; as que enviam um resumo numerico do acervo custam uma chamada so.
+obras_alvo_111 <- 2800L
+obras_por_lote_111 <- 100L
+n_lotes_111 <- ceiling(obras_alvo_111 / obras_por_lote_111)
+orcamento11$envia_texto_das_obras <- orcamento11$chars_prompt > 8000
+orcamento11$chamadas <- ifelse(orcamento11$envia_texto_das_obras,
+                               n_lotes_111, 1L)
+orcamento11$tokens_totais <- orcamento11$tokens_por_chamada * orcamento11$chamadas
+orcamento11$provedor <- config_111$provider
+orcamento11$modelo <- config_111$model
+
+# (d) Tabela do orcamento.
+knitr::kable(
+  data.frame(operacao = orcamento11$operacao,
+             provedor = orcamento11$provedor,
+             modelo = orcamento11$modelo,
+             tokens_por_chamada = format(orcamento11$tokens_por_chamada, big.mark = ".", decimal.mark = ","),
+             chamadas = orcamento11$chamadas,
+             tokens_totais = format(orcamento11$tokens_totais, big.mark = ".", decimal.mark = ",")),
+  row.names = FALSE,
+  col.names = c("Operacao", "Provedor", "Modelo", "Tokens por chamada",
+                "Chamadas", "Tokens totais"))
+```
+
+```{r}
+#| label: fig-gab-m11-1
+#| fig-cap: "Tokens totais estimados por operacao para um acervo de 2.800 obras processado em lotes de 100 obras. As operacoes que enviam o texto das obras crescem com o numero de lotes; as demais custam uma unica chamada."
+#| fig-alt: "Barras horizontais com os tokens totais estimados por operacao, em escala logaritmica, coloridas pelo fato de a operacao enviar ou nao o texto das obras."
+# Figura do orcamento: escala logaritmica, porque a diferenca entre as operacoes
+# que enviam o texto das obras e as demais passa de duas ordens de grandeza.
+orcamento11$operacao <- factor(orcamento11$operacao,
+                               levels = orcamento11$operacao[order(orcamento11$tokens_totais)])
+ggplot(orcamento11, aes(x = operacao, y = tokens_totais,
+                        fill = envia_texto_das_obras)) +
+  geom_col(width = .66) +
+  geom_text(aes(label = format(tokens_totais, big.mark = ".", decimal.mark = ",")),
+            hjust = -.14, size = 3) +
+  coord_flip() +
+  scale_fill_manual(values = c(`TRUE` = pal_agri[2], `FALSE` = pal_agri[1]),
+                    labels = c(`TRUE` = "envia o texto das obras",
+                               `FALSE` = "envia resumo do acervo"),
+                    name = NULL) +
+  scale_y_log10(expand = expansion(mult = c(0, .22))) +
+  labs(x = NULL, y = "Tokens estimados para o acervo inteiro (escala log)",
+       title = "Orcamento de tokens para 2.800 obras",
+       subtitle = paste0(n_lotes_111, " lotes de ", obras_por_lote_111,
+                         " obras; sem nenhuma chamada executada"))
+```
+
+### Leitura da saída
+
+A tabela e a figura dão o mesmo número por caminhos diferentes, e o que importa
+não é o total, e sim a estrutura do custo. Dividido por chamada, o orçamento é
+modesto: `r format(max(orcamento11$tokens_por_chamada), big.mark = ".", decimal.mark = ",")` tokens no
+pior caso. Multiplicado pelas chamadas necessárias, ele muda de ordem de grandeza,
+e só para duas das quatro operações.
+
+São duas as operações que enviam o texto das obras — `semantic_search()` e
+`llm_classify()` —, e são elas que dominam o orçamento:
+`r format(max(orcamento11$tokens_totais), big.mark = ".", decimal.mark = ",")` tokens cada, resultado
+de `r n_lotes_111` chamadas. As outras duas enviam apenas um resumo numérico do
+acervo e ficam em uma única chamada: `llm_gap_analysis()` com
+`r format(orcamento11$tokens_totais[orcamento11$operacao == "llm_gap_analysis"], big.mark = ".", decimal.mark = ",")`
+tokens e `llm_summarize()` com
+`r format(orcamento11$tokens_totais[orcamento11$operacao == "llm_summarize"], big.mark = ".", decimal.mark = ",")`.
+A diferença total entre o maior e o menor item do orçamento é de
+`r format(round(max(orcamento11$tokens_totais) / min(orcamento11$tokens_totais)), big.mark = ".", decimal.mark = ",")`
+vezes.
+
+Duas ressalvas de leitura. A primeira é que o número de chamadas é uma **decisão
+de desenho**, não uma propriedade do pacote: `obras_por_lote_111` foi escolhido
+por você. Se o acervo tem resumos longos, o teto de truncamento é atingido com
+menos obras por lote e o número de chamadas sobe proporcionalmente, sem que o
+custo por chamada mude. A segunda é que `llm_summarize()` e
+`llm_topic_discovery()` estão baratas aqui por causa de um defeito de insumo: o
+acervo não tem resumos preenchidos
+(`r sum(!is.na(x_analise$works$abstract) & nzchar(x_analise$works$abstract))` de
+`r nrow(x_analise$works)`), e essas funções receberiam a string
+`No abstracts available.` Num acervo com resumos reais, essas duas seriam as mais
+caras do orçamento, porque enviam até 12.000 caracteres por chamada.
+
+O total estimado para as quatro operações é de
+`r format(sum(orcamento11$tokens_totais), big.mark = ".", decimal.mark = ",")` tokens. Vale reter a
+ordem de grandeza: cem mil tokens. Em provedores com camada gratuita, esse volume
+cabe em uma sessão de trabalho típica; em provedores pagos, o custo é da ordem de
+centavos de dólar. O gargalo prático, portanto, não é dinheiro — é tempo e é
+revisão humana, porque cada resposta exige conferência.
+
+O registro de proveniência que acompanha o orçamento é este:
+
+> A análise assistida por modelo de linguagem foi executada com o provedor
+> `r config_111$provider`, modelo `r config_111$model`, acessado em
+> `r config_111$base_url`, com `temperature = `r config_111$temperature`` e
+> `max_tokens = `r config_111$max_tokens``, sob a versão
+> `r as.character(packageVersion("biblioIntegrator"))` do pacote `biblioIntegrator`.
+> As operações de geração de texto foram aplicadas ao acervo em lotes de
+> `r obras_por_lote_111` obras, totalizando
+> `r format(sum(orcamento11$tokens_totais), big.mark = ".", decimal.mark = ",")` tokens estimados.
+> Cada resposta foi validada contra o acervo antes de qualquer uso: identificadores
+> ausentes da base foram descartados e nenhuma saída do modelo foi incorporada ao
+> manuscrito sem revisão humana.
+
+### Erros comuns a evitar
+
+1. **Rodar a análise para descobrir o custo.** A medição por instrumentação custa
+   zero e responde antes da primeira chamada. O contrário — rodar e ver a fatura —
+   é o erro que este exercício existe para prevenir.
+2. **Multiplicar o custo por chamada pelo número de obras.** O payload é truncado,
+   e o custo por chamada para de crescer no teto. O número de chamadas é
+   `ceiling(obras / obras_por_lote)`, não o número de obras.
+3. **Tratar `llm_gap_analysis()` e `llm_summarize()` como representativas.** As
+   duas estão baratas porque enviam pouca coisa; `llm_topic_discovery()` e
+   `llm_summarize()` enviam resumos e, num acervo com resumos, seriam as mais
+   caras. Estimar o custo de uma operação a partir de outra é erro de
+   extrapolação.
+4. **Deixar a temperatura no padrão sem declarar.** `r config_111$temperature` é
+   baixa, mas se você mudar para valores altos para ganhar fluência, a rotulagem
+   perde reprodutibilidade. Declare a temperatura no registro.
+5. **Esquecer de restaurar `.llm_chat()`.** A instrumentação substitui uma função
+   do pacote dentro da sessão. Sem o `on.exit()`, a sessão fica com o provedor
+   falso e todas as análises seguintes rodam sobre respostas simuladas — o que é
+   o pior erro possível neste módulo, porque é silencioso. Confira sempre
+   `identical(get(".llm_chat", envir = asNamespace("biblioIntegrator")),
+   biblioIntegrator:::.llm_chat)` depois da medição.
+

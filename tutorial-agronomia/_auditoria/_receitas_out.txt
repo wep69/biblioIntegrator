@@ -1,0 +1,395 @@
+objetos: x_did, x_bruto, x_limpo, x_analise, x_openalex, dB, per_B, tema_B, g_per, g_tema, pal_agri, tema_agri, SEED, cache_rds 
+dimensoes: did=12 bruto=283 limpo=281 analise=280 openalex=40
+biblium: 2.16.0 
+Warning message:
+package 'igraph' was built under R version 4.6.1 
+
+========== M1 ==========
+
+##### structure
+               r
+works        280
+authorships  853
+authors       16
+keywords    1228
+
+========== M2 ==========
+
+##### biblio_health bruto
+          check n
+1 missing_title 1
+2  missing_year 1
+3   missing_doi 2
+4 duplicate_doi 2
+
+##### health limpo
+          check n
+1 missing_title 1
+2  missing_year 1
+3   missing_doi 2
+4 duplicate_doi 0
+
+##### dedup log
+                                                             title
+281   Carbono do solo e plantas de cobertura em milho (estudo 001)
+283 Silício e tolerância a estresse abiótico em trigo (estudo 003)
+                          doi
+281 10.1016/j.agri.2024.00001
+283 10.1016/j.agri.2024.00003
+
+##### audit_biblio
+                   timestamp         operation                      details
+1 2026-09-21 23:37:07.649535 as_biblio_project source=corpus B bruto; n=283
+
+========== M3 ==========
+
+##### describe_biblio
+classe: list | elementos: n_documents, years, total_citations, annual, top_sources, top_keywords 
+List of 6
+ $ n_documents    : int 280
+ $ years          : int [1:2] 2010 2025
+ $ total_citations: num 3215
+ $ annual         :'data.frame':	16 obs. of  3 variables:
+ $ top_sources    : 'table' int [1:10(1d)] 37 34 32 29 28 26 25 24 23 22
+ $ top_keywords   : 'table' int [1:24(1d)] 77 76 76 69 65 64 64 61 56 52 ...
+
+##### biblio_metrics autores
+data frame with 0 columns and 0 rows
+
+##### normalized_citations
+    work_id citations expected normalized
+1 W000474d7         8 8.000000      1.000
+2 W0004d050         3 3.333333      0.900
+3 W0004d133         5 5.000000      1.000
+4 W00052ff7         2 5.333333      0.375
+
+========== M4 ==========
+
+##### temporal_growth
+  year documents citations growth_pct
+1 2010         4        53         NA
+2 2011         2        36  -50.00000
+3 2012         7        42  250.00000
+4 2013         8        79   14.28571
+
+##### citation_velocity
+    work_id year citations  velocity
+1 W000474d7 2019         8 1.0000000
+2 W0004d050 2016         3 0.2727273
+3 W0004d133 2020         5 0.7142857
+4 W00052ff7 2019         2 0.2500000
+
+##### citation_trajectory
+    work_id                                                             title
+1 W000474d7      Carbono do solo e plantas de cobertura em milho (estudo 001)
+2 W0004d050   Carbono do solo e plantas de cobertura em pastagem (estudo 002)
+3 W0004d133    Silício e tolerância a estresse abiótico em trigo (estudo 003)
+4 W00052ff7 Silício e tolerância a estresse abiótico em pastagem (estudo 004)
+  year age citations  velocity
+1 2019   8         8 1.0000000
+2 2016  11         3 0.2727273
+3 2020   7         5 0.7142857
+4 2019   8         2 0.2500000
+
+##### rpys
+  year n baseline deviation
+1 1990 2        2         0
+2 1991 4        2         2
+3 1992 2        2         0
+4 1993 0        2        -2
+
+##### disruption_index
+  focal_id N_i N_j N_k disruption
+1        f   2   0   0          1
+
+========== M5 ==========
+
+##### term_frequency title
+      term   n
+1   estudo 279
+2 abiótico 139
+3 estresse 139
+4  silício 139
+
+##### tfidf_terms year
+  term group n df    tfidf
+2  002  2016 2  1 5.545177
+1  001  2019 1  1 2.772589
+3  003  2020 1  1 2.772589
+4  004  2019 1  1 2.772589
+
+##### trend_topics
+  year        keyword n
+1 2010 abiotic stress 1
+2 2011 abiotic stress 1
+3 2012 abiotic stress 1
+4 2013 abiotic stress 2
+
+========== M6 ==========
+
+##### compare_groups periodo
+classe: biblio_group_comparison | elementos: engine, entity, groups, observed, expected, residuals, chi_square, p_value 
+List of 12
+ $ engine      : chr "native"
+ $ entity      : chr "keyword"
+ $ groups      : num [1:280, 1:2] 1 1 0 1 1 0 0 0 1 1 ...
+ $ observed    : num [1:2, 1:24] 28 36 19 27 14 29 16 26 11 41 ...
+ $ expected    : num [1:2, 1:24] 24.7 39.3 17.8 28.2 16.6 ...
+ $ residuals   : num [1:2, 1:24] 0.869 -0.869 0.384 -0.384 -0.828 ...
+ $ chi_square  : num 54.2
+ $ p_value     : num 0.002
+ $ cramers_v   : num 0.21
+ $ cramers_v_ci: num [1:2] NA NA
+ $ overlap     : logi FALSE
+ $ permutations: num 499
+
+##### compare_groups tema
+classe: biblio_group_comparison | elementos: engine, entity, groups, observed, expected, residuals, chi_square, p_value 
+List of 12
+ $ engine      : chr "native"
+ $ entity      : chr "keyword"
+ $ groups      : num [1:280, 1:3] 1 1 0 0 1 0 1 0 0 1 ...
+ $ observed    : num [1:3, 1:24] 0 0 64 46 0 0 42 1 0 41 ...
+ $ expected    : num [1:3, 1:24] 21.26 10.63 32.1 15.28 7.64 ...
+ $ residuals   : num [1:3, 1:24] -5.8 -3.67 8.19 9.8 -3.09 ...
+ $ chi_square  : num 1952
+ $ p_value     : num 0.002
+ $ cramers_v   : num 0.892
+ $ cramers_v_ci: num [1:2] NA NA
+ $ overlap     : logi FALSE
+ $ permutations: num 499
+
+##### association_residuals
+                    group               entity   residual observed expected
+1 factor(groups)2010-2019       abiotic stress  0.8693574       28 24.70358
+2 factor(groups)2020-2025       abiotic stress -0.8693574       36 39.29642
+3 factor(groups)2010-2019 carbon sequestration  0.3841139       19 17.75570
+4 factor(groups)2020-2025 carbon sequestration -0.3841139       27 28.24430
+
+##### group_ca
+classe: list | elementos: rows, columns, singular_values 
+List of 3
+ $ rows           : num [1:3, 1:2] -1.2733 -0.0189 0.8496 0.3804 -1.8596 ...
+ $ columns        : num [1:24, 1:2] 0.895 -1.342 -1.311 -1.31 -0.129 ...
+ $ singular_values: num [1:3] 9.49e-01 8.30e-01 1.88e-16
+
+##### group_mca
+      eigenvalue percentage of variance cumulative percentage of variance
+dim 1  0.2521526               25.21526                          25.21526
+dim 2  0.1804595               18.04595                          43.26120
+
+##### sensitivity_analysis
+  threshold entities cramers_v p_value
+1         1       24 0.2101442   0.005
+2         2       24 0.2101442   0.005
+3         3       24 0.2101442   0.005
+
+##### compare_sources
+         source records unique
+source1 source1     280    280
+source2 source2      12     12
+
+========== M7 ==========
+
+##### rede coauthor
+   V  E
+1 16 91
+
+##### network_centrality
+               node degree strength betweenness   pagerank
+A0000110a A0000110a      8      138   0.0000000 0.06095705
+A00000b2d A00000b2d     15      341   0.4095238 0.13479302
+A00001691 A00001691     11      157   0.0952381 0.06838632
+A00000913 A00000913     15      165   0.0000000 0.07300739
+
+##### network_communities
+       node community
+1 A0000110a         1
+2 A00000b2d         2
+3 A00001691         1
+4 A00000913         1
+
+##### network_stability
+       node mean_rank   sd_rank replicates
+1 A00000662     3.775 0.4127890         20
+2 A00000819    12.925 1.1728844         20
+3 A00000906     1.650 0.6091409         20
+4 A00000913     3.875 0.5590170         20
+
+##### export_vosviewer
+     r
+1 TRUE
+
+========== M8 ==========
+
+##### store arrow
+    r
+1 280
+
+##### store guard
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ C:\Users\wep69/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+                                r
+1 path exists; use overwrite=TRUE
+
+##### biblio_query
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ C:\Users\wep69/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+ℹ C:\Users\wep69/.duckdb
+This persists across sessions and is shared with the DuckDB CLI and other clients.
+ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+ℹ See ?duckdb_storage for details and alternatives.
+  year obras
+1 2010     4
+2 2011     2
+3 2012     7
+4 2013     8
+
+========== M9 ==========
+
+##### openalex shape
+              r
+works        40
+authorships 195
+authors     175
+keywords    570
+
+##### openalex obras
+                                                                                                                                                      title
+1 Silicon reduces sodium uptake in rice ( Oryza sativa L.) in saline conditions and this is accounted for by a reduction in the transpirational bypass flow
+2                                        Silicon Application to Rice Root Zone Influenced the Phytohormonal and Antioxidant Responses Under Salinity Stress
+3                                                                       Silicon decreases chloride transport in rice (Oryza sativa L.) in saline conditions
+4                                                    The combined use of silicon and arbuscular mycorrhizas to mitigate salinity and drought stress in rice
+  year                                source cited_by_count
+1 1999              Plant Cell & Environment            398
+2 2013    Journal of Plant Growth Regulation            256
+3 2013           Journal of Plant Physiology            151
+4 2022 Environmental and Experimental Botany             90
+
+##### fetch_opencitations
+                       oci
+1   0629059472-06120344846
+2  06503976038-06120344846
+3 061301773554-06120344846
+                                                                      citing
+1              omid:br/0629059472 doi:10.1063/1.5011231 openalex:W3100592981
+2    omid:br/06503976038 doi:10.1021/acscentsci.2c00976 openalex:W4306861410
+3 omid:br/061301773554 doi:10.1021/acsphotonics.8b00946 openalex:W2894807143
+                                                                           cited
+1 omid:br/06120344846 doi:10.1038/nature12373 openalex:W2159974629 pmid:23903748
+2 omid:br/06120344846 doi:10.1038/nature12373 openalex:W2159974629 pmid:23903748
+3 omid:br/06120344846 doi:10.1038/nature12373 openalex:W2159974629 pmid:23903748
+    creation timespan journal_sc author_sc
+1 2018-03-19 P4Y7M19D         no        no
+2 2022-10-20 P9Y2M20D         no        no
+3 2018-10-01  P5Y2M1D         no        no
+
+========== M10 ==========
+
+##### python_backend_status
+classe: list | elementos: available, python, version, reason 
+List of 4
+ $ available: logi TRUE
+ $ python   : chr "H:/uv/AppDataLocalUv/cache/archive-v0/MfuOKTFtveE-Nd3l_RFiM/Scripts/python.exe"
+ $ version  : chr "2.16.0"
+ $ reason   : chr "ok"
+
+##### to_biblium
+                                                            Title Year
+1    Carbono do solo e plantas de cobertura em milho (estudo 001) 2019
+2 Carbono do solo e plantas de cobertura em pastagem (estudo 002) 2016
+                                              Authors
+1                               Silva AP; Oliveira TN
+2 Silva AP; Almeida FB; Oliveira TN; Rossi G; Smith J
+                                               Author Keywords
+1   green manure; no-till; carbon sequestration; crop rotation
+2 no-till; soil carbon; soil aggregation; carbon sequestration
+
+##### biblium_compare_groups
+H:\uv\APPDAT~1\cache\ARCHIV~1\MfuOKTFtveE-Nd3l_RFiM\Lib\site-packages\biblium\bibgroup_modules\associations.py:603: UserWarning: Groups are disjoint: the asymptotic chi-squared test is unbiased; the permutation results below are reported for completeness only.
+  return self.associate_items(
+classe: biblio_group_comparison | elementos: engine, entity, groups, observed, expected, residuals, chi_square, p_value 
+List of 13
+ $ engine         : chr "biblium"
+ $ entity         : chr "keyword"
+ $ groups         : num [1:280, 1:2] 1 1 0 1 1 0 0 0 1 1 ...
+ $ observed       : num [1:2, 1:24] 31 48 37 42 35 43 34 38 29 39 ...
+ $ expected       : num [1:2, 1:24] 30.7 48.3 30.7 48.3 30.3 ...
+ $ residuals      : num [1:2, 1:24] 0.0787 -0.0787 1.5096 -1.5096 1.1319 ...
+ $ chi_square     : num 54.6
+ $ p_value        : num 0.004
+ $ cramers_v      : num 0.209
+ $ cramers_v_ci   : num [1:2] NA NA
+ $ overlap        : logi FALSE
+ $ permutations   : int 499
+ $ cell_p_adjusted: num [1:2, 1:24] 0.934 0.934 0.32 0.32 0.571 ...
+
+##### validate_biblium
+H:\uv\APPDAT~1\cache\ARCHIV~1\MfuOKTFtveE-Nd3l_RFiM\Lib\site-packages\biblium\bibgroup_modules\associations.py:603: UserWarning: Groups are disjoint: the asymptotic chi-squared test is unbiased; the permutation results below are reported for completeness only.
+  return self.associate_items(
+      metric     native    biblium   difference
+1 chi_square 54.2291773 54.6465400 -0.417362722
+2    p_value  0.0020000  0.0040000 -0.002000000
+3  cramers_v  0.2101442  0.2085037  0.001640493
+
+========== M11 ==========
+
+##### llm_configure
+classe: list | elementos: provider, api_key, model, base_url, temperature, max_tokens 
+List of 6
+ $ provider   : chr "ollama"
+ $ api_key    : chr ""
+ $ model      : chr "llama3.1:8b"
+ $ base_url   : chr "http://localhost:11434"
+ $ temperature: num 0.3
+ $ max_tokens : int 4096
+
+##### llm_status
+      r
+1 FALSE
+
+##### semantic_search erro
+                                   r
+1 Can't find locally running ollama.
+
+========== M12 ==========
+
+##### validate_plan
+classe: biblio_plan | elementos: source, analyses, network, group, report, seed 
+List of 6
+ $ source  : NULL
+ $ analyses: chr [1:3] "health" "descriptive" "temporal"
+ $ network : chr "coauthor"
+ $ group   : NULL
+ $ report  : chr "markdown"
+ $ seed    : int 2026
+
+##### run_plan
+            r
+1     project
+2      health
+3 descriptive
+4    temporal
+
+##### biblio_report
+                                      r
+1        # Bibliometric Analysis Report
+2                                      
+3 Generated: 2026-09-21 23:37:23.891806
+4                                      
+
+##### export_biblio
+     r
+1 TRUE
+
+##### to_bibliometrix
+    r
+1 280
+2   7

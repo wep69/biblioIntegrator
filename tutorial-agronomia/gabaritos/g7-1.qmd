@@ -1,0 +1,125 @@
+## Gabarito do Exercício 7.1
+
+### Código completo e executável
+
+```{r gab-7-1}
+# 1. a mesma rede pelos dois motores
+g_nativa <- bibliographic_network(x_analise, "coauthor", engine = "native")
+g_biblio <- bibliographic_network(x_analise, "coauthor", engine = "biblionetwork")
+
+# 2. centralidade nos dois e juncao com os nomes dos autores
+autores <- x_analise$authors[, c("author_id", "display_name")]
+central_nativa <- network_centrality(g_nativa)
+central_biblio <- network_centrality(g_biblio)
+central_nativa <- merge(central_nativa, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+central_biblio <- merge(central_biblio, autores, by.x = "node", by.y = "author_id", all.x = TRUE)
+
+# 3. tabela unica, com os dois motores lado a lado
+comparacao <- data.frame(
+  autor = central_nativa$display_name,
+  grau_nativo = central_nativa$degree,
+  grau_biblio = central_biblio$degree[match(central_nativa$node, central_biblio$node)],
+  forca_nativa = central_nativa$strength,
+  forca_biblio = central_biblio$strength[match(central_nativa$node, central_biblio$node)])
+comparacao <- comparacao[order(-comparacao$grau_nativo), ]
+knitr::kable(comparacao, row.names = FALSE,
+             caption = "Grau e força de cada autor nos dois motores de construção da rede de coautoria.")
+
+# 4. o grau distingue os autores em cada motor?
+cat("desvio-padrao do grau no motor nativo:",
+    round(sd(comparacao$grau_nativo), 4), "| amplitude:",
+    min(comparacao$grau_nativo), "a", max(comparacao$grau_nativo), "\n")
+cat("desvio-padrao do grau no motor biblionetwork:",
+    round(sd(comparacao$grau_biblio), 4), "| amplitude:",
+    min(comparacao$grau_biblio), "a", max(comparacao$grau_biblio), "\n")
+cat("forca identica nos dois motores?", all(comparacao$forca_nativa == comparacao$forca_biblio), "\n")
+cat("autor de maior forca:", comparacao$autor[which.max(comparacao$forca_biblio)],
+    "| nos dois motores?", comparacao$autor[which.max(comparacao$forca_biblio)] ==
+      comparacao$autor[which.max(comparacao$forca_nativa)], "\n\n")
+
+# 5. quantos pares de autores distintos cada motor registra
+pares <- function(g) {
+  e <- igraph::as_data_frame(g, "edges")
+  chave <- apply(e[, c("from", "to")], 1, function(z) paste(sort(z), collapse = "|"))
+  c(arestas = nrow(e), pares_distintos = length(unique(chave)))
+}
+cat("motor nativo:", paste(names(pares(g_nativa)), pares(g_nativa), sep = "=", collapse = "  "), "\n")
+cat("motor biblionetwork:", paste(names(pares(g_biblio)), pares(g_biblio), sep = "=", collapse = "  "), "\n\n")
+
+# 6. exportacao da versao escolhida
+escolhida <- g_biblio
+arquivo <- file.path(tempdir(), "rede_tarefa71.txt")
+export_vosviewer(escolhida, arquivo)
+cat("arquivo gravado?", file.exists(arquivo), "\n")
+cat("arestas no arquivo:", length(readLines(arquivo)) - 1L, "\n")
+cat("arestas no grafo exportado:", igraph::ecount(escolhida), "\n")
+```
+
+### Leitura da saída
+
+Os dois motores **distinguem** os autores: o grau varia de
+`r min(comparacao$grau_nativo)` a `r max(comparacao$grau_nativo)` no motor nativo e
+de `r min(comparacao$grau_biblio)` a `r max(comparacao$grau_biblio)` no
+`biblionetwork`, com desvios-padrão de `r round(sd(comparacao$grau_nativo), 3)` e
+`r round(sd(comparacao$grau_biblio), 3)`. Se a resposta que você escreveu foi "o
+grau não distingue no motor nativo porque o grafo é completo", ela precisa de
+correção: o grafo nativo tem `r pares(g_nativa)["arestas"]` arestas, mas apenas
+`r pares(g_nativa)["pares_distintos"]` pares de autores distintos, e o excesso são
+pares registrados duas vezes, um em cada sentido. O grau nativo não é constante,
+apenas inflado e instável — o máximo chega a `r max(comparacao$grau_nativo)` em uma
+rede de 16 vértices, onde o máximo legítimo é 15.
+
+A coluna de **força** é a que se comporta bem: os valores são idênticos nos dois
+motores, autor por autor (`r all(comparacao$forca_nativa == comparacao$forca_biblio)`),
+e o autor de maior força é `r comparacao$autor[which.max(comparacao$forca_biblio)]`
+em ambos. Isso é consequência da forma como o motor nativo distribui o peso de um
+par repetido entre as duas linhas: a soma por vértice se recompõe, mas a contagem
+de arestas não. A conclusão para o método do artigo é que a força e o PageRank
+podem ser relatados com qualquer um dos motores, e o grau, a densidade e a
+intermediação não.
+
+A exportação confirma a aritmética do arquivo: o VOSviewer recebe
+`r length(readLines(arquivo)) - 1L` linhas de aresta, exatamente o
+`r igraph::ecount(escolhida)` do grafo exportado, mais a linha de cabeçalho. Se você
+exportou a versão nativa, o número no arquivo será maior que o número de pares de
+coautores reais do acervo, e é mais um lugar onde o defeito aparece.
+
+O motor que eu recomendo exportar é o `biblionetwork`, porque ele registra
+`r pares(g_biblio)["pares_distintos"]` pares distintos e nenhum repetido. A
+recomendação não é estética: as ferramentas de visualização desenham uma aresta por
+linha, e pares repetidos produzem arestas sobrepostas com pesos que não
+correspondem à coautoria real.
+
+### Redação sugerida para o artigo
+
+> A rede de coautoria foi construída com o motor `biblionetwork`, que registrou
+> `r igraph::ecount(g_biblio)` pares de autores (densidade
+> `r round(igraph::edge_density(g_biblio), 3)`). O motor interno do pacote, testado
+> como verificação, devolve `r igraph::ecount(g_nativa)` arestas sobre o mesmo
+> conjunto de `r igraph::vcount(g_nativa)` autores, das quais
+> `r pares(g_nativa)["pares_distintos"]` correspondem a pares distintos; as
+> `r as.integer(pares(g_nativa)["arestas"]) - as.integer(pares(g_nativa)["pares_distintos"])`
+> linhas restantes repetem pares já contados. Relatamos força e PageRank, medidas
+> que coincidem entre os motores, e não o grau, que difere. A centralidade de força
+> aponta `r comparacao$autor[which.max(comparacao$forca_biblio)]`
+> (força = `r max(comparacao$forca_biblio)`) como o autor mais articulado do
+> acervo.
+
+### Erros comuns a evitar
+
+1. **Concluir que o grafo nativo é completo porque o número de arestas é igual a
+   `n(n-1)/2`.** É coincidência aritmética: as arestas contêm pares repetidos em
+   dois sentidos, e o grafo resultante não é completo nem simples.
+2. **Relatar o grau máximo do motor nativo.** Um grau de
+   `r max(comparacao$grau_nativo)` em 16 vértices é impossível e denuncia o defeito;
+   use o grau do `biblionetwork`, que respeita o limite de 15.
+3. **Comparar intermediação entre motores.** A intermediação depende do conjunto
+   de caminhos mínimos, e o grafo nativo tem arestas duplicadas; os valores
+   diferem mesmo para o autor mais central.
+4. **Esquecer de juntar `author_id` com `display_name`.** A tabela de centralidade
+   traz só identificadores, e comparar rankings sem os nomes leva a conclusões
+   sobre códigos e não sobre pessoas.
+5. **Exportar sem conferir a contagem de linhas do arquivo.** `export_vosviewer()`
+   não avisa se o grafo tem arestas repetidas; a conferência é
+   `length(readLines(arquivo)) - 1 == igraph::ecount(g)`.
+

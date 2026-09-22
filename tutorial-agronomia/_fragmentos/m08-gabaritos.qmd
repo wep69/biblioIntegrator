@@ -1,0 +1,292 @@
+# Gabaritos do Módulo 8
+
+Os gabaritos abaixo foram executados no mesmo documento que gera o módulo, de
+modo que todos os números citados vêm da execução real. As três funções
+exercitadas são `biblio_store()`, `biblio_load()` e `biblio_query()`, e o
+acervo usado é o simulado, `x_analise`, com
+`r nrow(x_analise$works)` obras.
+
+## Gabarito do Exercício 8.1
+
+**Enunciado.** Grave o acervo didático (`x_did`) em um diretório Parquet e em um
+arquivo DuckDB, dentro de `tempdir()`. Recarregue cada um, confirme que o número
+de obras é o mesmo do objeto original e informe quantos arquivos o motor `arrow`
+produziu e quantos quilobytes cada artefato ocupa. Em seguida, tente gravar uma
+segunda vez no mesmo caminho sem `overwrite` e descreva o que aconteceu.
+
+### Código completo e executável
+
+```{r gab-8-1}
+# duas etapas: gravar e conferir a volta; depois, testar a recusa de sobrescrita.
+# os caminhos ficam em tempdir() para nao sujar o diretorio do tutorial.
+dir_gab <- file.path(tempdir(), "gabarito_m08")
+dir.create(dir_gab, showWarnings = FALSE)
+p_did_ar <- file.path(dir_gab, "didatico_arrow")
+p_did_dk <- file.path(dir_gab, "didatico.duckdb")
+unlink(c(p_did_ar, p_did_dk), recursive = TRUE)
+
+# 1. gravacao nos dois motores
+invisible(biblio_store(x_did, p_did_ar, engine = "arrow"))
+invisible(sem_eco(biblio_store(x_did, p_did_dk, engine = "duckdb")))
+
+# 2. volta: quantas obras cada motor devolve
+volta_did <- c(original = nrow(x_did$works),
+               arrow    = nrow(biblio_load(p_did_ar, "arrow")$works),
+               duckdb   = nrow(sem_eco(biblio_load(p_did_dk, "duckdb"))$works))
+
+# 3. tamanho dos artefatos
+n_arq_ar <- length(list.files(p_did_ar, pattern = "\\.parquet$"))
+kb_ar <- sum(file.size(list.files(p_did_ar, full.names = TRUE))) / 1024
+kb_dk <- file.size(p_did_dk) / 1024
+
+# 4. segunda gravacao no mesmo caminho, sem overwrite
+msg_gab <- sem_eco(tryCatch(biblio_store(x_did, p_did_ar, engine = "arrow"),
+                            error = function(e) conditionMessage(e)))
+
+cat("obras por motor:", paste(names(volta_did), volta_did, sep = " = ", collapse = " | "), "\n")
+cat("arquivos Parquet:", n_arq_ar, "| total:", round(kb_ar, 1), "kB\n")
+cat("arquivo DuckDB:", round(kb_dk, 1), "kB\n")
+cat("razão de tamanho duckdb/arrow:", round(kb_dk / kb_ar, 1), "vezes\n")
+cat("segunda gravação sem overwrite:", msg_gab, "\n")
+```
+
+### Leitura da saída
+
+A saída responde às quatro perguntas do enunciado, uma por linha. Os três valores
+de obras são iguais — `r volta_did[["original"]]` no objeto em memória,
+`r volta_did[["arrow"]]` depois de voltar do Parquet e
+`r volta_did[["duckdb"]]` depois de voltar do banco —, o que é o teste mínimo de
+integridade de qualquer persistência: gravar e reler não pode mudar a contagem de
+registros. O motor `arrow` produziu `r n_arq_ar` arquivos, um por tabela do
+projeto, somando `r round(kb_ar, 1)` kB, contra `r round(kb_dk, 1)` kB do arquivo
+único do DuckDB, uma razão de `r round(kb_dk / kb_ar, 1)` vezes. A diferença de
+tamanho é estrutural, não um defeito: o Parquet comprime colunas, e o banco
+reserva catálogo e espaço transacional.
+
+A última linha é a que interessa para o resto do doutorado. A segunda gravação no
+mesmo caminho não sobrescreveu nada: ela parou e devolveu
+`r msg_gab`. Repare que a mensagem não traz número de linha nem eco da chamada, o
+que indica que o erro foi lançado com `call. = FALSE`, e que o texto sugere
+diretamente a solução. O efeito prático é que um `biblio_store()` repetido duas
+vezes no mesmo script não destrói o acervo da primeira execução por acidente, e
+transforma a sobrescrita numa decisão que você precisa escrever.
+
+### Redação sugerida para o artigo
+
+> O acervo analítico foi persistido em dois formatos complementares, para
+> garantir a reprodutibilidade das análises e permitir a retomada do trabalho
+> independentemente das bases de dados originais. O primeiro é um conjunto de
+> arquivos Parquet gravado pelo motor `arrow` do pacote `biblioIntegrator`
+> (versão `r as.character(packageVersion("biblioIntegrator"))`), com um arquivo
+> por tabela do modelo relacional; o segundo é um arquivo único de banco de
+> dados gravado pelo motor `duckdb`, que responde a consultas SQL sobre o acervo
+> sem carregá-lo em memória. A gravação foi feita com a verificação de
+> integridade incluída no próprio fluxo: as contagens de obras, autorias e
+> termos foram comparadas antes e depois da ida ao disco e coincidiram em todos
+> os casos. O procedimento adotado recusa sobrescrever um caminho já existente,
+> o que exige a confirmação explícita da substituição e evita a perda acidental
+> de um acervo previamente persistido.
+
+### Erros comuns a evitar
+
+1. **Apagar o diretório do acervo no início do script** para "evitar o erro".
+   Isso funciona e destrói exatamente a proteção que o pacote oferece: se a
+   variável `p_arrow` apontar por engano para o acervo de outro capítulo, o
+   `unlink()` não pergunta nada. Prefira deixar `biblio_store()` recusar e
+   responder com `overwrite = TRUE`.
+2. **Conferir a volta pelo número de linhas apenas.** Contagem igual não garante
+   conteúdo igual: uma coluna pode ter sido truncada ou renomeada sem alterar o
+   número de linhas. Compare ao menos os nomes das colunas e as classes, como faz
+   o bloco do módulo com `all.equal(check.attributes = FALSE)`.
+3. **Comparar objetos com `identical()` sobre o `data.frame` inteiro.** A ida ao
+   disco reordena atributos internos (`names`, `class`, `row.names`) e o Parquet
+   não guarda nomes de linha, de modo que `identical()` reprova quadros com
+   valores idênticos. O resultado é um falso alarme que consome uma tarde.
+4. **Esperar que o caminho do motor `duckdb` seja um diretório.** É um arquivo, e
+   a extensão não é obrigatória, mas `file.exists()` e `dir.exists()` verificam
+   coisas diferentes; o pacote testa os dois, e o seu script de limpeza também
+   precisa testar os dois.
+5. **Gravar em `tempdir()` e usar o acervo em outro dia.** O diretório temporário
+   é apagado ao fim da sessão de R. Use `tempdir()` para exercício, como pede a
+   tarefa, e um diretório do projeto — de preferência versionado, como
+   `_cache/` — para o acervo de trabalho.
+
+## Gabarito do Exercício 8.2
+
+**Enunciado.** Escreva uma consulta SQL que devolva, para cada período
+(`periodo`), o número de obras, a mediana de citações por obra e a fonte mais
+frequente do período. Rode a consulta sobre o acervo DuckDB gravado neste módulo
+e interprete a diferença entre os dois períodos, dizendo explicitamente qual
+parte da diferença você atribui ao crescimento do acervo e qual parte atribui à
+mudança de composição temática.
+
+### Código completo e executável
+
+```{r gab-8-2}
+# Autossuficiência: este gabarito também é entregue como arquivo isolado, então o
+# auxiliar de silêncio e o acervo DuckDB são recriados se o módulo não tiver rodado.
+if (!exists("sem_eco", mode = "function")) {
+  sem_eco <- function(expr) {
+    n_out <- sink.number(); n_msg <- sink.number(type = "message")
+    f_out <- tempfile(); f_msg <- tempfile()
+    c_out <- file(f_out, open = "wt"); c_msg <- file(f_msg, open = "wt")
+    sink(c_out); sink(c_msg, type = "message")
+    on.exit({
+      while (sink.number() > n_out) sink()
+      while (sink.number(type = "message") > n_msg) sink(type = "message")
+      close(c_out); close(c_msg); unlink(c(f_out, f_msg))
+    }, add = TRUE)
+    force(expr)
+  }
+}
+if (!exists("p_duck") || (!file.exists(p_duck) && !dir.exists(p_duck))) {
+  p_duck <- file.path(tempdir(), "gab_m08_acervo.duckdb")
+  if (!file.exists(p_duck))
+    invisible(sem_eco(biblio_store(x_analise, p_duck, engine = "duckdb")))
+}
+
+# O DuckDB resolve a pergunta inteira em uma consulta. A mediana vem da funcao
+# MEDIAN(), que e propria do motor, e nao de uma media disfarcada. A fonte mais
+# frequente exige ordenar dentro de cada periodo, o que se faz com
+# ROW_NUMBER() OVER (PARTITION BY ...).
+sql_periodo <- "
+  WITH por_fonte AS (
+    SELECT periodo, source AS fonte, COUNT(*) AS n,
+           ROW_NUMBER() OVER (PARTITION BY periodo ORDER BY COUNT(*) DESC) AS posicao
+    FROM works GROUP BY periodo, source
+  ),
+  resumo AS (
+    SELECT periodo, COUNT(*) AS obras,
+           CAST(MEDIAN(cited_by_count) AS INT) AS mediana_citacoes,
+           CAST(AVG(cited_by_count) AS DECIMAL(6,1)) AS media_citacoes,
+           SUM(cited_by_count) AS total_citacoes
+    FROM works GROUP BY periodo
+  )
+  SELECT r.periodo, r.obras, r.mediana_citacoes, r.media_citacoes,
+         r.total_citacoes, f.fonte AS fonte_mais_frequente, f.n AS obras_da_fonte
+  FROM resumo r
+  JOIN por_fonte f ON f.periodo = r.periodo AND f.posicao = 1
+  ORDER BY r.periodo"
+gab_periodo <- sem_eco(biblio_query(p_duck, sql_periodo))
+print(knitr::kable(gab_periodo, row.names = FALSE,
+  caption = "Resumo por periodo: obras, mediana e media de citacoes, total acumulado e a fonte mais frequente de cada periodo."))
+
+# a proporcao de cada periodo no acervo, para separar efeito de tamanho de efeito de composicao
+gab_periodo$fracao_do_acervo <- gab_periodo$obras / sum(gab_periodo$obras)
+gab_periodo$citacoes_por_obra <- gab_periodo$total_citacoes / gab_periodo$obras
+cat("resumo por período:\n")
+print(gab_periodo[, c("periodo", "obras", "mediana_citacoes", "media_citacoes",
+                      "total_citacoes", "fonte_mais_frequente")], row.names = FALSE)
+knitr::kable(gab_periodo[, c("periodo", "obras", "fracao_do_acervo",
+                             "mediana_citacoes", "citacoes_por_obra")],
+             row.names = FALSE, digits = 3,
+             caption = "As mesmas linhas, com a fracao do acervo e a citacao media por obra, que permitem comparar periodos de tamanho diferente.")
+
+# a coluna `periodo` gravada no acervo deve ser exatamente o corte por ano.
+# A conferencia abaixo e a unica forma de garantir que um `GROUP BY periodo`
+# e um `year >= 2020` respondem a mesma pergunta.
+teste_periodo <- sem_eco(biblio_query(p_duck,
+  "SELECT COUNT(*) AS n FROM works WHERE (year >= 2020 AND periodo <> '2020-2025')
+                                        OR (year <  2020 AND periodo <> '2010-2019')"))$n
+cat("linhas em que periodo e ano discordam:", teste_periodo, "\n")
+cat("soma das obras das linhas da tabela:", sum(gab_periodo$obras), "\n")
+
+# as fontes de cada periodo, para verificar se o lider e o mesmo nos dois
+fontes_per <- sem_eco(biblio_query(p_duck, "
+  SELECT periodo, source AS fonte, COUNT(*) AS obras
+  FROM works GROUP BY periodo, source ORDER BY periodo, obras DESC"))
+head_fontes <- do.call(rbind, lapply(split(fontes_per, fontes_per$periodo),
+                                     function(d) head(d, 1)))
+rownames(head_fontes) <- NULL
+print(head_fontes, row.names = FALSE)
+cat("mesma fonte líder nos dois períodos:", length(unique(head_fontes$fonte)) == 1, "\n")
+```
+
+### Leitura da saída
+
+A consulta devolve uma linha por período, com tudo o que o enunciado pediu, e a
+segunda tabela acrescenta as duas colunas que a interpretação exige. O período de
+`r gab_periodo$periodo[1]` tem `r gab_periodo$obras[1]` obras, o que representa
+`r sprintf("%.0f%%", 100 * gab_periodo$fracao_do_acervo[1])` do acervo, contra
+`r gab_periodo$obras[2]` obras no período de `r gab_periodo$periodo[2]`, ou
+`r sprintf("%.0f%%", 100 * gab_periodo$fracao_do_acervo[2])`. O acervo do
+segundo período é `r round(gab_periodo$obras[2] / gab_periodo$obras[1], 2)` vezes
+maior, e essa é a primeira parte da explicação: qualquer contagem bruta de termos
+ou de obras cresce junto com o acervo, e crescer não é o mesmo que mudar de
+assunto.
+
+A mediana de citações por obra caiu de
+`r gab_periodo$mediana_citacoes[1]` para
+`r gab_periodo$mediana_citacoes[2]`, e a citacao media por obra, calculada como
+total dividido por número de obras, caiu de
+`r round(gab_periodo$citacoes_por_obra[1], 1)` para
+`r round(gab_periodo$citacoes_por_obra[2], 1)`. Aqui a leitura precisa de
+cuidado, porque há duas causas concorrentes. A primeira é mecânica e domina: uma
+obra publicada em 2012 teve treze anos para acumular citações, e uma publicada em
+2024 teve dois; mesmo que as duas sejam igualmente relevantes, a primeira terá
+mais citações. A segunda é de composição: o acervo recente concentra os termos de
+aprendizado de máquina e sensoriamento remoto, e essas frentes têm dinâmica de
+citação própria. O SQL não separa as duas causas, e é por isso que a resposta
+honesta é dizer que o acervo cresceu e ficou mais jovem, e que a queda da mediana
+é esperada por construção — tratá-la como evidência de perda de impacto seria
+sobre-interpretar.
+
+A fonte mais frequente muda entre os períodos:
+`r head_fontes$fonte[1]` no período de `r head_fontes$periodo[1]`, com
+`r head_fontes$obras[1]` obras, e `r head_fontes$fonte[2]` no período de
+`r head_fontes$periodo[2]`, com `r head_fontes$obras[2]` obras. A interpretação
+disso depende do acervo, e vale registrar as duas leituras possíveis. No corpus
+simulado deste tutorial, as fontes foram sorteadas por obra com probabilidade
+fixa, sem nenhuma relação com o tema; portanto a troca de líder entre os períodos
+é ruído de amostragem, e não um achado. Em um acervo real, a mesma troca tem
+outro peso: quando o veículo mais frequente de um período é diferente do veículo
+mais frequente do outro, é preciso verificar se o deslocamento acompanha a
+mudança temática ou se reflete apenas a entrada de um periódico novo e muito
+produtivo no acervo. A consulta devolve o dado; a decisão de tratá-lo como achado
+exige olhar a lista completa de fontes de cada período, e não apenas a primeira
+linha.
+
+### Redação sugerida para o artigo
+
+> A caracterização do acervo por período foi feita diretamente sobre o arquivo de
+> banco de dados gerado pelo `biblioIntegrator`, por meio da função
+> `biblio_query()`, que executa instruções SQL sobre as tabelas persistidas sem
+> carregar o projeto em memória. A consulta agregou, para cada período, o número
+> de obras, a mediana e a média de citações por obra e a fonte mais frequente,
+> esta última obtida por ordenação dentro de cada período. O acervo do período
+> mais recente concentra `r sprintf("%.0f%%", 100 * gab_periodo$fracao_do_acervo[2])`
+> das obras analisadas, contra
+> `r sprintf("%.0f%%", 100 * gab_periodo$fracao_do_acervo[1])` do período
+> anterior. A mediana de citações por obra foi menor no período recente
+> (`r gab_periodo$mediana_citacoes[2]` contra
+> `r gab_periodo$mediana_citacoes[1]`), diferença que deve ser lida à luz do
+> tempo de exposição das publicações: obras mais antigas tiveram mais tempo para
+> acumular citações, de modo que a comparação bruta entre períodos não isola
+> efeito de impacto de efeito de idade. O periódico mais frequente foi
+> `r head_fontes$fonte[2]` no período recente
+> (`r head_fontes$obras[2]` obras) e `r head_fontes$fonte[1]` no período anterior
+> (`r head_fontes$obras[1]` obras), o que exige verificar a relação entre mudança
+> de veículo e mudança temática antes de interpretar a diferença.
+
+### Erros comuns a evitar
+
+1. **Usar `AVG()` e chamar o resultado de mediana.** As duas medidas divergem
+   muito neste acervo, porque a distribuição de citações tem cauda longa. O
+   DuckDB tem `MEDIAN()`; use-a, e reporte as duas se quiser discutir assimetria.
+2. **Agrupar por uma coluna que contém valores ausentes.** Aqui a coluna
+   `periodo` foi criada a partir do ano, e o recorte analítico já excluiu a obra
+   sem ano. Se você agrupar direto por `year`, o DuckDB devolve uma linha com
+   `NULL`, que aparece na tabela como uma categoria e costuma passar despercebida.
+3. **Escolher a fonte mais frequente com um `LIMIT 1` sobre a consulta inteira.**
+   Isso devolve a fonte mais frequente do acervo todo e não de cada período. É
+   preciso ordenar **dentro** do grupo, com `ROW_NUMBER() OVER (PARTITION BY
+   periodo ...)` ou com uma subconsulta correlacionada.
+4. **Concluir mudança temática a partir de contagem absoluta.** Comparar
+   `COUNT(*)` entre períodos de tamanhos diferentes mede o tamanho dos períodos.
+   Normalize pela fração do acervo, ou compare a proporção de obras que declaram
+   o termo dentro de cada período.
+5. **Comparar SQL com o resultado em R sem conferir a origem dos dados.** A
+   consulta roda sobre o arquivo gravado; se ele foi gerado antes de você
+   filtrar as obras sem ano, os números vão divergir do que a sessão mostra em
+   memória. Regenere o artefato quando o recorte analítico mudar — é para isso
+   que serve o `overwrite = TRUE`.

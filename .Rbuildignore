@@ -34,4 +34,5 @@
 
 # Tutorial operacional (não faz parte do pacote)
 ^tutorial$
+^tutorial-agronomia$
 ^LEIA-ME\.md$

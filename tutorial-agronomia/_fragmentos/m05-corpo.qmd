@@ -1,0 +1,525 @@
+# Módulo 5. Análise textual e tópicos
+
+## O problema agronômico
+
+Depois de importar, limpar e descrever o acervo, o doutorando em Agronomia chega
+à pergunta que motivou a revisão: sobre o que esses trabalhos falam, e o que
+mudou no vocabulário deles ao longo do tempo? A resposta não sai da contagem de
+documentos, porque um acervo que dobra de tamanho pode continuar usando as mesmas
+palavras. Ela sai do texto. Título e palavras-chave são os dois campos textuais
+que toda exportação bibliográfica traz preenchidos, e é sobre eles que este
+módulo trabalha.
+
+Há uma armadilha imediata nesse caminho, e ela não é conceitual: é
+administrativa. Toda base exportada carrega ruído que não tem significado
+científico algum — códigos de amostra, numeração de ensaio, identificadores de
+lote, prefixos de projeto. Esse ruído é frequente justamente porque é
+sistemático, e um contador de termos o colocará no topo da lista, acima de
+qualquer conceito agronômico. Quem não faz a limpeza publica uma tabela de
+códigos e chama aquilo de análise temática.
+
+O terceiro problema é de interpretação, e é onde a maioria dos artigos escorrega.
+Existem dois números diferentes em jogo: a frequência de um termo no acervo e o
+poder discriminante de um termo entre estratos. Um termo pode ser o mais frequente
+de todos e não distinguir nada, porque aparece igualmente em todos os anos; e um
+termo pode ser raro e ser exatamente o que separa um estrato do outro. Este módulo
+mostra os dois números, a fórmula que os combina e a leitura correta de cada um.
+
+## Frequência de termos e a etapa de limpeza
+
+A função `term_frequency()` tokeniza o campo textual, converte para minúsculas,
+descarta tokens com até dois caracteres e remove uma lista de palavras vazias.
+O argumento `field` aceita apenas `"title"` ou `"abstract"`. O acervo simulado
+tem os dois campos, mas o campo de resumo está vazio em todas as obras, de modo
+que a análise sobre resumo devolve zero linhas — e é importante que isso apareça
+como resultado vazio, e não como erro, para que ninguém conclua que a função
+falhou.
+
+```{r}
+#| label: tbl-m5-limpeza
+#| tbl-cap: "Top 15 termos do campo de títulos antes e depois da limpeza. A coluna 'depois' é a contagem do termo no acervo já filtrado."
+# 5.1 Frequência bruta no campo de títulos
+tf_bruto <- term_frequency(x_analise, field = "title")
+
+# 5.2 Limpeza: termo administrativo declarado como palavra vazia e tokens numéricos
+tf_filt <- term_frequency(x_analise, field = "title", stopwords = c("estudo"))
+tf_limpo <- tf_filt[!grepl("^[0-9]+$", tf_filt$term), ]
+
+# 5.3 Quantificação da limpeza
+limpeza <- data.frame(
+  metrica = c("termos distintos na saída bruta",
+              "termos distintos após a limpeza",
+              "ocorrências totais na saída bruta",
+              "ocorrências totais após a limpeza",
+              "tokens puramente numéricos descartados",
+              "ocorrências do termo administrativo"),
+  valor = c(nrow(tf_bruto), nrow(tf_limpo),
+            sum(tf_bruto$n), sum(tf_limpo$n),
+            sum(grepl("^[0-9]+$", tf_bruto$term)),
+            tf_bruto$n[tf_bruto$term == "estudo"]))
+
+# 5.4 Top 15 dos dois estados, lado a lado
+top_bruto <- head(tf_bruto, 15L)
+cmp <- data.frame(termo = top_bruto$term, n_bruto = top_bruto$n)
+cmp$n_limpo <- tf_limpo$n[match(cmp$termo, tf_limpo$term)]
+
+knitr::kable(cmp, row.names = FALSE,
+  caption = "Top 15 termos do campo de títulos antes e depois da limpeza. A célula ausente na coluna de depois é o termo que a limpeza removeu por completo, e a coluna de antes é sempre a contagem da saída bruta.")
+```
+
+A comparação entre as duas colunas é o conteúdo da tabela. Na saída bruta, o
+termo mais frequente é `r top_bruto$term[1]`, com `r top_bruto$n[1]` ocorrências,
+seguido de `r top_bruto$term[2]` e `r top_bruto$term[3]`, com
+`r top_bruto$n[2]` cada. Nenhum dos três é conceito agronômico: o primeiro é
+vocabulário administrativo, porque cada título do acervo termina com o sufixo
+`(estudo NNN)`, e os outros dois são palavras do próprio objeto de estudo. Os
+tokens puramente numéricos são `r sum(grepl("^[0-9]+$", tf_bruto$term))` termos
+distintos, cada um aparecendo no máximo
+`r max(tf_bruto$n[grepl("^[0-9]+$", tf_bruto$term)])` vez, o que os deixa baixos
+na tabela e ainda assim responsáveis por
+`r round(100 * sum(tf_bruto$n[grepl("^[0-9]+$", tf_bruto$term)]) / sum(tf_bruto$n), 1)`
+por cento de todas as ocorrências. Ruído administrativo não precisa estar no topo
+para contaminar a análise; basta existir em quantidade.
+
+A estatística que justifica a limpeza está nas contagens agregadas: a saída bruta
+tem `r sum(tf_bruto$n)` ocorrências em `r nrow(tf_bruto)` termos distintos, e o
+termo administrativo mais os códigos numéricos respondem por
+`r tf_bruto$n[tf_bruto$term == "estudo"] +
+   sum(tf_bruto$n[grepl("^[0-9]+$", tf_bruto$term)])` ocorrências, ou
+`r round(100 * (tf_bruto$n[tf_bruto$term == "estudo"] +
+                sum(tf_bruto$n[grepl("^[0-9]+$", tf_bruto$term)])) / sum(tf_bruto$n), 1)`
+por cento do total. Depois da limpeza, os termos distintos caem para
+`r nrow(tf_limpo)` e as ocorrências para `r sum(tf_limpo$n)`, de modo que
+`r round(100 * sum(tf_limpo$n) / sum(tf_bruto$n), 1)` por cento do volume
+original sobrevive. Esse é o ponto que a limpeza precisa justificar: ela não pode
+jogar fora sinal junto com ruído, e aqui ela descarta
+`r round(100 - 100 * sum(tf_limpo$n) / sum(tf_bruto$n), 1)` por cento do volume
+para manter a lista inteiramente composta de termos agronômicos.
+
+```{r}
+#| label: fig-m5-limpeza
+#| fig-cap: "Top 15 termos do campo de títulos antes e depois da limpeza, em dois painéis com a mesma ordem de termos."
+#| fig-alt: "Dois painéis de barras horizontais com a frequência de cada termo antes e depois da limpeza do texto."
+#| fig-height: 5.4
+# 5.5 Dois painéis: antes e depois da limpeza, na mesma ordem de termos
+n_painel <- min(15L, nrow(top_bruto), nrow(tf_limpo))
+d_tf <- rbind(
+  data.frame(termo = top_bruto$term[seq_len(n_painel)],
+             estado = "antes da limpeza", n = top_bruto$n[seq_len(n_painel)]),
+  data.frame(termo = tf_limpo$term[seq_len(n_painel)],
+             estado = "depois da limpeza", n = tf_limpo$n[seq_len(n_painel)]))
+# a ordem dos termos é a do topo bruto, e é a mesma nos dois painéis
+d_tf$termo <- factor(d_tf$termo, levels = rev(top_bruto$term[seq_len(n_painel)]))
+# termos que só aparecem na saída bruta ficam sem nível e saem do gráfico
+d_tf <- d_tf[!is.na(d_tf$termo), ]
+stopifnot(all(!is.na(d_tf$termo)))
+d_tf$estado <- factor(d_tf$estado, levels = c("antes da limpeza", "depois da limpeza"))
+
+ggplot(d_tf, aes(x = n, y = termo, fill = estado)) +
+  geom_col(width = .62) +
+  geom_text(aes(label = n), hjust = -.3, size = 2.5, colour = "grey30") +
+  facet_wrap(~ estado, ncol = 2, scales = "free_x") +
+  scale_fill_manual(values = c("antes da limpeza" = pal_agri[2],
+                               "depois da limpeza" = pal_agri[1]), guide = "none") +
+  scale_x_continuous(expand = expansion(mult = c(0, .22))) +
+  labs(x = "ocorrências no campo de títulos", y = NULL,
+       title = "Efeito da limpeza sobre o ranking de termos",
+       subtitle = "mesma ordem de termos nos dois painéis; escalas horizontais independentes")
+```
+
+A Figura mostra o efeito completo da limpeza em dois painéis com a mesma ordem de
+termos, de modo que a comparação é linha a linha. No painel da esquerda, o acervo
+como exportado, e a linha de `r top_bruto$term[1]` salta aos olhos: as barras
+laranja registram `r top_bruto$n[1]` ocorrências desse termo. No painel da
+direita, o acervo depois do filtro, e essa linha simplesmente não existe, porque
+o termo saiu da análise. Os termos agronômicos sobem para o topo da lista, e
+`r tf_limpo$term[1]` lidera com `r tf_limpo$n[1]` ocorrências, seguido de
+`r tf_limpo$term[2]` e `r tf_limpo$term[3]`, com `r tf_limpo$n[2]` cada. Nenhum
+termo da lista depurada tem dígito no nome, o que confirma que o filtro numérico e
+a lista de palavras vazias atacaram exatamente o alvo.
+
+Vale um aviso sobre o argumento de palavras vazias, porque ele é uma fonte de
+surpresa. O valor de `stopwords` **substitui** a lista padrão, e não a
+complementa. Nos títulos deste acervo nada muda, porque são portugueses e não
+contêm as palavras vazias inglesas do padrão, mas em um acervo com títulos em
+inglês passar apenas `c("estudo")` faria "the", "of" e "and" voltarem ao topo.
+Se você precisa das duas listas, escreva as duas juntas no argumento.
+
+```{r}
+#| label: tbl-m5-resumo
+#| tbl-cap: "Tentativas de análise sobre o campo de resumo: o acervo simulado não tem resumos preenchidos e a função devolve zero linhas."
+# 5.6 O campo abstract existe, mas está vazio em todas as obras
+tem_abstract <- sum(!is.na(x_analise$works$abstract) &
+                    nzchar(trimws(x_analise$works$abstract)))
+tf_abstract <- term_frequency(x_analise, field = "abstract")
+campo_invalido <- tryCatch(term_frequency(x_analise, field = "journal"),
+                           error = function(e) conditionMessage(e))
+
+estado_abstract <- data.frame(
+  situacao = c("obras com resumo preenchido",
+               "linhas devolvidas por field = 'abstract'",
+               "resposta a um campo inexistente"),
+  resultado = c(tem_abstract, nrow(tf_abstract), campo_invalido))
+
+knitr::kable(estado_abstract, row.names = FALSE,
+  caption = "Tentativas de análise sobre o campo de resumo: o acervo simulado não tem resumos preenchidos e a função devolve zero linhas.")
+```
+
+Esse pequeno quadro merece atenção porque separa dois comportamentos que
+parecem iguais e não são. Pedir um campo válido e vazio devolve um quadro de
+zero linhas, sem aviso: é um resultado, e o resultado diz que não há texto
+naquele campo. Pedir um campo que não existe para como erro, com a mensagem
+`r campo_invalido`. Um pipeline que trate os dois casos como "deu problema"
+vai ou parar onde deveria seguir, ou seguir onde deveria parar. Aqui, o campo de
+resumo existe em `x_analise$works` mas está vazio nas
+`r nrow(x_analise$works)` obras, de modo que toda a análise textual deste módulo
+usa títulos e, adiante, a tabela de palavras-chave.
+
+## Frequência direta das palavras-chave
+
+Título é texto livre, e o vocabulário dele depende de estilo de redação. A tabela
+de palavras-chave do acervo é outra coisa: são conceitos que os autores
+declararam, já normalizados em minúsculas pelo pacote. Para medir temas, essa
+tabela é o caminho mais curto, e `term_frequency()` não a alcança, porque só lê
+título e resumo.
+
+```{r}
+#| label: tbl-m5-keywords
+#| tbl-cap: "Frequência das palavras-chave normalizadas em cada período, com a variação percentual entre os dois períodos."
+# 5.7 Frequência direta da tabela de palavras-chave normalizadas
+kw <- x_analise$keywords
+kw$ano <- x_analise$works$year[match(kw$work_id, x_analise$works$work_id)]
+kw$periodo <- ifelse(kw$ano >= 2020L, "2020-2025", "2010-2019")
+kw <- kw[!is.na(kw$keyword) & nzchar(kw$keyword), ]
+
+freq_kw <- as.data.frame(table(kw$keyword, kw$periodo), stringsAsFactors = FALSE)
+names(freq_kw) <- c("keyword", "periodo", "n")
+
+# 5.8 Menções por termo e período, normalizadas pelo número de obras do período
+obras_per <- table(kw$periodo[!duplicated(kw$work_id)])
+freq_kw$por_obra <- freq_kw$n / as.integer(obras_per[freq_kw$periodo])
+
+# 5.9 Taxa por obra em cada período: separa crescimento do acervo de adoção do termo
+taxa_kw <- reshape(freq_kw[, c("keyword", "periodo", "por_obra")],
+                   idvar = "keyword", timevar = "periodo", direction = "wide")
+names(taxa_kw) <- c("keyword", "taxa_antes", "taxa_recente")
+taxa_kw$razao <- taxa_kw$taxa_recente / pmax(taxa_kw$taxa_antes, 1e-9)
+
+freq_wide <- reshape(freq_kw[, c("keyword", "periodo", "n")],
+                     idvar = "keyword", timevar = "periodo", direction = "wide")
+names(freq_wide) <- c("keyword", "antes", "recente")
+freq_wide$antes[is.na(freq_wide$antes)] <- 0L
+freq_wide$recente[is.na(freq_wide$recente)] <- 0L
+freq_wide$total <- freq_wide$antes + freq_wide$recente
+freq_wide$variacao <- round(100 * (freq_wide$recente / pmax(freq_wide$antes, 1L) - 1), 1)
+kw_top <- head(freq_wide[order(-freq_wide$total), ], 12L)
+
+# 5.10 Quantos dos doze termos da figura ganham densidade por obra
+no_top <- taxa_kw$keyword %in% kw_top$keyword
+n_sobe <- sum(taxa_kw$razao[no_top] > 1)
+n_desce <- sum(taxa_kw$razao[no_top] <= 1)
+
+knitr::kable(kw_top, row.names = FALSE,
+  caption = "Frequência das palavras-chave normalizadas em cada período, com a variação percentual entre os dois períodos.")
+```
+
+A tabela ordena os temas do acervo por volume total de menções. Os termos
+`r kw_top$keyword[1]`, `r kw_top$keyword[2]` e `r kw_top$keyword[3]` lideram com
+`r kw_top$total[1]`, `r kw_top$total[2]` e `r kw_top$total[3]` menções, e os
+quatro primeiros lugares são vocabulário da frente de silício e estresse
+abiótico, a mais populosa do acervo. Duas linhas, porém, mudam de assunto: o nono
+e o décimo primeiro termos da lista são `r kw_top$keyword[kw_top$keyword == "deep learning"]`
+e `r kw_top$keyword[kw_top$keyword == "machine learning"]`, com
+`r kw_top$total[kw_top$keyword == "deep learning"]` e
+`r kw_top$total[kw_top$keyword == "machine learning"]` menções totais, e as
+maiores variações percentuais da tabela pertencem justamente a eles. A coluna de
+variação é a que sustenta a leitura temporal, mas ela compara a contagem do
+período recente com a do período anterior **sem normalizar** pelo número de obras,
+de modo que um termo pode apresentar variação alta apenas porque o período
+recente tem mais obras. Essa é a razão de a figura seguinte trazer a taxa por
+obra ao lado das contagens, e de as duas camadas discordarem.
+
+```{r}
+#| label: fig-m5-keywords
+#| fig-cap: "Menções de cada palavra-chave nos dois períodos do acervo. As barras são contagens absolutas; os pontos são as mesmas contagens redistribuídas como menções por obra do período, na mesma escala."
+#| fig-alt: "Barras pareadas com a contagem de menções por palavra-chave e período, com pontos marcando a contagem por obra do período."
+# 5.10 Contagens absolutas e taxa por obra na mesma figura
+freq_kw$keyword <- factor(freq_kw$keyword, levels = rev(kw_top$keyword))
+
+ggplot(freq_kw[!is.na(freq_kw$keyword), ], aes(x = n, y = keyword, fill = periodo)) +
+  geom_col(position = position_dodge(width = .74), width = .7) +
+  geom_point(aes(x = por_obra * mean(freq_kw$n), colour = periodo),
+             position = position_dodge(width = .74), size = 1.8, show.legend = FALSE) +
+  scale_fill_manual(values = c("2010-2019" = pal_agri[3], "2020-2025" = pal_agri[1]),
+                    name = NULL) +
+  scale_colour_manual(values = c("2010-2019" = pal_agri[3], "2020-2025" = pal_agri[1])) +
+  labs(x = "menções no acervo", y = NULL,
+       title = "Palavras-chave por período",
+       subtitle = "barras: menções absolutas; pontos: menções por obra do período, na mesma escala")
+```
+
+A Figura tem duas camadas e é preciso ler as duas, porque elas discordam entre
+si. A tabela anterior traz doze dos `r nrow(freq_wide)` termos do acervo e serve
+de amostra do que a figura mostra. As barras são as contagens absolutas e crescem
+nos doze termos exibidos, o que reflete o fato de o período recente ter
+`r sum(freq_kw$n[freq_kw$periodo == "2020-2025"])` menções contra
+`r sum(freq_kw$n[freq_kw$periodo == "2010-2019"])` do período anterior. Os pontos
+são a mesma contagem dividida pelo número de obras do período e colocados na
+mesma escala para permitir a comparação visual, e a leitura deles é oposta à das
+barras: entre os doze termos da figura, a taxa por obra sobe em `r n_sobe` e cai
+ou empata em `r n_desce`. Quem sobe são
+`r paste(taxa_kw$keyword[order(-taxa_kw$razao)][1:3], collapse = ", ")`, com razão
+de `r paste(round(taxa_kw$razao[order(-taxa_kw$razao)][1:3], 2), collapse = ", ")`
+entre os dois períodos. Em outras palavras, o vocabulário temático consolidado
+perde densidade e o vocabulário de automação ganha, enquanto as barras sugerem que
+todos avançam.
+
+Esta é a lição central do módulo, e ela cabe em uma frase: em um acervo que
+cresce, contagem absoluta cresce com ele e não informa nada sobre adoção. O que
+mede adoção é a taxa por obra, e é ela que sustenta a afirmação sobre mudança de
+vocabulário. Um artigo que apresente apenas as barras dirá que todos os temas
+cresceram, quando o dado mostra que `r n_desce` dos doze termos perderam densidade
+e `r n_sobe` ganharam.
+
+## TF-IDF: o que distingue um estrato
+
+Frequência mede presença no acervo inteiro. TF-IDF mede presença em um estrato
+relativamente ao resto. A função `tfidf_terms()` calcula, para cada termo e cada
+grupo, o número de documentos que contêm o termo no grupo multiplicado pelo
+logaritmo da razão entre o número de grupos e o número de grupos em que o termo
+aparece. O argumento `group` só aceita nomes de coluna de `x$works`, e dois
+deles são os que fazem sentido: `"year"` e `"source"`.
+
+```{r}
+#| label: tbl-m5-tfidf
+#| tbl-cap: "Top 10 termos por TF-IDF no agrupamento por ano, com a frequência no estrato, o número de anos em que o termo ocorre e o valor do índice."
+# 5.9 TF-IDF por ano e limpeza do mesmo ruído administrativo
+ti_bruto <- tfidf_terms(x_analise, group = "year")
+ti <- ti_bruto[!grepl("^[0-9]+$", ti_bruto$term) & !ti_bruto$term %in% c("estudo"), ]
+ti_top <- head(ti[order(-ti$tfidf), c("term", "group", "n", "df", "tfidf")], 10L)
+
+knitr::kable(ti_top, row.names = FALSE, digits = 3,
+  caption = "Top 10 termos por TF-IDF no agrupamento por ano, com a frequência no estrato, o número de anos em que o termo ocorre e o valor do índice.")
+```
+
+Aqui está o resultado que organiza a interpretação de todo índice de
+discriminação. O termo com o maior TF-IDF é `r ti_top$term[1]`, com índice
+`r round(ti_top$tfidf[1], 3)`, frequência de `r ti_top$n[1]` no estrato
+`r ti_top$group[1]` e ocorrência em `r ti_top$df[1]` anos de um total de
+`r length(unique(ti$group))`. O termo mais frequente do acervo,
+`r tf_limpo$term[1]`, tem TF-IDF de
+`r round(ti$tfidf[ti$term == tf_limpo$term[1]][1], 3)` — e o índice é zero
+justamente porque o termo aparece em **todos** os anos. O logaritmo de um dividido
+por um é zero, e essa é a propriedade que dá sentido ao índice: um termo onipresente
+não distingue estrato algum, por mais frequente que seja.
+
+Traduzindo para a prática da escrita científica: TF-IDF alto com `df` baixo é
+assinatura de um termo que caracteriza um recorte específico do acervo. No
+material analisado, os termos com índice acima de `r 1` são
+`r paste(sort(unique(ti$term[ti$tfidf > 1])), collapse = ", ")`, e nenhum deles é
+vocabulário de tema: são palavras de cultura e de sistema de manejo, que
+distinguem um trabalho dos demais pelo objeto cultivado e não pela frente de
+pesquisa. Se a sua pergunta é temática, esse resultado é ruído útil: ele mostra
+que o acervo é heterogêneo em cultura e homogêneo em tema, o que é uma informação
+sobre o desenho da amostra e sobre o cuidado necessário ao ler uma nuvem de
+palavras construída sobre títulos.
+
+```{r}
+#| label: fig-m5-tfidf
+#| fig-cap: "Mapa de calor do TF-IDF dos doze termos mais frequentes do acervo ao longo dos anos. A escala vai do branco, para índice nulo, ao laranja, e os anos não cobertos pelo termo ficam sem célula."
+#| fig-alt: "Mapa de calor com termos nas linhas, anos nas colunas e intensidade de cor proporcional ao TF-IDF."
+# 5.10 Mapa de calor do TF-IDF por termo e por ano
+termos_topo <- head(tf_limpo$term, 12L)
+d_hm <- ti[ti$term %in% termos_topo, ]
+d_hm$term <- factor(d_hm$term, levels = rev(termos_topo))
+d_hm$ano <- as.integer(d_hm$group)
+
+ggplot(d_hm, aes(x = ano, y = term, fill = tfidf)) +
+  geom_tile(colour = "white", linewidth = .35) +
+  scale_fill_gradient(low = "#F2F2F2", high = pal_agri[6], na.value = "#F2F2F2",
+                      name = "TF-IDF") +
+  scale_x_continuous(breaks = seq(min(d_hm$ano), max(d_hm$ano), by = 2)) +
+  labs(x = "ano", y = NULL,
+       title = "TF-IDF por termo e por ano",
+       subtitle = "branco: termo presente em todos os anos, índice nulo")
+```
+
+O mapa de calor mostra o índice no espaço dos dois estratos ao mesmo tempo e
+torna visível a propriedade que o texto anterior descreveu. As linhas dos termos
+onipresentes ficam brancas em toda a extensão: presença uniforme, índice zero. As
+linhas dos termos com `df` baixo mostram manchas concentradas em poucos anos, que
+são exatamente os estratos que aquele termo distingue. A cor nunca indica
+importância científica; indica exclusividade estatística. Um artigo que apresente
+esse mapa precisa dizer, na legenda, que a intensidade mede concentração
+temporal, e não relevância agronômica.
+
+## Evolução dos tópicos e chegada do vocabulário de automação
+
+A terceira função do módulo trabalha diretamente sobre a tabela de palavras-chave
+e responde à pergunta de evolução. `trend_topics()` conta, para cada ano e cada
+palavra-chave, quantas obras a declararam, e devolve as colunas `year`, `keyword`
+e `n`. O único argumento opcional é `min_total`, que descarta termos com menos de
+um número mínimo de menções no acervo inteiro.
+
+```{r}
+#| label: tbl-m5-trend
+#| tbl-cap: "Evolução dos cinco termos mais frequentes do acervo, por ano, com as células ausentes preenchidas com zero."
+# 5.11 Tendência por ano e por termo
+tr <- trend_topics(x_analise)
+tot_termo <- sort(tapply(tr$n, tr$keyword, sum), decreasing = TRUE)
+top5 <- names(tot_termo)[1:5]
+anos <- sort(unique(tr$year))
+
+# 5.12 Preenchimento explícito das combinações ano-termo ausentes
+grade <- expand.grid(year = anos, keyword = top5, stringsAsFactors = FALSE)
+grade <- merge(grade, tr, all.x = TRUE)
+grade$n[is.na(grade$n)] <- 0L
+faltantes <- sum(!paste(grade$year, grade$keyword) %in%
+                 paste(tr$year, tr$keyword))
+
+grade_wide <- reshape(grade, idvar = "year", timevar = "keyword", direction = "wide")
+names(grade_wide) <- sub("^n\\.", "", names(grade_wide))
+grade_wide <- grade_wide[order(grade_wide$year), ]
+knitr::kable(grade_wide, row.names = FALSE,
+  caption = "Evolução dos cinco termos mais frequentes do acervo, por ano, com as células ausentes preenchidas com zero.")
+```
+
+O preenchimento das células ausentes é a parte do código que não pode ser
+omitida, e vale entender por quê. A função agrega apenas as combinações que
+existem no dado, de modo que um termo ausente em um ano simplesmente não tem
+linha. Ao montar a grade completa com todas as combinações de ano e termo, o
+número de células que precisaram de zero é `r faltantes`. Sem esse passo, uma
+série plotada em linha teria buracos que o gráfico interpreta como descontinuidade
+da publicação, quando o que houve foi ausência de menção. Zero e ausência são
+coisas diferentes em bibliometria, e a diferença some quando se plota direto a
+saída da agregação.
+
+```{r}
+#| label: fig-m5-trend
+#| fig-cap: "Evolução anual dos cinco termos de palavra-chave mais frequentes do acervo, em painéis separados, com escala livre por painel."
+#| fig-alt: "Cinco painéis de linhas mostrando a contagem anual de cada um dos cinco termos mais frequentes."
+# 5.13 Séries dos cinco termos, em painéis com escala livre
+grade$keyword <- factor(grade$keyword, levels = top5)
+ggplot(grade, aes(x = year, y = n)) +
+  geom_line(colour = pal_agri[1], linewidth = .7) +
+  geom_point(colour = pal_agri[1], size = 1.5) +
+  facet_wrap(~ keyword, ncol = 3, scales = "free_y") +
+  scale_x_continuous(breaks = seq(min(anos), max(anos), by = 3)) +
+  labs(x = "ano", y = "menções no acervo",
+       title = "Evolução dos cinco termos mais frequentes",
+       subtitle = "escala vertical livre em cada painel")
+```
+
+A Figura mostra o que a contagem agregada esconde. Os cinco termos mais
+frequentes do acervo pertencem ao vocabulário da frente de silício e estresse
+abiótico, e todos crescem ao longo do período, mas o crescimento deles é
+irregular: em `r anos[1]` o acervo tem
+`r sum(grade$n[grade$year == anos[1]])` menções entre os cinco termos, e em
+`r anos[length(anos)]` tem `r sum(grade$n[grade$year == anos[length(anos)]])`. A
+escala livre por painel é deliberada: sem ela, os cinco painéis ficariam na mesma
+escala e os termos menos frequentes virariam linhas retas no chão do gráfico. Com
+ela, cada painel mostra a *forma* de sua série, e a comparação entre painéis passa
+a ser sobre forma, não sobre nível — o que exige que a legenda diga isso, como diz.
+
+```{r}
+#| label: fig-m5-automacao
+#| fig-cap: "Chegada do vocabulário de automação ao acervo: menções anuais de aprendizado de máquina, aprendizado profundo, VANT e imageamento hiperespectral."
+#| fig-alt: "Linhas com a contagem anual das palavras-chave de automação, separando o período anterior e o posterior a 2020."
+# 5.14 Verdade plantada V4: vocabulário de automação por ano
+termos_ia <- c("machine learning", "deep learning", "uav", "hyperspectral")
+pal_ia <- c("machine learning" = pal_agri[3], "deep learning" = pal_agri[6],
+            "uav" = pal_agri[4], "hyperspectral" = pal_agri[1])
+ia <- tr[tr$keyword %in% termos_ia, ]
+ia$fase <- ifelse(ia$year >= 2020L, "2020-2025", "2010-2019")
+
+ggplot(ia, aes(x = year, y = n, colour = keyword)) +
+  geom_line(linewidth = .6, alpha = .6) +
+  geom_point(aes(shape = fase), size = 2.1, fill = "white") +
+  scale_colour_manual(values = pal_ia, name = NULL) +
+  scale_shape_manual(values = c("2010-2019" = 1, "2020-2025" = 16),
+                     name = "marcador") +
+  scale_x_continuous(breaks = seq(min(ia$year), max(ia$year), by = 2)) +
+  labs(x = "ano", y = "obras que declaram o termo",
+       title = "Vocabulário de automação no acervo",
+       subtitle = "pontos vazados: antes de 2020; pontos cheios: 2020 em diante")
+```
+
+A Figura fecha a verdade plantada V4 com a evidência que faltava, e ela precisa
+ser lida com uma ressalva metodológica que vale mais que o resultado. O
+vocabulário de automação **não é novo** no acervo: as obras da frente de
+sensoriamento remoto já traziam esses quatro termos desde o início da série, e é
+por isso que existem menções antes de `r 2020L`. O que muda é a densidade. Em
+`r 2020L` em diante, `r sum(ia$n[ia$year >= 2020L])` menções contra
+`r sum(ia$n[ia$year < 2020L])` no restante da série. Contando obras em vez de
+menções, a diferença fica mais clara ainda:
+`r round(100 * mean(x_analise$works$work_id %in%
+   unique(kw$work_id[kw$keyword %in% termos_ia]) &
+   x_analise$works$year >= 2020L), 1)` por cento das obras do período recente
+declaram ao menos um termo de automação, contra
+`r round(100 * mean(x_analise$works$work_id %in%
+   unique(kw$work_id[kw$keyword %in% termos_ia]) &
+   x_analise$works$year < 2020L), 1)` por cento do período anterior.
+
+Essa diferença entre contar menções e contar obras não é detalhe de implementação,
+e é a razão de a verdade plantada precisar de duas leituras. Quando um acervo
+cresce, toda contagem absoluta cresce com ele; o que mede adoção de vocabulário é
+a fração de obras que adotam, e essa fração é comparável entre períodos de
+tamanhos diferentes. Em dado real, uma frente metodológica vizinha entra em cena
+exatamente assim: primeiro em um número pequeno de trabalhos, depois como
+vocabulário corrente, sem que ninguém anuncie a virada. É a contagem por obra, e
+não a contagem de menções, que mostra o momento.
+
+```{r}
+#| label: tbl-m5-df
+#| tbl-cap: "Relação entre frequência e poder discriminante: os três termos mais frequentes do acervo, o número de anos em que ocorrem e o TF-IDF máximo."
+# 5.15 Frequência total contra número de anos: por que o termo mais frequente não discrimina
+df_por_termo <- aggregate(df ~ term, ti, max)
+tot_por_termo <- tf_limpo
+comp_disc <- merge(tot_por_termo, df_por_termo, by.x = "term", by.y = "term",
+                   all.x = TRUE)
+comp_disc$tfidf_max <- vapply(comp_disc$term, function(t)
+  max(ti$tfidf[ti$term == t]), numeric(1))
+comp_disc <- comp_disc[order(-comp_disc$n), c("term", "n", "df", "tfidf_max")]
+top_disc <- head(comp_disc, 3L)
+top_disc_baixo <- head(comp_disc[order(comp_disc$df, -comp_disc$n), ], 3L)
+
+knitr::kable(rbind(top_disc, top_disc_baixo), row.names = FALSE, digits = 3,
+  caption = "Relação entre frequência e poder discriminante: os três termos mais frequentes do acervo, o número de anos em que ocorrem e o TF-IDF máximo.")
+```
+
+A tabela fecha o argumento com os dois extremos lado a lado. Os três termos mais
+frequentes ocorrem em `r paste(sort(unique(top_disc$df)), collapse = ", ")` dos
+`r length(unique(ti$group))` anos e têm TF-IDF máximo de
+`r round(max(top_disc$tfidf_max), 3)`: são onipresentes e, por construção do
+índice, não distinguem estrato algum. Os três termos mais concentrados ocorrem em
+`r paste(sort(unique(top_disc_baixo$df)), collapse = ", ")` anos e chegam a
+TF-IDF de `r round(max(top_disc_baixo$tfidf_max), 3)`. Um artigo que precise
+justificar a escolha de um termo para representar um período tem aqui o critério:
+frequência alta com `df` alto descreve o acervo inteiro, frequência moderada com
+`df` baixo descreve uma fase dele. Vale registrar o que o índice **não** faz: ele
+não mede relevância agronômica nem qualidade científica, e um termo com TF-IDF
+zero pode ser o conceito central da frente, como é o caso aqui.
+
+## Tarefas do Módulo 5
+
+**Tarefa 5.1 (aplicar).** Rode `term_frequency()` sobre o campo de títulos com e
+sem o argumento `stopwords`, informe quantos termos e quantas ocorrências cada
+versão devolve e explique em duas frases por que a diferença entre as duas
+versões precisa ser declarada no Material e Métodos do artigo. Depois rode
+`tfidf_terms()` com `group = "source"` e diga o que muda na interpretação em
+relação ao agrupamento por ano.
+
+**Tarefa 5.2 (analisar).** Use `trend_topics()` para montar a série anual de um
+termo de automação da sua escolha, preencha as células ausentes com zero e escreva
+um parágrafo de Resultados com a mudança de nível entre os períodos. Em seguida,
+compare a série do termo escolhido com a série do termo mais frequente do acervo e
+explique por que a conclusão sobre "o que cresce" depende de qual dos dois
+números, frequência ou discriminação, você usou.
+
+::: {.callout-tip}
+## Antes de seguir
+Guarde o vetor `top5` e a grade completa em um objeto com nome próprio. O Módulo 6
+agrupa o mesmo acervo por período e por tema, e a comparação entre os dois
+caminhos, contagem textual e teste de associação, é o que mostra a diferença
+entre descrever e testar.
+:::

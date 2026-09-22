@@ -1,0 +1,25 @@
+---
+title: "teste-python"
+format: html
+execute:
+  warning: false
+  message: false
+---
+
+```{r}
+ck_dir <- "D:/RLibrary"
+if (dir.exists(ck_dir)) .libPaths(c(ck_dir, .libPaths()))
+suppressPackageStartupMessages(library(biblioIntegrator))
+pbs <- python_backend_status()
+cat("disponivel:", pbs$available, "| versao:", pbs$version, "| python:", pbs$python, "\n")
+```
+
+```{r}
+x <- as_biblio_project(example_biblio())
+g <- ifelse(x$works$year < 2022, "early", "late")
+cmpB <- tryCatch(biblium_compare_groups(x, g, permutations = 99, seed = 7),
+                 error = function(e) conditionMessage(e))
+if (inherits(cmpB, "biblio_group_comparison")) {
+  cat("BIBLIUM OK -> chi:", cmpB$chi_square, " p:", cmpB$p_value, " V:", cmpB$cramers_v, "\n")
+} else cat("BIBLIUM FALHOU:", cmpB, "\n")
+```

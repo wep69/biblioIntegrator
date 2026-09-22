@@ -1,0 +1,346 @@
+# Módulo 2. Qualidade, duplicatas e proveniência
+
+## O problema agronômico
+
+A busca sistemática da sua tese sobre silício e estresse salino em arroz rodou em
+três bases e voltou com 283 registros para um conjunto de estudos que você sabe
+ser menor. A diferença não é contabilidade: cada registro a mais conta duas vezes
+na produção anual, entra duas vezes no conjunto que alimenta a meta-análise do
+efeito do silício na condutividade elétrica do extrato saturado e infla o painel
+de autores que você vai defender na qualificação.
+
+Bases bibliográficas exportam metadados que ninguém revisou antes de você. Um
+registro chega sem título porque a exportação cortou o campo, outro chega sem ano
+porque a base não resolveu a data, outro ainda traz contagem de citações
+negativa, resultado de correções internas aplicadas sobre um número já publicado.
+Nenhum desses defeitos salta aos olhos quando se abre o arquivo e se rola até o
+fim; todos aparecem quando se procura por eles com um critério explícito. O custo
+de não procurar é uma tabela de resultados que a banca refaz em dez minutos e não
+consegue reproduzir.
+
+Este módulo cobre a etapa que precede qualquer análise. A pergunta que ele
+responde não é quantos registros existem, mas quais defeitos os metadados têm,
+quais deles uma rotina automática corrige sem julgamento e quais exigem uma
+decisão do pesquisador, registrada e defensável. A fronteira entre corrigir e
+decidir é o que separa um acervo auditável de uma planilha apenas organizada. O
+acervo de trabalho é o `x_bruto`, o corpus simulado de 283 registros que o
+documento montou a partir de 280 obras, com três duplicatas plantadas e defeitos
+de metadados distribuídos de propósito.
+
+## O diagnóstico antes da análise
+
+```{r}
+#| label: tbl-m2-diagnostico
+#| tbl-cap: "Defeitos de metadados acusados pelo diagnóstico no acervo bruto e depois da deduplicação automática."
+# diagnóstico dos dois estados do acervo: bruto e já deduplicado
+h_bruto <- biblio_health(x_bruto)
+h_limpo <- biblio_health(x_limpo)
+
+# a tabela coloca os dois diagnósticos lado a lado e mede o que a rotina resolveu
+diag <- data.frame(
+  defeito   = h_bruto$check,
+  bruto     = h_bruto$n,
+  pos_dedup = h_limpo$n,
+  stringsAsFactors = FALSE)
+diag$resolvido <- diag$bruto - diag$pos_dedup
+knitr::kable(
+  diag, row.names = FALSE,
+  col.names = c("defeito", "acervo bruto", "após deduplicação", "resolvido pela rotina"),
+  caption = "Defeitos de metadados acusados pelo diagnóstico no acervo bruto e depois da deduplicação automática.")
+```
+
+A leitura dessa tabela é a chave do módulo, e ela tem três partes. A primeira é
+que o diagnóstico acusa `r sum(diag$bruto)` ocorrências de defeito, e nenhuma das
+seis verificações devolve zero: o defeito mais frequente é o par título-ano
+repetido, com
+`r h_bruto$n[h_bruto$check == "duplicate_title_year"]` ocorrências. A segunda é
+que a rotina automática resolve `r sum(diag$resolvido)` desses casos — apenas o
+que decorre da duplicação — e deixa intactos o título em branco, o ano ausente,
+os dois DOIs vazios e a citação negativa, porque nenhum deles é duplicação. A
+terceira é a mais importante: entre o diagnóstico e a rotina existe uma sobra.
+Depois de deduplicar, o acervo ainda tem
+`r h_limpo$n[h_limpo$check == "duplicate_title_year"]` par de título e ano
+repetido, o que significa que os dois instrumentos discordam sobre o mesmo
+acervo. Localizar essa discordância é o objetivo do restante do módulo.
+
+```{r}
+#| label: fig-m2-diagnostico
+#| fig-cap: "Registros afetados por tipo de defeito no acervo bruto e depois da deduplicação automática."
+#| fig-alt: "Barras horizontais agrupadas por tipo de defeito, comparando o acervo bruto e o acervo deduplicado."
+# formato longo: uma linha por combinação de defeito e etapa, exigido pelo ggplot2
+d_long <- rbind(
+  data.frame(defeito = h_bruto$check, etapa = "bruto", n = h_bruto$n),
+  data.frame(defeito = h_limpo$check, etapa = "após deduplicação", n = h_limpo$n))
+d_long$defeito <- factor(d_long$defeito, levels = rev(h_bruto$check))
+d_long$etapa <- factor(d_long$etapa, levels = c("bruto", "após deduplicação"))
+
+ggplot(d_long, aes(x = defeito, y = n, fill = etapa)) +
+  geom_col(position = position_dodge(width = .78), width = .7) +
+  geom_text(aes(label = n), position = position_dodge(width = .78),
+            hjust = -.3, size = 3) +
+  scale_fill_manual(values = c("bruto" = pal_agri[2], "após deduplicação" = pal_agri[1])) +
+  scale_y_continuous(limits = c(0, max(d_long$n) * 1.2)) +
+  coord_flip() +
+  labs(x = NULL, y = "registros afetados", fill = NULL,
+       title = "Diagnóstico de qualidade antes e depois da deduplicação",
+       subtitle = "Barras ausentes indicam defeito já resolvido ou inexistente")
+```
+
+A figura mostra quais barras desaparecem e quais permanecem. O que desaparece é
+exatamente o que a duplicação explicava: o DOI repetido cai de
+`r h_bruto$n[h_bruto$check == "duplicate_doi"]` para
+`r h_limpo$n[h_limpo$check == "duplicate_doi"]`, e o par título-ano cai de
+`r h_bruto$n[h_bruto$check == "duplicate_title_year"]` para
+`r h_limpo$n[h_limpo$check == "duplicate_title_year"]`. O que permanece são os
+defeitos de campo, que nenhuma deduplicação toca. A consequência prática é
+imediata: relatar apenas a queda do DOI repetido a zero, como se o acervo
+estivesse limpo, é uma leitura incorreta do próprio diagnóstico que você acabou
+de rodar. O acervo melhorou, mas não ficou íntegro, e a barra que não desapareceu
+é a que precisa de decisão humana.
+
+## A deduplicação automática e o que ela resolve
+
+```{r}
+#| label: tbl-m2-removidos
+#| tbl-cap: "Registros removidos pela deduplicação automática, com o identificador, o título e o DOI de cada um."
+# repetir a chamada aqui deixa a operação visível e confere que ela é determinística
+x_dedup <- deduplicate_biblio(x_bruto, method = "doi_title_year")
+m2_reproduz <- identical(x_dedup$works$work_id, x_limpo$works$work_id)
+
+# o log de removidos fica preso ao objeto como atributo
+log_rem <- attr(x_limpo, "dedup_log")
+knitr::kable(
+  log_rem, row.names = FALSE,
+  caption = "Registros removidos pela deduplicação automática, com o identificador, o título e o DOI de cada um.")
+```
+
+O log de removidos é a peça que torna a operação auditável, e ele responde à
+pergunta que todo revisor faz: o que exatamente saiu? Saíram
+`r nrow(log_rem)` registros, ambos com DOI preenchido, e os títulos das obras
+`r sub("^.*\\(estudo ([0-9]+)\\).*$", "\\1", log_rem$title[1])` e
+`r sub("^.*\\(estudo ([0-9]+)\\).*$", "\\1", log_rem$title[2])` aparecem duas
+vezes no bruto porque o mesmo trabalho foi exportado por bases diferentes. A
+chamada feita aqui reproduz o acervo do documento? `r m2_reproduz`. Essa
+reprodutibilidade importa para o artigo: se o revisor rodar o mesmo código na
+mesma versão do pacote, ele obtém a mesma lista de removidos, porque a chave de
+comparação é determinística e não depende da ordem das linhas nem de sorteio. O
+que a rotina não entrega, e não tem como entregar, é o julgamento sobre o que
+fazer quando dois registros descrevem a mesma obra sem compartilhar a mesma
+chave.
+
+```{r}
+#| label: fig-m2-funil
+#| fig-cap: "À esquerda, o tamanho do acervo em cada etapa do encadeamento; à direita, os defeitos que sobrevivem ao encadeamento, em número de pares."
+#| fig-alt: "Dois painéis de barras: o primeiro com o tamanho do acervo em três etapas e o segundo com a contagem dos dois defeitos remanescentes."
+# painel 1: tamanho do acervo etapa por etapa, sempre por contagem de linhas
+m2_painel1 <- data.frame(
+  painel = "Tamanho do acervo (registros)",
+  etapa  = c("bruto", "após\ndeduplicação", "recorte\nanalítico"),
+  n      = c(nrow(x_bruto$works), nrow(x_limpo$works), nrow(x_analise$works)))
+
+# painel 2: defeitos que o encadeamento acima não resolveu, contados em pares
+m2_alvo <- paste(tolower(trimws(x_limpo$works$title)), x_limpo$works$year)
+m2_painel2 <- data.frame(
+  painel = "Defeitos remanescentes (pares)",
+  etapa  = c("título e ano\nrepetidos", "identificador\nrepetido"),
+  n      = c(sum(duplicated(m2_alvo)),
+             sum(table(x_analise$works$work_id) > 1)))
+
+m2_funil <- rbind(m2_painel1, m2_painel2)
+m2_funil$etapa <- factor(m2_funil$etapa, levels = m2_funil$etapa)
+m2_funil$painel <- factor(m2_funil$painel, levels = unique(m2_funil$painel))
+
+ggplot(m2_funil, aes(x = etapa, y = n, fill = painel)) +
+  geom_col(width = .66) +
+  geom_text(aes(label = n), vjust = -.4, size = 3.3) +
+  facet_wrap(~ painel, scales = "free", ncol = 2) +
+  scale_fill_manual(values = pal_agri[c(1, 2)], guide = "none") +
+  scale_y_continuous(expand = expansion(mult = c(0, .2))) +
+  labs(x = NULL, y = "contagem",
+       title = "O que o encadeamento resolve e o que ele deixa para trás",
+       subtitle = "Escalas independentes entre os painéis: registros à esquerda, pares de defeito à direita")
+```
+
+A figura é o resumo operacional do módulo e precisa ser lida em dois tempos. O
+painel da esquerda é o funil: o acervo entra com `r nrow(x_bruto$works)` registros,
+perde `r nrow(x_bruto$works) - nrow(x_limpo$works)` na deduplicação e perde mais
+`r nrow(x_limpo$works) - nrow(x_analise$works)` no recorte analítico, chegando a
+`r nrow(x_analise$works)` obras com ano conhecido. O painel da direita é o que
+costuma ser omitido em relatos de bibliometria: mesmo depois de todo o
+encadeamento, permanecem um par de título e ano repetidos e
+`r sum(table(x_analise$works$work_id) > 1)` identificadores repetidos. Os dois
+painéis usam escalas independentes de propósito, porque comparar a contagem de
+registros com a contagem de pares de defeito no mesmo eixo tornaria o defeito
+invisível — e o defeito invisível é justamente o que volta como pergunta na
+defesa.
+
+## A terceira duplicata sobrevive à rotina
+
+```{r}
+#| label: tbl-m2-remanescente
+#| tbl-cap: "O par que sobrevive à deduplicação automática: duas linhas com o mesmo título e o mesmo ano, uma com DOI e outra sem, e as chaves de comparação que a rotina usa."
+# a chave de comparação da rotina, reproduzida aqui como está documentada no pacote
+chave_dedup <- function(titulo, ano, doi) {
+  ifelse(nzchar(doi),
+         paste0("doi:", doi),
+         paste0("ty:", tolower(gsub("[^[:alnum:]]", "", titulo)), ":", ano))
+}
+
+# o diagnóstico procura título igual no mesmo ano; aqui isolamos o par que restou
+m2_w <- x_limpo$works
+m2_alvo_w <- paste(tolower(trimws(m2_w$title)), m2_w$year)
+m2_par <- m2_w[duplicated(m2_alvo_w) | duplicated(m2_alvo_w, fromLast = TRUE), ]
+m2_par$chave <- chave_dedup(m2_par$title, m2_par$year, m2_par$doi)
+
+knitr::kable(
+  m2_par[, c("work_id", "title", "year", "doi", "chave", "cited_by_count")],
+  row.names = FALSE,
+  col.names = c("identificador", "título", "ano", "DOI", "chave usada na deduplicação", "citações"),
+  caption = "O par que sobrevive à deduplicação automática: duas linhas com o mesmo título e o mesmo ano, uma com DOI e outra sem, e as chaves de comparação que a rotina usa.")
+```
+
+Esta tabela é o achado central do módulo, e ela explica uma discordância que
+parecia erro de contagem. As duas linhas descrevem o mesmo trabalho: mesmo
+título, mesmo ano, mesma fonte, mesmo
+`r m2_par$cited_by_count[1]` citações. A rotina automática não as uniu porque a
+chave que ela constrói não é o título, e sim uma cadeia que muda de forma
+conforme o DOI existe: quando há DOI, a chave é `doi:` seguido do identificador;
+quando não há, a chave é `ty:` seguido do título sem pontuação e do ano. As duas
+chaves da tabela nunca coincidem, e chaves diferentes significam registros
+diferentes para qualquer rotina baseada em chave. Note ainda que o diagnóstico
+não errou ao acusar o par: ele usa o critério título mais ano, que é o critério
+correto do ponto de vista do conteúdo. Ele acusa mais do que a rotina
+automática resolve, e essa assimetria é uma propriedade do desenho do
+diagnóstico, não um defeito dele.
+
+A consequência prática é que a última palavra não é do software. Restam três
+caminhos defensáveis, e você precisa escolher um e dizer qual escolheu. O
+primeiro é voltar à base de origem e recuperar o DOI do registro órfão: se a
+exportação tiver omitido o campo, o próprio Scopus ou OpenAlex devolve o
+identificador, e a partir daí a chave volta a coincidir e a rotina resolve o par
+sozinha. O segundo é excluir a linha sem DOI manualmente e registrar a decisão,
+o que é legítimo desde que documentado, porque a obra já está representada pela
+linha que tem DOI. O terceiro é manter as duas linhas e explicar por que, o que
+só se sustenta quando há dúvida real sobre serem o mesmo trabalho — situação em
+que título e ano coincidem por acaso, algo comum em títulos genéricos como
+"Efeito da adubação nitrogenada na produtividade do milho". O erro que invalida
+os três caminhos é não fazer nenhum e seguir para a análise com a duplicata
+dentro do acervo, porque aí o número de obras do artigo passa a depender de sorte
+de exportação.
+
+## O que o diagnóstico não vê: identificadores repetidos
+
+```{r}
+#| label: tbl-m2-colisoes
+#| tbl-cap: "Identificadores compartilhados por obras distintas no recorte analítico, com o rótulo de cada obra em conflito."
+# identificadores que aparecem em mais de uma linha do recorte analítico
+m2_w_ana <- x_analise$works
+m2_ids_rep <- names(which(table(m2_w_ana$work_id) > 1))
+
+# rótulo curto para a tabela: número do estudo e ano
+m2_rot <- function(t, y) sprintf("estudo %s (%d)", sub("^.*\\(estudo ([0-9]+)\\).*$", "\\1", t), y)
+
+m2_colisoes <- do.call(rbind, lapply(m2_ids_rep, function(i) {
+  d <- m2_w_ana[m2_w_ana$work_id == i, ]
+  data.frame(identificador = i,
+             obra_1 = m2_rot(d$title[1], d$year[1]),
+             obra_2 = m2_rot(d$title[2], d$year[2]),
+             stringsAsFactors = FALSE)
+}))
+
+# efeito no encadeamento: a junção por identificador repete os vínculos de autoria
+m2_vinculos <- nrow(x_analise$authorships)
+m2_vinculos_merge <- nrow(merge(x_analise$authorships,
+                                m2_w_ana[, "work_id", drop = FALSE], by = "work_id"))
+
+knitr::kable(
+  m2_colisoes, row.names = FALSE,
+  col.names = c("identificador", "primeira obra", "segunda obra"),
+  caption = "Identificadores compartilhados por obras distintas no recorte analítico, com o rótulo de cada obra em conflito.")
+```
+
+Este é um defeito de outra natureza, e vale conhecê-lo antes de publicar painel
+por autor. O recorte analítico tem `r nrow(m2_w_ana)` linhas mas apenas
+`r length(unique(m2_w_ana$work_id))` identificadores distintos: em
+`r length(m2_ids_rep)` casos, duas obras diferentes receberam o mesmo
+identificador. A causa está na construção do identificador, que é uma função
+resumida do texto formado por título, ano e DOI — um resumo, por definição,
+descarta informação, e textos distintos podem produzir o mesmo resumo. Nenhuma
+linha da tabela é duplicata: os títulos, os anos e as obras são diferentes, e é
+por isso que o diagnóstico do início do módulo não acusa nada aqui, porque ele
+procura título e ano repetidos e não identificador repetido.
+
+A consequência é silenciosa e aparece longe daqui. Toda junção por identificador
+cresce quando a chave se repete: a tabela de vínculos de autoria do recorte tem
+`r m2_vinculos` linhas e passa a `r m2_vinculos_merge` depois de uma junção
+apenas com a coluna de identificador das obras — `r m2_vinculos_merge - m2_vinculos`
+vínculos inventados, que existem porque cada linha das obras em conflito
+encontrou as autorias da obra errada. Qualquer painel de produção por autor
+construído sobre essa junção herda o excesso, e a distorção não se anuncia:
+os totais continuam "coerentes", apenas maiores. A correção é atribuir
+identificador único na importação, o que se faz com uma linha de código,
+declarando a coluna `work_id` no quadro plano antes de chamar
+`as_biblio_project()`, que então respeita o identificador fornecido em vez de
+calculá-lo. A lição de método é mais ampla: identificador gerado por resumo do
+conteúdo não substitui chave de base, e em acervo que vai virar tabela de autores
+vale declarar a chave na entrada.
+
+## A trilha de proveniência
+
+```{r}
+#| label: tbl-m2-proveniencia
+#| tbl-cap: "Trilha de proveniência do acervo deduplicado, com o carimbo de tempo, a operação e os detalhes de cada passo."
+# a trilha do bruto tem uma linha; a do deduplicado acumula a segunda
+m2_trilha_bruto <- audit_biblio(x_bruto)
+m2_trilha <- audit_biblio(x_limpo)
+knitr::kable(
+  m2_trilha, row.names = FALSE,
+  col.names = c("carimbo de tempo", "operação", "detalhes"),
+  caption = "Trilha de proveniência do acervo deduplicado, com o carimbo de tempo, a operação e os detalhes de cada passo.")
+```
+
+A trilha responde, em duas linhas, à pergunta que nenhuma tabela de resultados
+responde: de onde veio o número que está no artigo. A primeira linha registra a
+importação e traz `r m2_trilha$details[1]`, ou seja, quantos registros entraram e
+de qual fonte. A segunda registra `r m2_trilha$details[2]`, o que fecha a conta do
+funil: `r nrow(x_bruto$works)` menos `r nrow(log_rem)` é
+`r nrow(x_limpo$works)`. A leitura é que a proveniência se acumula a cada
+operação sobre o objeto, sem que você precise manter um diário paralelo, e que o
+carimbo de tempo é o que permite amarrar a análise à versão da base consultada —
+relevante quando o revisor pede a data exata do levantamento. O que a trilha não
+guarda é o julgamento: ela registra que dois registros foram removidos, não que a
+decisão sobre a terceira duplicata foi recuperar o DOI na base de origem. Essa
+parte continua sendo sua, e o lugar dela é a seção de Métodos.
+
+::: {.callout-warning}
+## A armadilha do diagnóstico em objeto errado
+`biblio_health()` não verifica se o argumento é um `biblio_project`. Se você
+passar o quadro plano (`dB`) em vez do projeto, a função procura a tabela
+`works` dentro de um data frame, não encontra, e devolve todos os defeitos iguais
+a zero — um atestado de limpeza para um acervo que ainda tem duplicata, título
+em branco e citação negativa. `audit_biblio()`, na mesma situação, para com
+`inherits(x, "biblio_project") is not TRUE`; `deduplicate_biblio()` para com
+`$ operator is invalid for atomic vectors`. Ou seja: das três funções do módulo,
+duas falham alto e uma falha em silêncio. Harmonize com `as_biblio_project()`
+antes de diagnosticar.
+:::
+
+## Tarefas do Módulo 2
+
+**Tarefa 2.1 (aplicar).** Rode o encadeamento completo — diagnóstico,
+deduplicação e auditoria — em dois acervos diferentes: o acervo didático do
+pacote (`x_did`, doze obras, sem defeito plantado) e um recorte do acervo bruto
+limitado às obras de 2020 em diante. Para cada um, informe quantos registros
+entram, quantos saem da deduplicação, quais defeitos o diagnóstico acusa em cada
+estado e quantas linhas a trilha de proveniência acumula. Ao final, diga em que
+acervo a deduplicação automática foi suficiente e em que acervo ela não foi.
+
+**Tarefa 2.2 (analisar e criar).** Decida o destino da duplicata remanescente e
+documente a decisão. Escreva uma função `relatar_pendencias(x)` que receba um
+`biblio_project` e devolva somente os defeitos que a rotina automática **não**
+resolve — o par de título e ano repetido, os identificadores compartilhados por
+obras distintas, os campos obrigatórios vazios e a contagem de citações negativa
+— com uma coluna indicando a ação esperada do pesquisador. Rode-a sobre
+`x_limpo` e sobre `x_analise`, compare as duas saídas e escreva, em um parágrafo,
+qual das três decisões discutidas no módulo você adotaria para a linha sem DOI e
+por quê.

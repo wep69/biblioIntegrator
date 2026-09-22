@@ -1,0 +1,98 @@
+## Gabarito do Exercício 5.1
+
+### Código completo e executável
+
+```{r}
+#| label: tbl-g51
+#| tbl-cap: "Efeito do argumento stopwords e do filtro numérico sobre a contagem de termos e ocorrências no campo de títulos, na Tarefa 5.1."
+# 5.1.1 As três versões da contagem: bruta, com palavra vazia declarada e com filtro numérico
+tf_sem <- term_frequency(x_analise, field = "title")
+tf_com <- term_frequency(x_analise, field = "title", stopwords = c("estudo"))
+tf_fil <- tf_com[!grepl("^[0-9]+$", tf_com$term), ]
+
+versoes <- data.frame(
+  versao = c("padrão", "stopwords = c('estudo')", "stopwords + filtro numérico"),
+  termos_distintos = c(nrow(tf_sem), nrow(tf_com), nrow(tf_fil)),
+  ocorrencias = c(sum(tf_sem$n), sum(tf_com$n), sum(tf_fil$n)),
+  termo_lider = c(tf_sem$term[1], tf_com$term[1], tf_fil$term[1]),
+  n_do_lider = c(tf_sem$n[1], tf_com$n[1], tf_fil$n[1]))
+
+knitr::kable(versoes, row.names = FALSE,
+  caption = "Efeito do argumento stopwords e do filtro numérico sobre a contagem de termos e ocorrências no campo de títulos, na Tarefa 5.1.")
+
+# 5.1.2 Quantas ocorrências a lista padrão remove sozinha
+ocorrencias_num <- sum(tf_com$n[grepl("^[0-9]+$", tf_com$term)])
+n_numericos <- sum(grepl("^[0-9]+$", tf_com$term))
+
+# 5.1.3 TF-IDF agrupado por fonte, com a mesma limpeza
+ti_fonte <- tfidf_terms(x_analise, group = "source")
+ti_fonte <- ti_fonte[!grepl("^[0-9]+$", ti_fonte$term) & ti_fonte$term != "estudo", ]
+ti_ano <- tfidf_terms(x_analise, group = "year")
+ti_ano <- ti_ano[!grepl("^[0-9]+$", ti_ano$term) & ti_ano$term != "estudo", ]
+
+top_fonte <- head(ti_fonte[order(-ti_fonte$tfidf), c("term", "group", "n", "df", "tfidf")], 5L)
+knitr::kable(top_fonte, row.names = FALSE, digits = 3,
+  caption = "Cinco termos de maior TF-IDF no agrupamento por fonte, na Tarefa 5.1.")
+
+df_abiotico_fonte <- unique(ti_fonte$df[ti_fonte$term == "abiótico"])
+df_abiotico_ano <- unique(ti_ano$df[ti_ano$term == "abiótico"])
+```
+
+### Leitura da saída
+
+A primeira tabela responde à pergunta central com três linhas. Na versão padrão, a
+análise devolve `r versoes$termos_distintos[1]` termos e
+`r versoes$ocorrencias[1]` ocorrências, e o termo líder é
+`r versoes$termo_lider[1]`, com `r versoes$n_do_lider[1]` menções. Declarando a
+palavra vazia, os termos distintos caem para `r versoes$termos_distintos[2]` e as
+ocorrências para `r versoes$ocorrencias[2]`, uma redução de
+`r versoes$ocorrencias[1] - versoes$ocorrencias[2]` ocorrências do vocabulário
+administrativo; o termo líder passa a ser `r versoes$termo_lider[2]`. A terceira
+linha mostra que a lista de palavras vazias **não** resolve os códigos numéricos:
+restam `r n_numericos` termos puramente numéricos, responsáveis por
+`r ocorrencias_num` ocorrências, e é só com o filtro por expressão regular que o
+líder se torna `r versoes$termo_lider[3]`.
+
+Duas consequências práticas saem daí, e são elas que precisam ir para o Material e
+Métodos. A primeira é que o número de termos e o número de ocorrências do acervo
+dependem de decisão do analista, e não do dado: as três versões descrevem o mesmo
+acervo com `r min(versoes$termos_distintos)` a `r max(versoes$termos_distintos)`
+termos. A segunda é que a lista de palavras vazias **substitui** o padrão em vez de
+acrescentar a ele, de modo que declarar apenas `c("estudo")` em um acervo com
+títulos em inglês reintroduziria "the", "of" e "and" na contagem. O caminho seguro
+é declarar as duas listas juntas, como faz o bloco anterior com o termo
+administrativo local somado ao padrão.
+
+A segunda parte da tarefa muda o eixo da análise. Agrupando por fonte, o termo de
+maior TF-IDF é `r top_fonte$term[1]`, com índice
+`r round(top_fonte$tfidf[1], 3)` na fonte `r top_fonte$group[1]`, frequência de
+`r top_fonte$n[1]` no estrato e ocorrência em `r top_fonte$df[1]` das
+`r length(unique(ti_fonte$group))` fontes. O termo onipresente aqui é
+`r if (length(df_abiotico_fonte)) "abiótico" else "nenhum"`, presente em
+`r df_abiotico_fonte` fontes, contra `r df_abiotico_ano` anos no agrupamento
+temporal. A interpretação muda de natureza: no agrupamento por ano, o TF-IDF alto
+identifica uma *fase* temporal; no agrupamento por fonte, identifica o perfil
+editorial de um periódico. Como o acervo simulado não plantou viés temático por
+fonte, o resultado por fonte é mais fraco e menos interpretável, e isso é a
+resposta honesta: nem todo agrupamento produz achado, e um acervo sem estrutura
+por fonte não a inventa.
+
+### Redação sugerida para o artigo
+
+A análise textual foi conduzida sobre os títulos normalizados do corpus
+(n = `r nrow(x_analise$works)`), com conversão para minúsculas, remoção de
+palavras vazias (lista padrão acrescida do termo administrativo "estudo") e
+descarte de tokens exclusivamente numéricos, etapa necessária porque o corpus
+carrega códigos de identificação de estudo que não têm significado temático. A
+frequência absoluta dos termos foi complementada pelo cálculo de TF-IDF, que
+pondera a frequência no estrato pelo número de estratos em que o termo ocorre,
+permitindo distinguir vocabulário onipresente de vocabulário discriminante.
+
+### Erros comuns a evitar
+
+- Passar apenas o termo administrativo em `stopwords` e supor que ele se soma à lista padrão: o argumento substitui o padrão, e em corpus com títulos em inglês as palavras funcionais voltam à contagem.
+- Filtrar os tokens numéricos pelo comprimento em vez do conteúdo: os códigos de três dígitos sobrevivem ao corte de dois caracteres; o filtro correto é sobre o padrão do token.
+- Ler o TF-IDF alto como relevância temática: o índice mede concentração no estrato, e um termo onipresente tem índice zero por construção, por mais central que seja o conceito.
+- Rodar `term_frequency(field = "abstract")` e concluir que a função falhou: o acervo tem o campo, mas vazio, e a saída de zero linhas é um resultado.
+- Comparar contagens de termos entre dois acervos de tamanhos diferentes sem normalizar por documento.
+

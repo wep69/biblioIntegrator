@@ -1,0 +1,89 @@
+## Gabarito do Exercício 4.1
+
+### Código completo e executável
+
+```{r}
+#| label: tbl-g41
+#| tbl-cap: "Velocidade de citação no acervo real do OpenAlex e no acervo simulado, na Tarefa 4.1."
+# 4.1.1 Velocidade nos dois acervos: o real e o simulado
+tem_real <- inherits(x_openalex, "biblio_project")
+vel_real <- if (tem_real) citation_velocity(x_openalex) else citation_velocity(x_analise)
+traj_real <- if (tem_real) citation_trajectory(x_openalex) else citation_trajectory(x_analise)
+vel_sim <- citation_velocity(x_analise)
+
+comparacao <- data.frame(
+  acervo = c(if (tem_real) "OpenAlex (real)" else "simulado (rede indisponível)",
+             "simulado (corpus B)"),
+  obras = c(nrow(vel_real), nrow(vel_sim)),
+  mediana_velocidade = c(median(vel_real$velocity), median(vel_sim$velocity)),
+  mediana_citacoes = c(median(vel_real$citations), median(vel_sim$citations)),
+  idade_maxima = c(max(traj_real$age), max(citation_trajectory(x_analise)$age)))
+
+knitr::kable(comparacao, row.names = FALSE, digits = 2,
+  caption = "Velocidade de citação no acervo real do OpenAlex e no acervo simulado, na Tarefa 4.1.")
+
+# 4.1.2 Tabela de arestas construída à mão, com as colunas exigidas
+arestas_t41 <- data.frame(
+  citing_id = c("A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"),
+  cited_id  = c("F1", "F1", "F1", "F1", "F1", "R1", "R1", "R2"),
+  stringsAsFactors = FALSE)
+di_t41 <- disruption_index("F1", arestas_t41, c("R1", "R2"))
+
+# 4.1.3 A mesma chamada com a tabela exportada com nomes de coluna do export_biblio()
+arestas_export <- data.frame(from = c("A1", "A2"), to = c("F1", "R1"),
+                             stringsAsFactors = FALSE)
+msg_t41 <- tryCatch(disruption_index("F1", arestas_export, c("R1", "R2")),
+                    error = function(e) conditionMessage(e))
+msg_t41_limpa <- sub("[.]$", "", msg_t41)   # a mensagem já traz ponto final
+```
+
+### Leitura da saída
+
+A Tabela responde à primeira parte da tarefa com um contraste que vale a
+discussão. A mediana da velocidade no acervo real é de
+`r round(comparacao$mediana_velocidade[1], 2)` citações por ano, contra
+`r round(comparacao$mediana_velocidade[2], 2)` no acervo simulado, uma razão de
+`r round(comparacao$mediana_velocidade[1] / comparacao$mediana_velocidade[2], 1)`
+vezes. A diferença não mede qualidade de dado nem erro de código: mede o regime
+de citação de cada acervo. O acervo real reúne as obras mais citadas devolvidas
+por uma busca temática, com idade máxima de `r comparacao$idade_maxima[1]` anos e
+mediana de `r round(comparacao$mediana_citacoes[1])` citações acumuladas; o
+acervo simulado foi gerado com citações sorteadas de uma log-normal de média
+baixa, sem memória temporal. Comparar velocidade entre acervos só faz sentido
+quando o regime de citação é comparável, e não é o caso aqui — o exercício serve
+para mostrar por que a comparação entre corpora precisa ser declarada como
+aproximada.
+
+O índice da Tarefa aparece no objeto `di_t41`: com `N_i` igual a
+`r di_t41$N_i`, `N_j` igual a `r di_t41$N_j` e `N_k` igual a `r di_t41$N_k`, o
+índice é `r round(di_t41$disruption, 2)`. São
+`r di_t41$N_i` obras que citam o focal sem citar nada do que ele citava,
+`r di_t41$N_k` obras que citam as referências do focal sem citar o focal e
+`r di_t41$N_j` obras que fazem as duas coisas. A leitura é de um perfil
+disruptivo no acervo construído: ninguém seguiu a trilha inteira, e o índice fica
+acima de `r 0.5`.
+
+A terceira parte é a que mais rende em aprendizado. A chamada com a tabela
+nomeada como o `export_biblio()` a entrega para, e a mensagem devolvida é
+`r msg_t41_limpa`. O erro é de esquema, não de conteúdo: os dados estavam
+íntegros e a função recusou o argumento, o que é o comportamento correto. Em um
+pipeline real, esse é o ponto exato onde você renomeia `from` e `to` para
+`citing_id` e `cited_id` antes de qualquer cálculo.
+
+### Redação sugerida para o artigo
+
+A velocidade de citação foi calculada como o número de citações dividido pela
+idade da obra, contada a partir do ano corrente, de modo a permitir a comparação
+entre documentos publicados em anos distintos. A intensidade de recepção foi
+avaliada em dois acervos independentes, e o índice de disrupção foi calculado
+sobre a rede de citações do acervo, com as referências de cada obra focal
+declaradas explicitamente.
+
+### Erros comuns a evitar
+
+- Comparar velocidade de citação entre acervos com regimes de citação diferentes: o acervo real traz as obras mais citadas de uma busca temática e o simulado traz citações sorteadas, e a razão entre as medianas mede o regime, não a relevância.
+- Ordenar por citações acumuladas quando as idades são desiguais: com idade máxima de `r comparacao$idade_maxima[2]` anos no acervo simulado, a contagem bruta favorece sistematicamente as obras antigas.
+- Passar para `disruption_index()` uma tabela exportada com nomes de coluna próprios: a função para com erro claro, e o conserto é renomear as colunas, não reescrever os dados.
+- Tratar a mediana como limiar de qualidade: por construção, metade do acervo fica acima dela, e um artigo que destaque essa metade não destacou nada.
+- Usar `citation_velocity()` sobre um acervo com ano ausente sem conferir: a idade depende do ano, e obra sem ano produz velocidade não comparável.
+

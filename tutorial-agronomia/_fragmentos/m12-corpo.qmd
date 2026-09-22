@@ -1,0 +1,638 @@
+# Módulo 12. Fechar o ciclo: planos, relatório, app e exportação
+
+## O problema agronômico
+
+Um doutorando em Agronomia chega ao último ano com a tese quase pronta: dois
+experimentos de campo sobre silício e tolerância à salinidade, um capítulo de
+revisão e um acervo que sustentou a introdução. O que falta não é análise nova. O
+que falta é o que a banca e o revisor vão pedir primeiro: qual foi exatamente o
+plano de análise, em que ordem ele rodou, com que semente, de onde saiu cada
+número da seção de Resultados e onde estão os dados que permitem reproduzir tudo
+isso. O acervo analisado em quinze scripts soltos responde às perguntas de
+pesquisa, mas não responde a essas perguntas metodológicas.
+
+Este módulo fecha o ciclo justamente aí. As funções anteriores do pacote
+produzem resultados; `form_plan()`, `run_plan()` e `biblio_report()` produzem o
+registro de como os resultados foram produzidos – a diferença entre um caderno de
+laboratório e um caderno de laboratório datado, assinado e legível por outra
+pessoa. Em bibliometria aplicada, essa diferença decide aceite e recusa: revisores
+de periódicos de Agronomia raramente contestam um mapa de coocorrência, mas
+contestam com frequência um recorte temporal, um limiar de rede ou um número de
+permutações que não foi declarado antes.
+
+O material suplementar é o lugar onde esse registro vive. Um artigo de
+bibliometria sem material suplementar obriga o leitor a confiar; um artigo com
+plano, relatório do acervo e base exportada permite ao leitor verificar. As quatro
+ferramentas deste módulo são as peças que montam esse suplemento: o plano
+declarado, a execução registrada, o relatório legível e a base em formato aberto.
+Ao final, você terá um pipeline que vai da planilha bruta ao conjunto de arquivos
+que acompanha a submissão.
+
+## O plano como pré-registro da análise
+
+As decisões metodológicas de uma bibliometria são muitas: quais módulos rodar,
+qual tipo de rede, como agrupar as obras, qual semente, em que formato entregar o
+relatório. `form_plan()` recolhe todas em um objeto único, que passa a ser a
+declaração assinada do que será feito:
+
+```{r plan-m12}
+#| tbl-cap: "O plano de análise declarado para o acervo de silício: cada campo do biblio_plan e sua função metodológica."
+plano <- form_plan(
+  analyses = c("health", "descriptive", "temporal", "network", "text"),
+  network  = "coauthor",
+  group    = g_per,
+  report   = "markdown",
+  seed     = SEED)
+campos <- data.frame(
+  campo = c("source", "analyses", "network", "group", "report", "seed"),
+  conteudo = c("origem dos dados; nulo quando o projeto já está em memória",
+               paste(plano$analyses, collapse = ", "),
+               plano$network,
+               "agrupamento declarado para a etapa inferencial",
+               plano$report,
+               as.character(plano$seed)),
+  papel = c("procedência", "escopo da análise", "tipo de grafo",
+            "variável de comparação", "formato de entrega", "reprodutibilidade"),
+  stringsAsFactors = FALSE)
+knitr::kable(campos, row.names = FALSE)
+```
+
+O plano do acervo analítico pede `r length(plano$analyses)` módulos, rede de
+`r plano$network` e semente `r plano$seed`. Note o que o objeto **não** contém:
+nenhuma decisão fica escondida dentro do script de análise, e cada campo tem
+consequência prática. `analyses` define o que será executado; `group` só entra em
+cena se o módulo `groups` estiver na lista; `seed` garante que a rede e as
+permutações se repitam.
+
+```{r validacao-m12}
+#| tbl-cap: "Validação do plano: o que validate_plan() aceita e o que recusa, com a mensagem de erro exata."
+plano_errado <- form_plan(analyses = c("health", "descriptive", "rdes"), seed = SEED)
+sem_classe   <- list(analyses = "health", network = "coauthor", seed = SEED)
+avaliar <- function(expressao) {
+  tryCatch({ expressao; "aceito" }, error = function(e) conditionMessage(e))
+}
+print(knitr::kable(data.frame(
+  situacao = c("form_plan() com módulo inexistente: o que a função faz",
+               "validate_plan() no plano correto",
+               "validate_plan() no plano com 'rdes'",
+               "validate_plan() em uma lista comum, sem classe biblio_plan"),
+  resultado = c(paste("retorna um", class(plano_errado)[1], "com", length(plano_errado$analyses), "módulos"),
+                avaliar(validate_plan(plano)),
+                avaliar(validate_plan(plano_errado)),
+                avaliar(validate_plan(sem_classe))),
+  consequencia = c("nenhuma checagem é feita na construção do plano",
+                   "execução liberada",
+                   "execução interrompida antes do primeiro cálculo",
+                   "execução interrompida: o objeto precisa vir de form_plan()")),
+  row.names = FALSE))
+```
+
+Duas coisas merecem atenção nessa tabela. A primeira é que `form_plan()` **não**
+recusa um nome desconhecido: ele monta o objeto com o que recebeu. A validação é
+responsabilidade de `validate_plan()`, que confere os nomes contra a lista de
+módulos implementados e aborta com `Unknown analyses: rdes`. A segunda é onde a
+validação acontece: no início. Um plano mal escrito descoberto na metade da
+execução custa a análise inteira; descoberto na validação, custa uma linha de
+código.
+
+## Executar o plano e ler o que ele devolve
+
+`run_plan()` recebe o plano validado e o acervo, executa apenas os módulos
+pedidos e devolve um objeto de classe `biblio_run`, que nada mais é do que uma
+lista nomeada com um elemento por módulo:
+
+```{r exec-m12}
+#| tbl-cap: "Estrutura do objeto biblio_run para o plano de cinco módulos: cada elemento retornado, a função que o produziu, sua classe e suas dimensões."
+execucao <- run_plan(plano, x_analise)
+estrutura <- data.frame(
+  modulo = names(execucao),
+  funcao = c("as_biblio_project()", "biblio_health()", "describe_biblio()",
+             "temporal_growth()", "bibliographic_network()",
+             "network_centrality()", "term_frequency()"),
+  classe = vapply(execucao, function(e) paste(class(e), collapse = "/"), character(1)),
+  dimensoes = vapply(execucao, function(e)
+    if (is.null(dim(e))) paste0("comprimento ", length(e)) else paste(dim(e), collapse = " x "),
+    character(1)),
+  stringsAsFactors = FALSE)
+print(knitr::kable(estrutura, row.names = FALSE))
+```
+
+Os `r nrow(estrutura)` elementos que voltaram são exatamente
+`r paste(names(execucao), collapse = ", ")`. Os dois objetos sem dimensão são os
+que carregam estrutura, e não tabela: `project` é o acervo inteiro e `network` é um
+grafo `igraph` com `r igraph::vcount(execucao$network)` nós e
+`r igraph::ecount(execucao$network)` arestas. O elemento `centrality` tem
+`r nrow(execucao$centrality)` linhas, uma por autor com pelo menos uma coautoria
+no recorte.
+
+O elemento `project` está sempre presente, mesmo quando nenhum módulo é pedido;
+os demais aparecem só se foram declarados. Pedir `network` traz dois elementos, a
+rede e a centralidade, porque a segunda é consequência direta da primeira. Pedir
+`groups` sem preencher `group` no plano não gera elemento nenhum – outra decisão
+que o plano registra e o script pode conferir depois.
+
+```{r tbl-modulos-m12}
+#| tbl-cap: "Plano de análise do projeto de silício: módulo, pergunta agronômica que ele responde e justificativa metodológica da inclusão."
+tbl_modulos <- data.frame(
+  modulo = c("health", "descriptive", "temporal", "network", "text"),
+  pergunta = c("O acervo está limpo o bastante para sustentar conclusões?",
+               "Qual é o tamanho, o impacto e a dispersão do campo?",
+               "O tema cresce, estabiliza ou perde tração na janela analisada?",
+               "Quem e o que estruturam o campo: autores ou termos?",
+               "Que vocabulário técnico define o tema e como ele muda?"),
+  funcao = c("biblio_health()", "describe_biblio()", "temporal_growth()",
+             "bibliographic_network()", "term_frequency()"),
+  justificativa = c("resíduos de qualidade viram limitação declarada no artigo",
+                    "dimensiona o corpus e evita generalização indevida",
+                    "distingue moda passageira de frente de pesquisa",
+                    "identifica grupos de pesquisa e pontes entre temas",
+                    "ancora a leitura qualitativa nos termos de fato usados"),
+  stringsAsFactors = FALSE)
+knitr::kable(tbl_modulos, row.names = FALSE)
+```
+
+A Tabela acima é o coração metodológico do módulo: cada linha é uma pergunta que
+a banca vai fazer, e a última coluna é a resposta que você dará na seção de
+Material e Métodos. Repare que `groups` não está no plano. A comparação entre os
+períodos de publicação entrou no acervo como objeto `g_per`, mas a etapa
+inferencial custa caro em tempo de execução, como a Figura abaixo mostra, e por
+isso fica como análise de confirmação, fora do plano descritivo.
+
+```{r fig-m12-tempo}
+#| fig-cap: "Tempo de execução medido de cada módulo do plano e, como referência, o custo da etapa inferencial de comparação entre períodos com 999 permutações."
+#| fig-alt: "Gráfico de barras horizontais em milissegundos; os módulos do plano ficam abaixo de vinte milissegundos e a barra da etapa de permutações é várias vezes maior."
+# A mediana de 30 execuções e usada porque system.time() tem resolucao de
+# 1 milissegundo e os modulos descritivos rodam abaixo disso.
+if (!requireNamespace("microbenchmark", quietly = TRUE))
+  stop("Este bloco usa microbenchmark para medir tempos abaixo de 1 ms.")
+modulos_m12 <- c("health", "descriptive", "temporal", "text", "network", "centrality")
+mb_mod <- microbenchmark::microbenchmark(
+  health      = biblio_health(x_analise),
+  descriptive = describe_biblio(x_analise),
+  temporal    = temporal_growth(x_analise),
+  text        = term_frequency(x_analise),
+  network     = bibliographic_network(x_analise, "coauthor"),
+  centrality  = network_centrality(bibliographic_network(x_analise, "coauthor")),
+  times = 30L)
+ms_perm <- summary(microbenchmark::microbenchmark(
+  compare_groups(x_analise, g_per, entity = "keyword", permutations = 999, seed = SEED),
+  times = 5L), unit = "ms", include_cld = FALSE)$median
+tempos <- data.frame(
+  etapa = factor(c(modulos_m12, "compare_groups\n(999 permutações)"),
+                 levels = c(modulos_m12, "compare_groups\n(999 permutações)")),
+  no_plano = factor(c(rep("módulo do plano", length(modulos_m12)), "etapa inferencial"),
+                    levels = c("módulo do plano", "etapa inferencial")),
+  ms = c(summary(mb_mod, unit = "ms", include_cld = FALSE)$median, ms_perm))
+tempos$etapa <- factor(tempos$etapa, levels = tempos$etapa[order(tempos$ms)])
+ggplot(tempos, aes(x = ms, y = etapa, fill = no_plano)) +
+  geom_col(width = .68) +
+  geom_text(aes(label = sprintf("%.1f ms", ms)), hjust = -0.06, size = 3, colour = "grey25") +
+  scale_fill_manual(values = c("módulo do plano" = pal_agri[1],
+                               "etapa inferencial" = pal_agri[2]), name = NULL) +
+  scale_x_continuous(expand = expansion(mult = c(0, .24))) +
+  labs(x = "tempo de execução (milissegundos)", y = NULL,
+       title = "Onde o tempo é gasto no acervo de 280 obras",
+       subtitle = "mediana de 30 execuções por módulo; a inferência fica fora do plano")
+```
+
+A Figura acima separa duas coisas que costumam ser confundidas. Os seis módulos do
+plano são baratos: o mais lento deles, `r as.character(tempos$etapa[which.max(tempos$ms[tempos$no_plano == "módulo do plano"])])`,
+custa `r sprintf("%.1f", max(tempos$ms[tempos$no_plano == "módulo do plano"]))` ms,
+e o plano inteiro roda em menos de um décimo de segundo. A etapa de inferência por
+permutação custa
+`r round(ms_perm / max(tempos$ms[tempos$no_plano == "módulo do plano"]), 1)`
+vezes o módulo mais caro. O gargalo de uma bibliometria não está em ler o acervo:
+está em reamostrar o acervo milhares de vezes. A consequência prática é direta –
+se a análise precisa de inferência, o número de permutações é decidido antes de
+rodar, porque é ele, e não o tamanho do corpus, que define o tempo.
+
+```{r fig-m12-permutacoes}
+#| fig-cap: "Custo da inferência por permutação no mesmo acervo: o tempo cresce proporcionalmente ao número de reamostragens pedido."
+#| fig-alt: "Gráfico de linhas com pontos em escala logarítmica nos dois eixos, mostrando crescimento proporcional do tempo com o número de permutações."
+escala_perm <- do.call(rbind, lapply(c(199, 999, 4999, 19999), function(np) {
+  data.frame(permutacoes = np,
+             ms = summary(microbenchmark::microbenchmark(
+               compare_groups(x_analise, g_per, entity = "keyword",
+                              permutations = np, seed = SEED),
+               times = 3L), unit = "ms", include_cld = FALSE)$median)
+}))
+ggplot(escala_perm, aes(x = permutacoes, y = ms)) +
+  geom_line(colour = pal_agri[1], linewidth = .7) +
+  geom_point(colour = pal_agri[1], size = 2.4) +
+  geom_text(aes(label = sprintf("%.0f ms", ms)), vjust = -1.1, size = 3, colour = "grey25") +
+  scale_x_log10(breaks = escala_perm$permutacoes) +
+  scale_y_log10(expand = expansion(mult = c(.14, .26))) +
+  labs(x = "número de permutações", y = "tempo (ms)",
+       title = "Inferência por permutação cobra por reamostragem",
+       subtitle = "mesmo acervo e mesmo agrupamento; só o número de permutações muda")
+```
+
+O crescimento é praticamente proporcional: de `r escala_perm$permutacoes[1]` para
+`r format(escala_perm$permutacoes[4], big.mark = ".")` permutações o tempo sobe
+`r round(escala_perm$ms[4] / escala_perm$ms[1])` vezes. Isso muda o desenho da
+análise, não só a paciência do analista. Um valor de p estimado com 999
+permutações tem resolução de aproximadamente um milésimo: pedir
+`r format(escala_perm$permutacoes[4], big.mark = ".")` para "melhorar" um p que
+já é menor que 0,001 gasta
+`r sprintf("%.1f", escala_perm$ms[4] / 1000)` segundos para não mudar conclusão
+alguma. Declare o número no plano, justifique-o pela resolução que o artigo
+precisa e não o aumente por hábito.
+
+## Do resultado ao material suplementar
+
+Executada a análise, falta o documento que acompanha a submissão. `biblio_report()`
+monta um relatório completo do acervo – resumo do corpus, qualidade dos dados,
+produção anual, termos líderes, centralidade de coautoria, backends opcionais e
+trilha de procedência – no formato que você escolher:
+
+```{r relatorio-m12}
+#| tbl-cap: "Formatos de relatório gerados pela mesma chamada, com tempo de geração medido e o uso típico de cada um."
+dir_saidas <- file.path(getwd(), "_m12_saidas")
+dir.create(dir_saidas, showWarnings = FALSE)
+alvos <- c(markdown = "relatorio.md", html = "relatorio.html",
+           docx = "relatorio.docx", pdf = "relatorio.pdf")
+tempo_rel <- vapply(names(alvos), function(fm) {
+  unname(system.time(
+    biblio_report(x_analise, file.path(dir_saidas, alvos[[fm]]),
+                  format = fm, title = "Silício e salinidade: relatório do acervo")
+  )["elapsed"])
+}, numeric(1))
+tbl_relatorios <- data.frame(
+  formato = names(alvos),
+  arquivo = unname(alvos),
+  gerado = file.exists(file.path(dir_saidas, unname(alvos))),
+  segundos = round(tempo_rel, 2),
+  uso_tipico = c("controle de versão e leitura no editor de texto",
+                 "envio direto como suplemento navegável",
+                 "coorientador que revisa com comentários no Word",
+                 "anexo impresso e versão final do suplemento"),
+  stringsAsFactors = FALSE)
+print(knitr::kable(tbl_relatorios, row.names = FALSE))
+```
+
+Os `r sum(tbl_relatorios$gerado)` arquivos foram gerados nesta execução, como a
+coluna `gerado` confirma, e o custo cresce com a complexidade do formato: o
+markdown sai em `r tbl_relatorios$segundos[tbl_relatorios$formato == "markdown"]` s
+e o PDF, que ainda depende de uma instalação LaTeX funcional, em
+`r tbl_relatorios$segundos[tbl_relatorios$formato == "pdf"]` s. Um detalhe
+operacional que vale a dor de cabeça: `biblio_report()` renderiza os formatos
+não-markdown em um diretório temporário e depois move o arquivo, então **passe
+caminho absoluto**. Caminho relativo faz a busca acontecer dentro do diretório
+temporário e o erro aparece como
+`The directory '.../Temp/Rtmp.../_m12_saidas' does not exist`. Usar
+`file.path(getwd(), "saida")` resolve de vez.
+
+```{r relatorio-linhas-m12}
+#| tbl-cap: "Primeiras 20 linhas do relatório em markdown: cabeçalho, resumo do corpus e o bloco completo de qualidade dos dados."
+linhas_rel <- readLines(file.path(dir_saidas, "relatorio.md"), warn = FALSE)
+print(knitr::kable(data.frame(linha = seq_along(linhas_rel[1:20]),
+                              texto = linhas_rel[1:20]), row.names = FALSE))
+```
+
+O relatório tem `r length(linhas_rel)` linhas e abre com o resumo numérico do
+corpus, na linha `r linhas_rel[grep("^Documents", linhas_rel)][1]`. O bloco de
+qualidade vem logo abaixo do cabeçalho e é a parte que mais interessa ao revisor,
+porque expõe o que o acervo tem de ruim antes que ele tenha de perguntar. Note que
+os resíduos não desaparecem porque as obras com problema foram removidas: o
+acervo analítico preserva `r paste(sub("^\\| ", "", sub(" \\|$", "",
+  grep("^\\| (missing_title|missing_year|negative_citations)", linhas_rel, value = TRUE))),
+  collapse = ", ")` – são registros que entram na análise e viram limitação
+declarada no artigo, não linhas apagadas do banco. Trate esse arquivo como
+material suplementar de verdade: ele deve subir junto com o artigo, com a mesma
+data da versão submetida, e a seção de Métodos deve apontá-lo explicitamente.
+
+## Exportar para inspeção, intercâmbio e volume
+
+O acervo analítico precisa sair do R em um formato que outra pessoa consiga abrir.
+`export_biblio()` atende os três casos de uso mais comuns, gravando **um diretório
+com seis tabelas** – `works`, `authors`, `authorships`, `keywords`, `references` e
+`provenance` – no formato pedido:
+
+```{r export-m12}
+#| tbl-cap: "Exportação do acervo nos três formatos: número de arquivos gravados, tamanho total medido em disco e uso típico de cada formato."
+dir_export <- file.path(dir_saidas, "exportacao")
+tbl_export <- do.call(rbind, lapply(c("csv", "json", "parquet"), function(fm) {
+  d <- file.path(dir_export, fm)
+  export_biblio(x_analise, d, fm)
+  arquivos <- list.files(d, full.names = TRUE)
+  data.frame(formato = fm, arquivos = length(arquivos),
+             bytes = sum(file.size(arquivos)),
+             uso_tipico = switch(fm,
+               csv = "conferência linha a linha em planilha",
+               json = "intercâmbio com Python, JavaScript e APIs",
+               parquet = "volume alto, consulta colunar e Arrow/DuckDB"),
+             stringsAsFactors = FALSE)
+}))
+tbl_export$kB <- round(tbl_export$bytes / 1024, 1)
+print(knitr::kable(tbl_export[, c("formato", "arquivos", "kB", "uso_tipico")], row.names = FALSE))
+```
+
+```{r fig-m12-export}
+#| fig-cap: "Tamanho total em disco do acervo exportado nos três formatos, medido nesta execução."
+#| fig-alt: "Gráfico de barras com três colunas: JSON acima de 250 kB, CSV perto de 100 kB e Parquet perto de 25 kB."
+#| fig-height: 3.2
+ggplot(tbl_export, aes(x = reorder(formato, kB), y = kB, fill = formato)) +
+  geom_col(width = .62) +
+  geom_text(aes(label = sprintf("%.1f kB", kB)), vjust = -0.5, size = 3.2, colour = "grey25") +
+  scale_fill_manual(values = unname(pal_agri[1:3]), guide = "none") +
+  scale_y_continuous(expand = expansion(mult = c(0, .18))) +
+  labs(x = NULL, y = "tamanho no disco (kB)",
+       title = "O mesmo acervo em três formatos",
+       subtitle = sprintf("%d obras, seis tabelas por formato", nrow(x_analise$works)))
+```
+
+A leitura é a esperada de quem já sofreu com planilha gigante. Os três formatos
+gravam `r unique(tbl_export$arquivos)` arquivos, e o que muda é o peso: o CSV sai
+com `r tbl_export$kB[tbl_export$formato == "csv"]` kB, o JSON ocupa
+`r round(tbl_export$kB[tbl_export$formato == "json"] / tbl_export$kB[tbl_export$formato == "csv"], 1)`
+vezes esse tamanho porque repete o nome de cada campo em cada linha, e o Parquet
+fica em
+`r round(tbl_export$kB[tbl_export$formato == "parquet"] / tbl_export$kB[tbl_export$formato == "csv"], 2)`
+do tamanho do CSV porque guarda os mesmos dados em colunas comprimidas. Escolha
+pelo uso, não pelo tamanho: CSV para o suplemento, porque o revisor consegue
+inspecionar; Parquet para o repositório de dados, porque reler é rápido e o
+arquivo é pequeno; JSON apenas quando houver integração com código de outra
+linguagem. Vale registrar o que a função faz e o que não faz: ela grava um
+diretório, não um arquivo, e aceita apenas os três formatos – `"xlsx"` é recusado
+com `'arg' should be one of "csv", "json", "parquet"`.
+
+## A ponte com o ecossistema bibliometrix
+
+Quem trabalha com bibliometria em R conhece o `bibliometrix`, que tem uma
+comunidade grande e um formato de dados próprio: um quadro de campo-etiquetas em
+que cada coluna é um campo e o nome da coluna é a etiqueta. `to_bibliometrix()`
+converte o acervo harmonizado para esse vocabulário:
+
+```{r bibmetrix-m12}
+#| tbl-cap: "Quadro de campo-etiquetas do bibliometrix gerado a partir do acervo: etiqueta, campo de origem e conteúdo da primeira obra."
+bm <- to_bibliometrix(x_analise)
+tbl_bm <- data.frame(
+  etiqueta = names(bm),
+  campo_origem = c("works$title", "works$year", "works$doi", "works$source",
+                   "works$cited_by_count", "authors + authorships", "keywords"),
+  conteudo = c(bm$TI[1], as.character(bm$PY[1]), bm$DI[1], bm$SO[1],
+               as.character(bm$TC[1]), bm$AU[1], bm$DE[1]),
+  stringsAsFactors = FALSE)
+print(knitr::kable(tbl_bm, row.names = FALSE))
+```
+
+A conversão preserva `r nrow(bm)` obras e `r ncol(bm)` campos, com autores e
+termos reunidos em uma única célula separada por ponto e vírgula, que é
+exatamente o que o `bibliometrix` espera. O ganho é imediato: a partir do quadro
+`bm` você acessa as funções de projeção temática, acoplamento e lei de Lotka do
+ecossistema, sem refazer a limpeza. A perda também é concreta e precisa ser dita
+no artigo: o formato plano descarta a estrutura relacional – os identificadores
+`work_id`, a tabela de procedência, a coluna `abstract` e o agrupamento
+`periodo` não sobrevivem. Se a análise depende de rastrear a origem de cada
+número, o `biblio_project` continua sendo a fonte da verdade, e o quadro do
+`bibliometrix` é uma projeção derivada, não um substituto.
+
+## O aplicativo interativo
+
+O pacote traz uma interface Shiny que reúne as mesmas funções em cinco abas:
+**Data**, para carregar CSV, TSV ou JSON e ver o resumo do corpus com o
+diagnóstico de qualidade; **Explore**, com a produção anual e os termos mais
+frequentes; **Networks**, com escolha do tipo de rede e do peso mínimo, seguida da
+tabela de centralidade; **Compare**, que informa os backends disponíveis e remete
+a `compare_groups()` para a inferência; e **Report**, que baixa o relatório em
+HTML e mostra a trilha de procedência do acervo.
+
+```{r app-m12}
+#| eval: false
+# Abre a interface interativa no navegador. O bloco NAO e executado na
+# renderizacao: biblio_app() inicia um servidor e bloqueia a sessao ate que o
+# usuario encerre o aplicativo, o que travaria a geracao do documento.
+biblio_app(x_analise)
+
+# Com o servidor no ar, o roteiro de aula e:
+# 1. aba Data      -> carregar o CSV exportado no bloco anterior e conferir a
+#                     tabela de qualidade contra biblio_health();
+# 2. aba Explore   -> comparar a producao anual com temporal_growth();
+# 3. aba Networks  -> subir o peso minimo e observar a queda no numero de nos e
+#                     arestas, o que ensina o efeito do limiar na centralidade;
+# 4. aba Compare   -> discutir por que a inferencia exige script, e nao clique;
+# 5. aba Report    -> baixar o HTML e comparar com o markdown gerado aqui.
+# Encerre com o botao de parada da sessao ou Esc no console.
+```
+
+Esse bloco é o único do tutorial que não roda, e o motivo é técnico, não
+pedagógico: `biblio_app()` chama `shiny::runApp()`, que toma posse da sessão R e
+só devolve o controle quando o servidor é encerrado. Dentro de um documento
+Quarto, isso significa um relatório que nunca termina de renderizar. Em aula, a
+recomendação é abrir o app em uma sessão R separada, com o acervo já carregado, e
+usar a interface como instrumento de exploração – nunca como fonte dos números do
+artigo, porque o que se faz por clique não fica registrado no plano.
+
+## Um fluxo completo, do arquivo bruto ao suplemento
+
+Juntando as peças dos doze módulos, o caminho de um projeto real cabe em um
+script. O bloco abaixo é o resumo executável de tudo o que veio antes e serve de
+modelo para o seu próprio projeto: ele importa, audita, deduplica, persiste,
+planeja, executa, reporta e exporta, nessa ordem.
+
+```{r fluxo-m12}
+#| eval: false
+# ============================================================
+# Projeto: silício e tolerância à salinidade em arroz
+# Objetivo: ir da planilha bruta ao material suplementar,
+# deixando rastro de cada decisão.
+# ============================================================
+library(biblioIntegrator)
+
+## 1. IMPORTAR -------------------------------------------------
+# Um arquivo por base de dados. biblio_import() reconhece sinonimos de nome de
+# coluna (title/ti, year/py, doi/di, source/journal/so) e devolve um
+# biblio_project ja harmonizado para cada arquivo.
+base_scopus <- biblio_import("dados/export_scopus.csv")
+base_wos    <- biblio_import("dados/export_wos.txt")
+
+# Bases diferentes nao se juntam dentro de biblio_import(): a juncao e feita
+# tabela por tabela, e o resultado volta a ser um biblio_project.
+bruto <- base_scopus
+bruto$works       <- rbind(base_scopus$works, base_wos$works)
+bruto$authorships <- rbind(base_scopus$authorships, base_wos$authorships)
+bruto$authors     <- unique(rbind(base_scopus$authors, base_wos$authors))
+bruto$keywords    <- rbind(base_scopus$keywords, base_wos$keywords)
+bruto$provenance  <- rbind(base_scopus$provenance, base_wos$provenance)
+
+## 2. AUDITAR --------------------------------------------------
+# O diagnostico e o primeiro resultado a olhar, antes de qualquer analise.
+diagnostico <- biblio_health(bruto)
+print(diagnostico)                       # residuos viram limitacao declarada
+
+## 3. DEDUPLICAR -----------------------------------------------
+# DOI quando existe, titulo mais ano quando nao existe. A regra usada em cada
+# caso fica registrada em attr(limpo, "dedup_log").
+limpo <- deduplicate_biblio(bruto, method = "doi_title_year")
+nrow(attr(limpo, "dedup_log"))           # quantas duplicatas foram removidas
+
+## 4. RECORTAR A JANELA ANALITICA ------------------------------
+# O recorte e decisao metodologica e precisa estar declarada. Nao existe funcao
+# de recorte no pacote: filtre as tabelas e mantenha os identificadores coerentes.
+recortar <- function(proj, manter) {
+  proj$works <- proj$works[manter, , drop = FALSE]
+  ids <- proj$works$work_id
+  proj$authorships <- proj$authorships[proj$authorships$work_id %in% ids, , drop = FALSE]
+  proj$keywords <- proj$keywords[proj$keywords$work_id %in% ids, , drop = FALSE]
+  proj
+}
+analitico <- recortar(limpo, limpo$works$year >= 2010 & limpo$works$year <= 2025)
+
+## 5. DESCREVER E COMPARAR -------------------------------------
+resumo <- describe_biblio(analitico)
+metricas <- biblio_metrics(analitico)
+periodo <- form_groups(analitico, ifelse(analitico$works$year >= 2020,
+                                         "2020-2025", "2010-2019"))
+comparacao <- compare_groups(analitico, periodo, entity = "keyword",
+                             permutations = 999, seed = 2026)
+residuos <- association_residuals(comparacao)   # onde o desvio e maior
+
+## 6. REDE -----------------------------------------------------
+grafo <- bibliographic_network(analitico, "coauthor")
+centralidade <- network_centrality(grafo)
+comunidades <- network_communities(grafo, "louvain")
+estabilidade <- network_stability(analitico, type = "coauthor", B = 200, seed = 2026)
+export_vosviewer(grafo, "saidas/rede_coautoria.txt")   # abre no VOSviewer
+
+## 7. PERSISTIR ------------------------------------------------
+# O projeto inteiro em Parquet: reler é rápido e a estrutura relacional sobrevive.
+biblio_store(analitico, "saidas/projeto", engine = "arrow")
+projeto <- biblio_load("saidas/projeto", engine = "arrow")
+
+## 8. PLANO DECLARADO E EXECUÇÃO -------------------------------
+# Documento metodológico: o que foi rodado, com que semente, em que ordem.
+plano <- form_plan(analyses = c("health", "descriptive", "temporal",
+                                "network", "text"),
+                   network = "coauthor", group = periodo,
+                   report = "markdown", seed = 2026)
+validate_plan(plano)                     # aborta cedo se houver módulo inválido
+execucao <- run_plan(plano, projeto)
+names(execucao)                          # registro do que foi produzido
+
+## 9. REPORTAR E EXPORTAR --------------------------------------
+# Relatório para o suplemento e base aberta para o repositório.
+biblio_report(projeto, file.path(getwd(), "saidas/relatorio.md"),
+              format = "markdown", title = "Silício e salinidade: relatório do acervo")
+export_biblio(projeto, "saidas/dados", format = "csv")      # inspeção
+export_biblio(projeto, "saidas/dados_parquet", format = "parquet")  # repositório
+to_bibliometrix(projeto)                 # ponte com o ecossistema bibliometrix
+
+## 10. EXPLORAR EM AULA ----------------------------------------
+# biblio_app(projeto)                    # sessão interativa, fora do relatório
+```
+
+Nenhuma linha desse fluxo é decorativa. A ordem importa porque cada etapa depende
+do contrato da anterior: deduplicar antes de descrever evita inflar o corpus;
+recortar a janela antes de comparar evita comparar períodos de tamanhos
+incompatíveis; persistir antes de planejar garante que o plano rode sobre um
+acervo congelado e não sobre um objeto que mudou no meio do caminho. A etapa 8 é a
+que transforma o script em método: ela não descobre nada, apenas declara o que já
+foi decidido – e é isso que o revisor precisa ler.
+
+## Qual função responde a qual pergunta agronômica
+
+A tabela abaixo é a ferramenta de decisão do módulo. Ela liga perguntas que
+aparecem em projeto de doutorado em Agronomia à função do pacote que as responde,
+e serve para você planejar antes de codar.
+
+```{r tbl-decisao-m12}
+#| tbl-cap: "Tabela de decisão: pergunta de pesquisa agronômica, função do biblioIntegrator que a responde e o cuidado de interpretação correspondente."
+tbl_decisao <- data.frame(
+  pergunta = c("O acervo que eu montei sustenta uma conclusão?",
+               "Como o campo está distribuído entre periódicos e autores?",
+               "O tema está crescendo ou estabilizando?",
+               "Quem são os grupos de pesquisa e como se conectam?",
+               "O vocabulário do campo mudou entre períodos?",
+               "Quais termos distinguem um subgrupo do resto?",
+               "Meus resultados dependem de um limiar arbitrário?",
+               "Como entrego os dados e o relatório ao revisor?",
+               "Preciso conversar com quem usa Python ou bibliometrix?",
+               "Como registro o plano de análise para a banca?"),
+  funcao = c("biblio_health(), audit_biblio()",
+             "describe_biblio(), biblio_metrics()",
+             "temporal_growth(), citation_velocity()",
+             "bibliographic_network(), network_communities()",
+             "term_frequency(), tfidf_terms(), trend_topics()",
+             "compare_groups(), association_residuals()",
+             "sensitivity_analysis(), network_stability()",
+             "biblio_report(), export_biblio()",
+             "to_biblium(), to_bibliometrix(), export_biblio(format = 'json')",
+             "form_plan(), validate_plan(), run_plan()"),
+  cuidado = c("qualidade do acervo é limitação do estudo, não erro a esconder",
+              "contagem absoluta premia bases com mais cobertura",
+              "janela curta confunde crescimento real com indexação recente",
+              "rede é sensível ao limiar de peso e à normalização",
+              "termo frequente não é termo relevante sem peso por documento",
+              "grupos pequenos produzem p instáveis; cheque o tamanho",
+              "declare o limiar e mostre o resultado em mais de um valor",
+              "o relatório deve ter a data da versão submetida",
+              "o formato plano perde identificadores e procedência",
+              "validar antes de executar evita rodar meia análise"),
+  stringsAsFactors = FALSE)
+print(knitr::kable(tbl_decisao, row.names = FALSE))
+```
+
+```{r fig-m12-decisao}
+#| fig-cap: "Fluxo de decisão do plano de análise: da pergunta de pesquisa ao conjunto de arquivos que acompanha a submissão."
+#| fig-alt: "Diagrama com cinco caixas encadeadas por setas: pergunta de pesquisa agronômica, escolha dos módulos, validação, execução registrada e suplemento."
+#| fig-height: 2.1
+caixas <- data.frame(
+  x = c(1, 3.1, 5.2, 7.3, 9.4),
+  rotulo = c("Pergunta de\npesquisa agronômica",
+             "Escolha dos módulos\nform_plan()",
+             "Validação\nvalidate_plan()",
+             "Execução registrada\nrun_plan()",
+             "Suplemento\nbiblio_report()\nexport_biblio()"),
+  tipo = c("pergunta", "decisao", "decisao", "execucao", "entrega"))
+setas <- data.frame(x = caixas$x[-nrow(caixas)] + .62, xe = caixas$x[-1] - .62)
+ggplot(caixas, aes(x = x, y = 1)) +
+  geom_segment(data = setas, aes(x = x, xend = xe, y = 1, yend = 1),
+               arrow = arrow(length = unit(.18, "cm")), colour = "grey45",
+               inherit.aes = FALSE) +
+  geom_label(aes(label = rotulo, fill = tipo), colour = "grey15",
+             linewidth = .35, size = 2.8, label.padding = unit(.38, "lines"),
+             label.r = unit(.18, "lines")) +
+  scale_fill_manual(values = c(pergunta = "#E8E3DA", decisao = "#D9E4DC",
+                               execucao = "#F4E0CC", entrega = "#DDE3EF"),
+                    guide = "none") +
+  scale_x_continuous(limits = c(.1, 10.6)) +
+  scale_y_continuous(limits = c(.9, 1.1)) +
+  labs(title = "Do problema agronômico ao material suplementar",
+       subtitle = "cada caixa é uma função do Módulo 12; a validação vem antes da execução") +
+  theme_void(base_size = 10) +
+  theme(plot.title = element_text(face = "bold", hjust = .5, size = 11),
+        plot.subtitle = element_text(hjust = .5, colour = "grey35", size = 9),
+        plot.margin = margin(6, 8, 6, 8))
+```
+
+A Figura acima fecha o tutorial inteiro em uma linha de raciocínio. A caixa
+"Validação" entre a decisão e a execução não é burocracia: é o único ponto do
+fluxo em que um erro custa segundos em vez de horas, e é o que diferencia um
+projeto que pode ser reexecutado por outra pessoa de um projeto que só funcionou
+na máquina de quem escreveu. As duas caixas finais lembram que o produto de uma
+bibliometria não é a figura do mapa de coocorrência: é o conjunto
+figura + relatório + base exportada + plano declarado.
+
+## Tarefas do Módulo 12
+
+**Tarefa 12.1 (aplicar).** Monte o plano de análise do seu próprio projeto com
+`form_plan()`, declarando a semente do tutorial, a rede de coautoria e o
+agrupamento por período (`g_per`) ou por tema (`g_tema`). Valide o plano com
+`validate_plan()`, execute-o sobre o acervo `x_analise` com `run_plan()` e
+responda: quais elementos o objeto `biblio_run` devolveu? Gere o relatório em
+markdown e em um segundo formato, exporte o acervo em CSV e em Parquet, e compare
+os tamanhos. Feche a tarefa com uma frase, escrita como você a colocaria no fim
+da seção de Material e Métodos, informando o plano executado, a semente e onde o
+suplemento está depositado.
+
+**Tarefa 12.2 (criar).** Você precisa entregar a um coorientador de outra
+instituição – que trabalha em Python e não usa R – uma versão do acervo que ele
+consiga abrir e conferir sem instalar o `biblioIntegrator`, mas que não traga as
+pendências de qualidade do acervo original. Construa essa entrega a partir de
+`x_analise`: descarte as obras com ano ausente, exporte o resultado em JSON e em
+CSV, converta o acervo convertido com `to_bibliometrix()` para um terceiro arquivo
+plano, gere o relatório do acervo em docx e escreva, em um arquivo markdown, a nota
+de entrega explicando qual arquivo responde a qual pergunta, o que se perde na
+conversão para o formato plano e qual limitação o relatório expõe. A nota deve ter
+entre 8 e 12 linhas e apontar explicitamente o número de obras exportadas, quantas
+obras foram descartadas e quantas duplicatas foram removidas na limpeza.

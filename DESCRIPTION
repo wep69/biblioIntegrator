@@ -25,6 +25,8 @@ Suggests: arrow, bibliometrix, biblionetwork, ca, DBI, duckdb, DT,
         reticulate, rmarkdown, shiny, stringdist, testthat (>= 3.0.0),
         tibble, visNetwork
 Config/testthat/edition: 3
+Config/Needs/website: arrow, ca, DBI, dplyr, duckdb, FactoMineR, ggrepel,
+        gridExtra, microbenchmark, pkgdown, quarto, shiny
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.1.0
 NeedsCompilation: no

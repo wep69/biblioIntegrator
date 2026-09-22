@@ -36,3 +36,6 @@
 ^tutorial$
 ^tutorial-agronomia$
 ^LEIA-ME\.md$
+
+# Artigos do site pkgdown (publicados, mas fora do tarball)
+^vignettes/articles$

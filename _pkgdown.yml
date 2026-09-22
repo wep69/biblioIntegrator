@@ -129,6 +129,15 @@ articles:
     contents:
       - v00-overview
 
+  - title: "Tutorial completo para Agronomia"
+    desc: >
+      Tutorial progressivo para doutorandos em Agronomia: 12 módulos, 52 figuras,
+      117 tabelas, 24 tarefas e 24 gabaritos comentados, com três corpora
+      (didático, simulado com verdades plantadas e real obtido por API),
+      validação cruzada com o pacote Python Biblium e uso de modelos de linguagem.
+    contents:
+      - biblioIntegrator-agronomia
+
   - title: "Tutorials"
     contents:
       - v01-import-harmonize

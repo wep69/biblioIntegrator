@@ -190,7 +190,33 @@ biblio_query() sobre o diretorio Parquet devolve erro:
 {"exception_type":"IO","exception_message":"Cannot open file \"D:\\Walter\\R\\Pacotes_criados\\Tutoriais\\biblioIntegrator\\_cache\\m08_acervo_arrow\": Acesso n ...
 por read_parquet() a mesma contagem devolve 280 obras
 m08-corpo.qmd          inline OK (49)
-m08-gabaritos.qmd : chunk 7 falhou: não foi possível encontrar a função "sem_eco" 
+obras por motor: original = 12 | arrow = 12 | duckdb = 12 
+arquivos Parquet: 6 | total: 10.6 kB
+arquivo DuckDB: 1548 kB
+razão de tamanho duckdb/arrow: 146 vezes
+segunda gravação sem overwrite: path exists; use overwrite=TRUE 
+
+
+Table: Resumo por periodo: obras, mediana e media de citacoes, total acumulado e a fonte mais frequente de cada periodo.
+
+|periodo   | obras| mediana_citacoes| media_citacoes| total_citacoes|fonte_mais_frequente             | obras_da_fonte|
+|:---------|-----:|----------------:|--------------:|--------------:|:--------------------------------|--------------:|
+|2010-2019 |   119|                7|           10.2|           1214|Pesquisa Agropecuária Brasileira |             15|
+|2020-2025 |   161|               10|           12.4|           2001|Soil Biology & Biochemistry      |             22|
+resumo por período:
+   periodo obras mediana_citacoes media_citacoes total_citacoes
+ 2010-2019   119                7           10.2           1214
+ 2020-2025   161               10           12.4           2001
+             fonte_mais_frequente
+ Pesquisa Agropecuária Brasileira
+      Soil Biology & Biochemistry
+linhas em que periodo e ano discordam: 0 
+soma das obras das linhas da tabela: 280 
+   periodo                            fonte obras
+ 2010-2019 Pesquisa Agropecuária Brasileira    15
+ 2020-2025      Soil Biology & Biochemistry    22
+mesma fonte líder nos dois períodos: FALSE 
+m08-gabaritos.qmd      inline OK (35)
 acervo real obtido: 40 obras, 175 autores, 570 pares obra-termo
 citações recebidas por 10.1038/nature12373 : 1806 linhas
 mesmo resultado nas três formas do identificador: TRUE 
@@ -297,16 +323,16 @@ m11-gabaritos.qmd      inline OK (68)
 |formato  |arquivo        |gerado | segundos|uso_tipico                                      |
 |:--------|:--------------|:------|--------:|:-----------------------------------------------|
 |markdown |relatorio.md   |TRUE   |     0.03|controle de versão e leitura no editor de texto |
-|html     |relatorio.html |TRUE   |     0.59|envio direto como suplemento navegável          |
-|docx     |relatorio.docx |TRUE   |     0.14|coorientador que revisa com comentários no Word |
-|pdf      |relatorio.pdf  |TRUE   |     1.25|anexo impresso e versão final do suplemento     |
+|html     |relatorio.html |TRUE   |     0.81|envio direto como suplemento navegável          |
+|docx     |relatorio.docx |TRUE   |     0.25|coorientador que revisa com comentários no Word |
+|pdf      |relatorio.pdf  |TRUE   |     1.30|anexo impresso e versão final do suplemento     |
 
 
 | linha|texto                                       |
 |-----:|:-------------------------------------------|
 |     1|# Silício e salinidade: relatório do acervo |
 |     2|                                            |
-|     3|Generated: 2026-09-22 00:42:57.395435       |
+|     3|Generated: 2026-09-22 01:36:05.98233        |
 |     4|                                            |
 |     5|## Corpus summary                           |
 |     6|Documents: **280**                          |
@@ -362,7 +388,7 @@ m12-corpo.qmd          inline OK (27)
 [1] "Unknown analyses: redes"
   formato arquivos  bytes   kB
 1     csv        6 100481 98.1
-2 parquet        6  24771 24.2
+2 parquet        6  24770 24.2
 [1] TRUE TRUE
                    arquivo existe
 1               works.json   TRUE

@@ -9,6 +9,24 @@ segunda vez no mesmo caminho sem `overwrite` e descreva o que aconteceu.
 ### Código completo e executável
 
 ```{r gab-8-1}
+# Autossuficiência: os gabaritos deste módulo também são entregues como arquivos
+# isolados, então o auxiliar de silêncio do DuckDB é recriado aqui se o corpo do
+# módulo não tiver rodado na sessão.
+if (!exists("sem_eco", mode = "function")) {
+  sem_eco <- function(expr) {
+    n_out <- sink.number(); n_msg <- sink.number(type = "message")
+    f_out <- tempfile(); f_msg <- tempfile()
+    c_out <- file(f_out, open = "wt"); c_msg <- file(f_msg, open = "wt")
+    sink(c_out); sink(c_msg, type = "message")
+    on.exit({
+      while (sink.number() > n_out) sink()
+      while (sink.number(type = "message") > n_msg) sink(type = "message")
+      close(c_out); close(c_msg); unlink(c(f_out, f_msg))
+    }, add = TRUE)
+    force(expr)
+  }
+}
+
 # duas etapas: gravar e conferir a volta; depois, testar a recusa de sobrescrita.
 # os caminhos ficam em tempdir() para nao sujar o diretorio do tutorial.
 dir_gab <- file.path(tempdir(), "gabarito_m08")

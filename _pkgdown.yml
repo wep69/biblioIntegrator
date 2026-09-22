@@ -136,7 +136,7 @@ articles:
       (didático, simulado com verdades plantadas e real obtido por API),
       validação cruzada com o pacote Python Biblium e uso de modelos de linguagem.
     contents:
-      - biblioIntegrator-agronomia
+      - articles/biblioIntegrator-agronomia
 
   - title: "Tutorials"
     contents:

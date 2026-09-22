@@ -20,8 +20,11 @@ build/
 docs/
 _site/
 
-# Artefatos gerados pelo build do artigo de Agronomia. O cache de rede do
-# OpenAlex é versionado de propósito, para o build do site não depender de rede.
+# Artefatos gerados pelo build do artigo de Agronomia. O .qmd e o cache de rede
+# do OpenAlex são as fontes versionadas; o resto é saída de render.
+vignettes/articles/*
+!vignettes/articles/biblioIntegrator-agronomia.qmd
+!vignettes/articles/_cache
 vignettes/articles/_cache/*
 !vignettes/articles/_cache/openalex_silicio.rds
 

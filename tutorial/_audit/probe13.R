@@ -1,0 +1,11 @@
+ck_dir <- "D:/RLibrary"
+if (dir.exists(ck_dir)) .libPaths(c(ck_dir, .libPaths()))
+suppressPackageStartupMessages(library(biblioIntegrator))
+for (f in c("tfidf_terms", "term_frequency", "trend_topics", "rpys", "normalized_citations"))
+  cat(f, ":", paste(names(formals(get(f))), collapse = ", "), "\n")
+x <- as_biblio_project(example_biblio())
+r <- tryCatch(tfidf_terms(x, group = "year"), error = function(e) paste("ERRO:", conditionMessage(e)))
+cat("group='year':", if (inherits(r, "try-error")) r else paste(nrow(r), "linhas"), "\n")
+gv <- ifelse(x$works$year < 2021, "inicial", "recente")
+r2 <- tryCatch(tfidf_terms(x, group = gv), error = function(e) paste("ERRO:", conditionMessage(e)))
+cat("group=vetor caractere:", if (inherits(r2, "try-error")) r2 else paste(nrow(r2), "linhas"), "\n")

@@ -1,0 +1,19 @@
+--- run_plan assinatura ---
+$plan
+
+
+$data
+NULL
+
+run_plan(output_dir=): ERRO: unused argument (output_dir = d) 
+run_plan(x, plan): character ERRO: `plan` must be created by form_plan(). 
+
+--- semantic_search sem servidor (3 tentativas) ---
+t 1 : ERRO: unused argument (seed = 42) 
+t 2 : ERRO: unused argument (seed = 42) 
+t 3 : ERRO: unused argument (seed = 42) 
+
+--- edge_betweenness (3 tentativas) ---
+t 1 : ERRO: 'arg' should be one of "louvain", "walktrap", "label_prop" 
+t 2 : ERRO: 'arg' should be one of "louvain", "walktrap", "label_prop" 
+t 3 : ERRO: 'arg' should be one of "louvain", "walktrap", "label_prop" 

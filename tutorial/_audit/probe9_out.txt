@@ -1,0 +1,23 @@
+--- assinaturas reais ---
+$plan
+
+
+$data
+NULL
+
+
+$...
+
+
+
+run_plan(plan, data=x): biblio_run OK
+arquivos gerados no cwd/temp dir?
+[1] NA NA NA NA NA
+
+--- causa provavel do erro LLM: chat_ollama aceita seed? ---
+formals(chat_ollama): system_prompt, base_url, model, params, api_args, echo, api_key, credentials, api_headers 
+
+--- fetch_opencitations (3 tentativas, rede) ---
+t 1 : ERRO: HTTP 400 Bad Request. 
+t 2 : ERRO: HTTP 400 Bad Request. 
+t 3 : ERRO: HTTP 400 Bad Request. 

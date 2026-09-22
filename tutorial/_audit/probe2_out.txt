@@ -1,0 +1,11 @@
+=== 1. Estado sobrevive a chamada com seed? ===
+Funcoes com arg seed: biblium_compare_groups, compare_groups, form_plan, network_stability, sensitivity_analysis, validate_biblium 
+
+  compare_groups       sequestra gerador? TRUE
+  network_stability    sequestra gerador? TRUE
+  sensitivity_analysis sequestra gerador? TRUE
+  validate_biblium     sequestra gerador? TRUE
+
+=== 2. Duas sementes externas distintas dao resultados distintos? ===
+seed=NULL com set.seed(7) vs (9) distintos? TRUE 
+apos seed fixa, runif seguinte igual entre set.seed(7)/(9)? TRUE 

@@ -1,0 +1,482 @@
+
+##### run_plan (health+descriptive)
+
+##### compare_sources 2 projetos
+$coverage
+         source records unique
+source1 source1      12     12
+source2 source2       6      6
+
+$overlap
+  source1 source2 intersection
+1 source1 source2            6
+
+
+##### group_mca keyword
+$eig
+      eigenvalue percentage of variance cumulative percentage of variance
+dim 1  0.1630272               16.30272                          16.30272
+dim 2  0.1256422               12.56422                          28.86695
+
+$call
+$call$X
+              factor(groups)early     factor(groups)late     aggregation
+W0001f7e3 factor(groups)early_yes  factor(groups)late_no  aggregation_no
+W000160f5 factor(groups)early_yes  factor(groups)late_no  aggregation_no
+W0001b6e0 factor(groups)early_yes  factor(groups)late_no  aggregation_no
+W0001b6e2 factor(groups)early_yes  factor(groups)late_no  aggregation_no
+W0001932e  factor(groups)early_no factor(groups)late_yes aggregation_yes
+W00017da4  factor(groups)early_no factor(groups)late_yes  aggregation_no
+W00014309 factor(groups)early_yes  factor(groups)late_no  aggregation_no
+W000176af factor(groups)early_yes  factor(groups)late_no  aggregation_no
+W000134bf  factor(groups)early_no factor(groups)late_yes  aggregation_no
+W00018e53  factor(groups)early_no factor(groups)late_yes  aggregation_no
+W000196f7  factor(groups)early_no factor(groups)late_yes  aggregation_no
+W00016cdd  factor(groups)early_no factor(groups)late_yes  aggregation_no
+              climate-smart     cover crops     drought     efficiency
+W0001f7e3  climate-smart_no  cover crops_no  drought_no  efficiency_no
+W000160f5  climate-smart_no cover crops_yes  drought_no  efficiency_no
+W0001b6e0  climate-smart_no  cover crops_no  drought_no  efficiency_no
+W0001b6e2  climate-smart_no  cover crops_no drought_yes  efficiency_no
+W0001932e  climate-smart_no cover crops_yes  drought_no  efficiency_no
+W00017da4  climate-smart_no  cover crops_no  drought_no  efficiency_no
+W00014309  climate-smart_no  cover crops_no  drought_no  efficiency_no
+W000176af  climate-smart_no  cover crops_no  drought_no  efficiency_no
+W000134bf  climate-smart_no  cover crops_no  drought_no  efficiency_no
+W00018e53  climate-smart_no  cover crops_no  drought_no  efficiency_no
+W000196f7  climate-smart_no  cover crops_no  drought_no efficiency_yes
+W00016cdd climate-smart_yes  cover crops_no  drought_no  efficiency_no
+              machine learning     maize     management     meta-analysis
+W0001f7e3  machine learning_no  maize_no  management_no  meta-analysis_no
+W000160f5  machine learning_no  maize_no  management_no  meta-analysis_no
+W0001b6e0  machine learning_no  maize_no  management_no  meta-analysis_no
+W0001b6e2  machine learning_no maize_yes  management_no  meta-analysis_no
+W0001932e  machine learning_no  maize_no  management_no  meta-analysis_no
+W00017da4 machine learning_yes  maize_no  management_no  meta-analysis_no
+W00014309  machine learning_no  maize_no  management_no  meta-analysis_no
+W000176af  machine learning_no  maize_no  management_no  meta-analysis_no
+W000134bf  machine learning_no  maize_no  management_no  meta-analysis_no
+W00018e53  machine learning_no  maize_no  management_no meta-analysis_yes
+W000196f7  machine learning_no maize_yes  management_no  meta-analysis_no
+W00016cdd  machine learning_no  maize_no management_yes  meta-analysis_no
+              nitrogen     phenotyping     remote sensing     rice     rotation
+W0001f7e3  nitrogen_no  phenotyping_no  remote sensing_no rice_yes  rotation_no
+W000160f5  nitrogen_no  phenotyping_no  remote sensing_no  rice_no  rotation_no
+W0001b6e0 nitrogen_yes  phenotyping_no remote sensing_yes  rice_no  rotation_no
+W0001b6e2  nitrogen_no  phenotyping_no  remote sensing_no  rice_no  rotation_no
+W0001932e  nitrogen_no  phenotyping_no  remote sensing_no  rice_no  rotation_no
+W00017da4  nitrogen_no  phenotyping_no  remote sensing_no  rice_no  rotation_no
+W00014309  nitrogen_no  phenotyping_no  remote sensing_no  rice_no  rotation_no
+W000176af  nitrogen_no  phenotyping_no  remote sensing_no  rice_no rotation_yes
+W000134bf  nitrogen_no phenotyping_yes  remote sensing_no  rice_no  rotation_no
+W00018e53  nitrogen_no  phenotyping_no  remote sensing_no  rice_no  rotation_no
+W000196f7 nitrogen_yes  phenotyping_no  remote sensing_no  rice_no  rotation_no
+W00016cdd  nitrogen_no  phenotyping_no  remote sensing_no  rice_no  rotation_no
+              salinity     silicon     soil     soil carbon     soil microbiome
+W0001f7e3 salinity_yes silicon_yes  soil_no  soil carbon_no  soil microbiome_no
+W000160f5  salinity_no  silicon_no  soil_no soil carbon_yes  soil microbiome_no
+W0001b6e0  salinity_no  silicon_no  soil_no  soil carbon_no  soil microbiome_no
+W0001b6e2  salinity_no silicon_yes  soil_no  soil carbon_no  soil microbiome_no
+W0001932e  salinity_no  silicon_no soil_yes  soil carbon_no  soil microbiome_no
+W00017da4  salinity_no  silicon_no  soil_no  soil carbon_no  soil microbiome_no
+W00014309 salinity_yes  silicon_no  soil_no  soil carbon_no  soil microbiome_no
+W000176af  salinity_no  silicon_no  soil_no  soil carbon_no soil microbiome_yes
+W000134bf  salinity_no  silicon_no  soil_no  soil carbon_no  soil microbiome_no
+W00018e53  salinity_no silicon_yes  soil_no  soil carbon_no  soil microbiome_no
+W000196f7  salinity_no  silicon_no  soil_no  soil carbon_no  soil microbiome_no
+W00016cdd  salinity_no  silicon_no soil_yes  soil carbon_no  soil microbiome_no
+              soybean     stress     uav     wheat     yield
+W0001f7e3  soybean_no  stress_no  uav_no  wheat_no  yield_no
+W000160f5  soybean_no  stress_no  uav_no  wheat_no  yield_no
+W0001b6e0 soybean_yes  stress_no  uav_no  wheat_no  yield_no
+W0001b6e2  soybean_no  stress_no  uav_no  wheat_no  yield_no
+W0001932e  soybean_no  stress_no  uav_no  wheat_no  yield_no
+W00017da4  soybean_no  stress_no  uav_no  wheat_no yield_yes
+W00014309  soybean_no  stress_no  uav_no wheat_yes  yield_no
+W000176af  soybean_no  stress_no  uav_no  wheat_no  yield_no
+W000134bf soybean_yes  stress_no uav_yes  wheat_no  yield_no
+W00018e53  soybean_no stress_yes  uav_no  wheat_no  yield_no
+W000196f7  soybean_no  stress_no  uav_no  wheat_no  yield_no
+W00016cdd  soybean_no  stress_no  uav_no  wheat_no  yield_no
+
+$call$marge.col
+ factor(groups)early_no factor(groups)early_yes   factor(groups)late_no 
+            0.019230769             0.019230769             0.019230769 
+ factor(groups)late_yes          aggregation_no         aggregation_yes 
+            0.019230769             0.035256410             0.003205128 
+       climate-smart_no       climate-smart_yes          cover crops_no 
+            0.035256410             0.003205128             0.032051282 
+        cover crops_yes              drought_no             drought_yes 
+            0.006410256             0.035256410             0.003205128 
+          efficiency_no          efficiency_yes     machine learning_no 
+            0.035256410             0.003205128             0.035256410 
+   machine learning_yes                maize_no               maize_yes 
+            0.003205128             0.032051282             0.006410256 
+          management_no          management_yes        meta-analysis_no 
+            0.035256410             0.003205128             0.035256410 
+      meta-analysis_yes             nitrogen_no            nitrogen_yes 
+            0.003205128             0.032051282             0.006410256 
+         phenotyping_no         phenotyping_yes       remote sensing_no 
+            0.035256410             0.003205128             0.035256410 
+     remote sensing_yes                 rice_no                rice_yes 
+            0.003205128             0.035256410             0.003205128 
+            rotation_no            rotation_yes             salinity_no 
+            0.035256410             0.003205128             0.032051282 
+           salinity_yes              silicon_no             silicon_yes 
+            0.006410256             0.028846154             0.009615385 
+                soil_no                soil_yes          soil carbon_no 
+            0.032051282             0.006410256             0.035256410 
+        soil carbon_yes      soil microbiome_no     soil microbiome_yes 
+            0.003205128             0.035256410             0.003205128 
+             soybean_no             soybean_yes               stress_no 
+            0.032051282             0.006410256             0.035256410 
+             stress_yes                  uav_no                 uav_yes 
+            0.003205128             0.035256410             0.003205128 
+               wheat_no               wheat_yes                yield_no 
+            0.035256410             0.003205128             0.035256410 
+              yield_yes 
+            0.003205128 
+
+$call$marge.row
+ W0001f7e3  W000160f5  W0001b6e0  W0001b6e2  W0001932e  W00017da4  W00014309 
+0.08333333 0.08333333 0.08333333 0.08333333 0.08333333 0.08333333 0.08333333 
+ W000176af  W000134bf  W00018e53  W000196f7  W00016cdd 
+0.08333333 0.08333333 0.08333333 0.08333333 0.08333333 
+
+$call$ncp
+[1] 2
+
+$call$row.w
+ [1] 1 1 1 1 1 1 1 1 1 1 1 1
+
+$call$excl
+NULL
+
+$call$call
+FactoMineR::MCA(X = d, ncp = ncp, graph = FALSE)
+
+$call$Xtot
+          factor(groups)early_no factor(groups)early_yes factor(groups)late_no
+W0001f7e3                      0                       1                     1
+W000160f5                      0                       1                     1
+W0001b6e0                      0                       1                     1
+W0001b6e2                      0                       1                     1
+W0001932e                      1                       0                     0
+W00017da4                      1                       0                     0
+W00014309                      0                       1                     1
+W000176af                      0                       1                     1
+W000134bf                      1                       0                     0
+W00018e53                      1                       0                     0
+W000196f7                      1                       0                     0
+W00016cdd                      1                       0                     0
+          factor(groups)late_yes aggregation_no aggregation_yes
+W0001f7e3                      0              1               0
+W000160f5                      0              1               0
+W0001b6e0                      0              1               0
+W0001b6e2                      0              1               0
+W0001932e                      1              0               1
+W00017da4                      1              1               0
+W00014309                      0              1               0
+W000176af                      0              1               0
+W000134bf                      1              1               0
+W00018e53                      1              1               0
+W000196f7                      1              1               0
+W00016cdd                      1              1               0
+          climate-smart_no climate-smart_yes cover crops_no cover crops_yes
+W0001f7e3                1                 0              1               0
+W000160f5                1                 0              0               1
+W0001b6e0                1                 0              1               0
+W0001b6e2                1                 0              1               0
+W0001932e                1                 0              0               1
+W00017da4                1                 0              1               0
+W00014309                1                 0              1               0
+W000176af                1                 0              1               0
+W000134bf                1                 0              1               0
+W00018e53                1                 0              1               0
+W000196f7                1                 0              1               0
+W00016cdd                0                 1              1               0
+          drought_no drought_yes efficiency_no efficiency_yes
+W0001f7e3          1           0             1              0
+W000160f5          1           0             1              0
+W0001b6e0          1           0             1              0
+W0001b6e2          0           1             1              0
+W0001932e          1           0             1              0
+W00017da4          1           0             1              0
+W00014309          1           0             1              0
+W000176af          1           0             1              0
+W000134bf          1           0             1              0
+W00018e53          1           0             1              0
+W000196f7          1           0             0              1
+W00016cdd          1           0             1              0
+          machine learning_no machine learning_yes maize_no maize_yes
+W0001f7e3                   1                    0        1         0
+W000160f5                   1                    0        1         0
+W0001b6e0                   1                    0        1         0
+W0001b6e2                   1                    0        0         1
+W0001932e                   1                    0        1         0
+W00017da4                   0                    1        1         0
+W00014309                   1                    0        1         0
+W000176af                   1                    0        1         0
+W000134bf                   1                    0        1         0
+W00018e53                   1                    0        1         0
+W000196f7                   1                    0        0         1
+W00016cdd                   1                    0        1         0
+          management_no management_yes meta-analysis_no meta-analysis_yes
+W0001f7e3             1              0                1                 0
+W000160f5             1              0                1                 0
+W0001b6e0             1              0                1                 0
+W0001b6e2             1              0                1                 0
+W0001932e             1              0                1                 0
+W00017da4             1              0                1                 0
+W00014309             1              0                1                 0
+W000176af             1              0                1                 0
+W000134bf             1              0                1                 0
+W00018e53             1              0                0                 1
+W000196f7             1              0                1                 0
+W00016cdd             0              1                1                 0
+          nitrogen_no nitrogen_yes phenotyping_no phenotyping_yes
+W0001f7e3           1            0              1               0
+W000160f5           1            0              1               0
+W0001b6e0           0            1              1               0
+W0001b6e2           1            0              1               0
+W0001932e           1            0              1               0
+W00017da4           1            0              1               0
+W00014309           1            0              1               0
+W000176af           1            0              1               0
+W000134bf           1            0              0               1
+W00018e53           1            0              1               0
+W000196f7           0            1              1               0
+W00016cdd           1            0              1               0
+          remote sensing_no remote sensing_yes rice_no rice_yes rotation_no
+W0001f7e3                 1                  0       0        1           1
+W000160f5                 1                  0       1        0           1
+W0001b6e0                 0                  1       1        0           1
+W0001b6e2                 1                  0       1        0           1
+W0001932e                 1                  0       1        0           1
+W00017da4                 1                  0       1        0           1
+W00014309                 1                  0       1        0           1
+W000176af                 1                  0       1        0           0
+W000134bf                 1                  0       1        0           1
+W00018e53                 1                  0       1        0           1
+W000196f7                 1                  0       1        0           1
+W00016cdd                 1                  0       1        0           1
+          rotation_yes salinity_no salinity_yes silicon_no silicon_yes soil_no
+W0001f7e3            0           0            1          0           1       1
+W000160f5            0           1            0          1           0       1
+W0001b6e0            0           1            0          1           0       1
+W0001b6e2            0           1            0          0           1       1
+W0001932e            0           1            0          1           0       0
+W00017da4            0           1            0          1           0       1
+W00014309            0           0            1          1           0       1
+W000176af            1           1            0          1           0       1
+W000134bf            0           1            0          1           0       1
+W00018e53            0           1            0          0           1       1
+W000196f7            0           1            0          1           0       1
+W00016cdd            0           1            0          1           0       0
+          soil_yes soil carbon_no soil carbon_yes soil microbiome_no
+W0001f7e3        0              1               0                  1
+W000160f5        0              0               1                  1
+W0001b6e0        0              1               0                  1
+W0001b6e2        0              1               0                  1
+W0001932e        1              1               0                  1
+W00017da4        0              1               0                  1
+W00014309        0              1               0                  1
+W000176af        0              1               0                  0
+W000134bf        0              1               0                  1
+W00018e53        0              1               0                  1
+W000196f7        0              1               0                  1
+W00016cdd        1              1               0                  1
+          soil microbiome_yes soybean_no soybean_yes stress_no stress_yes
+W0001f7e3                   0          1           0         1          0
+W000160f5                   0          1           0         1          0
+W0001b6e0                   0          0           1         1          0
+W0001b6e2                   0          1           0         1          0
+W0001932e                   0          1           0         1          0
+W00017da4                   0          1           0         1          0
+W00014309                   0          1           0         1          0
+W000176af                   1          1           0         1          0
+W000134bf                   0          0           1         1          0
+W00018e53                   0          1           0         0          1
+W000196f7                   0          1           0         1          0
+W00016cdd                   0          1           0         1          0
+          uav_no uav_yes wheat_no wheat_yes yield_no yield_yes
+W0001f7e3      1       0        1         0        1         0
+W000160f5      1       0        1         0        1         0
+W0001b6e0      1       0        1         0        1         0
+W0001b6e2      1       0        1         0        1         0
+W0001932e      1       0        1         0        1         0
+W00017da4      1       0        1         0        0         1
+W00014309      1       0        0         1        1         0
+W000176af      1       0        1         0        1         0
+W000134bf      0       1        1         0        1         0
+W00018e53      1       0        1         0        1         0
+W000196f7      1       0        1         0        1         0
+W00016cdd      1       0        1         0        1         0
+
+$call$N
+[1] 312
+
+$call$quali
+ [1]  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
+[26] 26
+
+
+$ind
+$ind$coord
+               Dim 1       Dim 2
+W0001f7e3 -0.5551381 -0.25525186
+W000160f5 -0.1905227 -0.18240753
+W0001b6e0 -0.2425424  0.59400507
+W0001b6e2 -0.4149048 -0.07314687
+W0001932e  0.5096052 -0.35216871
+W00017da4  0.3378101  0.01123483
+W00014309 -0.4412669 -0.14550533
+W000176af -0.3846470 -0.07017787
+W000134bf  0.3770448  0.76017057
+W00018e53  0.1635454 -0.20886824
+W000196f7  0.1542099  0.33275969
+W00016cdd  0.6868065 -0.41064374
+
+$ind$contrib
+              Dim 1        Dim 2
+W0001f7e3 15.752904  4.321364984
+W000160f5  1.855461  2.206828650
+W0001b6e0  3.007003 23.402562092
+W0001b6e2  8.799451  0.354874376
+W0001932e 13.274751  8.225923020
+W00017da4  5.833160  0.008371754
+W00014309  9.953170  1.404238696
+W000176af  7.562814  0.326650611
+W000134bf  7.266823 38.327034101
+W00018e53  1.367210  2.893529616
+W000196f7  1.215578  7.344200560
+W00016cdd 24.111676 11.184421538
+
+$ind$cos2
+               Dim 1        Dim 2
+W0001f7e3 0.34162396 0.0722244379
+W000160f5 0.04540006 0.0416148833
+W0001b6e0 0.05977427 0.3585249340
+W0001b6e2 0.19082851 0.0059311358
+W0001932e 0.26388020 0.1260203262
+W00017da4 0.11031009 0.0001220122
+W00014309 0.24353756 0.0264801843
+W000176af 0.14301935 0.0047606951
+W000134bf 0.11661155 0.4739993122
+W00018e53 0.02352296 0.0383672192
+W000196f7 0.02416370 0.1125124254
+W00016cdd 0.38692285 0.1383203329
+
+
+
+===== LLM sem configuracao: comportamento real =====
+semantic_search sem config: class = simpleError ERRO: LLM not configured. Run llm_configure() first. 
+
+##### llm_configure ollama
+$provider
+[1] "ollama"
+
+$api_key
+[1] ""
+
+$model
+[1] "llama3.1:8b"
+
+$base_url
+[1] "http://localhost:11434"
+
+$temperature
+[1] 0.3
+
+$max_tokens
+[1] 4096
+
+
+##### llm_get_config
+[1] "llama3.1:8b"
+
+##### llm_status verbose
+LLM Status:
+  Provider: ollama
+  Model: llama3.1:8b
+  ellmer package: available
+  Provider available: no
+  Tip: Start Ollama with 'ollama serve' in a terminal
+[1] FALSE
+
+##### semantic_search sem servidor
+
+===== biblio_import: CSV criado =====
+
+##### biblio_import csv
+[1] 5
+
+===== export json/parquet =====
+
+##### json
+[1] TRUE
+
+##### parquet
+[1] TRUE
+
+===== network_communities metodos =====
+
+##### communities louvain
+       node community
+1 A000008c4         1
+2 A00000905         2
+3 A00000f4d         1
+4 A00000f73         2
+5 A00000621         1
+6 A000008ad         2
+7 A0000043f         1
+
+##### communities walktrap
+       node community
+1 A000008c4         2
+2 A00000905         1
+3 A00000f4d         2
+4 A00000f73         1
+5 A00000621         2
+6 A000008ad         1
+7 A0000043f         2
+
+##### communities label_prop
+       node community
+1 A000008c4         1
+2 A00000905         1
+3 A00000f4d         1
+4 A00000f73         1
+5 A00000621         1
+6 A000008ad         1
+7 A0000043f         1
+
+##### communities edge_betweenness
+
+===== biblio_report formatos =====
+
+##### report html
+[1] TRUE
+
+===== form_groups matriz e funcao =====
+
+##### matriz
+[1] 12  2
+
+##### funcao
+          factor(groups)a factor(groups)b
+W0001f7e3               1               0
+W000160f5               1               0
+
+===== normalized_citations strata =====
+
+##### strata=year+source
+    work_id citations expected normalized
+1 W0001f7e3        42       42          1
+2 W000160f5        35       35          1
+3 W0001b6e0        28       28          1
+
+===== deduplicate: so titulo+ano (sem doi) =====
+
+##### dedup sem doi
+[1] 12

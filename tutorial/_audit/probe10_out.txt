@@ -1,0 +1,9 @@
+1) como documentado (doi nu):
+   : HTTP 400 Bad Request. 
+2) com prefixo doi:
+   : Failed to perform HTTP request.
+Caused by error in `curl::curl_fetch_memory()`:
+! Stream e 
+3) URL da API direta (o que o pacote usa?):
+    u = paste0("https://api.opencitations.net/index/v2/", direction,  
+4) curl direto no endpoint v2 citations:

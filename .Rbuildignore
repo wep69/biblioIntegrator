@@ -31,3 +31,7 @@
 
 # README with badges (keep README.md but not extras)
 ^README\.html$
+
+# Tutorial operacional (não faz parte do pacote)
+^tutorial$
+^LEIA-ME\.md$

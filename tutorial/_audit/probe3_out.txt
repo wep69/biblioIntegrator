@@ -1,0 +1,158 @@
+List of 6
+ $ works      :'data.frame':	12 obs. of  7 variables:
+ $ authorships:'data.frame':	24 obs. of  2 variables:
+ $ authors    :'data.frame':	7 obs. of  2 variables:
+ $ keywords   :'data.frame':	32 obs. of  2 variables:
+ $ references :'data.frame':	0 obs. of  2 variables:
+ $ provenance :'data.frame':	1 obs. of  3 variables:
+ - attr(*, "class")= chr "biblio_project"
+
+
+========== CENARIO B: dados discrepantes ==========
+
+--- biblio_health no cenário sujo ---
+                 check n
+1        missing_title 1
+2         missing_year 1
+3          missing_doi 1
+4        duplicate_doi 1
+5 duplicate_title_year 2
+6   negative_citations 1
+
+--- deduplicate: doi_title_year ---
+antes: 14 depois: 13 
+provenance tail:
+                   timestamp          operation                details
+1 2026-09-21 22:10:23.405409  as_biblio_project source=cenario-B; n=14
+2 2026-09-21 22:10:23.408426 deduplicate_biblio              removed=1
+
+--- audit_biblio ---
+                   timestamp         operation                details
+1 2026-09-21 22:10:23.405409 as_biblio_project source=cenario-B; n=14
+
+
+========== CENARIO C: desbalanceamento ==========
+
+--- compare_groups desbalanceado ---
+<biblio_group_comparison> native engine
+Chi-square: 253  p: 0.005  V: 1 
+residuals nrow: 12 
+                group      entity   residual observed     expected
+1 factor(groups)domin agriculture  4.4453979      114 104.08695652
+2  factor(groups)raro agriculture -4.4453979        0   9.91304348
+3 factor(groups)domin     climate  0.3092184        1   0.91304348
+4  factor(groups)raro     climate -0.3092184        0   0.08695652
+
+--- sensitivity_analysis ---
+  threshold entities cramers_v p_value
+1         1        6         1    0.02
+2         2        4         1    0.02
+
+
+========== CENARIO D: efeito relacional ==========
+<biblio_group_comparison> native engine
+Chi-square: 25.99  p: 0.005  V: 0.537 
+
+
+========== CENARIO E: bordas ==========
+
+##### corpus minimo: health
+                 check n
+1        missing_title 0
+2         missing_year 0
+3          missing_doi 0
+4        duplicate_doi 0
+5 duplicate_title_year 0
+6   negative_citations 0
+
+##### corpus minimo: metrics
+             author documents citations h_index g_index m_index
+A000008ad   Silva A         1        42       1       1       1
+A000008c4   Costa C         1        35       1       1       1
+A00000f4d Martins B         1        35       1       1       1
+A00000f73 Pereira W         1        42       1       1       1
+
+##### corpus minimo: compare 99 perm
+<biblio_group_comparison> native engine
+Chi-square: 5  p: 1  V: 1 
+
+##### temporal_growth
+  year documents citations growth_pct
+1 2018         1        42         NA
+2 2019         1        35          0
+IGRAPH 63a2d51 UNW- 4 2 -- 
++ attr: name (v/c), weight (e/n)
++ edges from 63a2d51 (vertex names):
+[1] A00000f4d--A000008c4 A00000f73--A000008ad
+
+##### network_stability B=5
+       node mean_rank sd_rank replicates
+1 A000008ad       2.5       0          5
+2 A000008c4       2.5       0          5
+3 A00000f4d       2.5       0          5
+4 A00000f73       2.5       0          5
+
+--- disruption_index: assinatura direta ---
+
+##### disruption com edges inventados
+  focal_id N_i N_j N_k disruption
+1       W1   0   0   0         NA
+
+
+========== FASE 2: form_plan/run_plan ==========
+$source
+NULL
+
+$analyses
+[1] "health"      "descriptive"
+
+$network
+[1] "coauthor"
+
+$group
+NULL
+
+$report
+[1] "markdown"
+
+$seed
+[1] 123
+
+attr(,"class")
+[1] "biblio_plan"
+
+##### validate_plan
+$source
+NULL
+
+$analyses
+[1] "health"      "descriptive"
+
+$network
+[1] "coauthor"
+
+$group
+NULL
+
+$report
+[1] "markdown"
+
+$seed
+[1] 123
+
+attr(,"class")
+[1] "biblio_plan"
+
+##### plan invalido
+
+
+========== bibliometrix / biblium / exports ==========
+
+##### to_bibliometrix
+[1] 12
+
+##### to_biblium colnames
+[1] "Title"           "Year"            "Authors"         "Author Keywords"
+
+##### export_biblio csv
+[1] TRUE

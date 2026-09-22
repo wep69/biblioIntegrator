@@ -1,0 +1,313 @@
+versao: 0.3.0 
+exportadas: 59 
+
+
+=== as_biblio_project ===
+  x                      = <obrigatorio>
+  source                 = "user"
+
+=== association_residuals ===
+  x                      = <obrigatorio>
+  min_abs                = 0
+
+=== audit_biblio ===
+  x                      = <obrigatorio>
+
+=== backend_status ===
+
+=== biblio_app ===
+  data                   = NULL
+
+=== biblio_health ===
+  x                      = <obrigatorio>
+
+=== biblio_import ===
+  path                   = <obrigatorio>
+  dbsource               = NULL
+  format                 = NULL
+
+=== biblio_load ===
+  path                   = <obrigatorio>
+  engine                 = c("arrow", "duckdb")
+
+=== biblio_metrics ===
+  x                      = <obrigatorio>
+
+=== biblio_query ===
+  path                   = <obrigatorio>
+  sql                    = <obrigatorio>
+
+=== biblio_report ===
+  x                      = <obrigatorio>
+  output_file            = "biblio-report.md"
+  format                 = c("markdown", "html", "docx", "pdf")
+  title                  = "Bibliometric Analysis Report"
+
+=== biblio_store ===
+  x                      = <obrigatorio>
+  path                   = <obrigatorio>
+  engine                 = c("arrow", "duckdb")
+  overwrite              = FALSE
+
+=== bibliographic_network ===
+  x                      = <obrigatorio>
+  type                   = c("coauthor", "keyword", "citation")
+  engine                 = c("auto", "native", "biblionetwork")
+  min_weight             = 1
+  counting               = c("full_counting", "fractional_counting", "fractional_counting_refined
+
+=== biblium_backend_status ===
+  python                 = NULL
+
+=== biblium_compare_groups ===
+  x                      = <obrigatorio>
+  groups                 = <obrigatorio>
+  entity                 = c("keyword", "author")
+  permutations           = 999
+  seed                   = NULL
+  python                 = NULL
+
+=== citation_trajectory ===
+  x                      = <obrigatorio>
+  current_year           = as.integer(format(Sys.Date(), "%Y"))
+
+=== citation_velocity ===
+  x                      = <obrigatorio>
+  current_year           = as.integer(format(Sys.Date(), "%Y"))
+
+=== compare_groups ===
+  x                      = <obrigatorio>
+  groups                 = <obrigatorio>
+  entity                 = c("keyword", "author")
+  permutations           = 999
+  bootstrap              = 0
+  seed                   = NULL
+  engine                 = c("native", "biblium", "auto")
+
+=== compare_sources ===
+  ...                    = <obrigatorio>
+
+=== deduplicate_biblio ===
+  x                      = <obrigatorio>
+  method                 = c("doi_title_year")
+
+=== describe_biblio ===
+  x                      = <obrigatorio>
+
+=== disruption_index ===
+  focal_id               = <obrigatorio>
+  citation_edges         = <obrigatorio>
+  focal_references       = <obrigatorio>
+
+=== enable_python_backend ===
+  python                 = <obrigatorio>
+
+=== example_biblio ===
+
+=== export_biblio ===
+  x                      = <obrigatorio>
+  path                   = <obrigatorio>
+  format                 = c("csv", "json", "parquet")
+
+=== export_vosviewer ===
+  graph                  = <obrigatorio>
+  path                   = <obrigatorio>
+
+=== fetch_openalex ===
+  query                  = <obrigatorio>
+  n                      = 25
+  mailto                 = NULL
+
+=== fetch_opencitations ===
+  identifier             = <obrigatorio>
+  direction              = c("citations", "references")
+
+=== form_groups ===
+  x                      = <obrigatorio>
+  groups                 = <obrigatorio>
+
+=== form_plan ===
+  source                 = NULL
+  analyses               = c("health", "descriptive", "temporal", "network", "text")
+  network                = "coauthor"
+  group                  = NULL
+  report                 = c("markdown", "html", "docx", "pdf")
+  seed                   = 123
+
+=== group_ca ===
+  x                      = <obrigatorio>
+  ndim                   = 2
+
+=== group_mca ===
+  x                      = <obrigatorio>
+  groups                 = <obrigatorio>
+  entity                 = c("keyword", "author")
+  ncp                    = 2
+
+=== install_biblium_backend ===
+  envname                = "r-bibliointegrator"
+  python                 = NULL
+  version                = "2.16.0"
+
+=== llm_citation_context ===
+  x                      = <obrigatorio>
+  text                   = NULL
+  provider               = NULL
+  model                  = NULL
+
+=== llm_classify ===
+  x                      = <obrigatorio>
+  categories             = NULL
+  provider               = NULL
+  model                  = NULL
+
+=== llm_configure ===
+  provider               = "ollama"
+  api_key                = NULL
+  model                  = NULL
+  base_url               = NULL
+  temperature            = 0.3
+  max_tokens             = 4096L
+
+=== llm_gap_analysis ===
+  x                      = <obrigatorio>
+  focus                  = "thematic"
+  provider               = NULL
+  model                  = NULL
+
+=== llm_get_config ===
+
+=== llm_query_expand ===
+  query                  = <obrigatorio>
+  database               = "openalex"
+  provider               = NULL
+  model                  = NULL
+
+=== llm_status ===
+  provider               = NULL
+  verbose                = TRUE
+
+=== llm_summarize ===
+  x                      = <obrigatorio>
+  work_ids               = NULL
+  style                  = "executive"
+  provider               = NULL
+  model                  = NULL
+
+=== llm_topic_discovery ===
+  x                      = <obrigatorio>
+  n_topics               = NULL
+  provider               = NULL
+  model                  = NULL
+
+=== network_centrality ===
+  graph                  = <obrigatorio>
+
+=== network_communities ===
+  graph                  = <obrigatorio>
+  method                 = c("louvain", "walktrap", "label_prop")
+
+=== network_stability ===
+  x                      = <obrigatorio>
+  type                   = c("coauthor", "keyword")
+  B                      = 100
+  fraction               = 0.8
+  seed                   = NULL
+
+=== normalized_citations ===
+  x                      = <obrigatorio>
+  strata                 = "year"
+
+=== python_backend_status ===
+  python                 = NULL
+
+=== rpys ===
+  reference_years        = <obrigatorio>
+  window                 = 2
+
+=== run_plan ===
+  plan                   = <obrigatorio>
+  data                   = NULL
+
+=== semantic_search ===
+  x                      = <obrigatorio>
+  query                  = <obrigatorio>
+  n                      = 10
+  provider               = NULL
+  model                  = NULL
+  api_key                = NULL
+
+=== sensitivity_analysis ===
+  x                      = <obrigatorio>
+  groups                 = <obrigatorio>
+  thresholds             = c(1, 2, 3)
+  entity                 = c("keyword", "author")
+  permutations           = 99
+  seed                   = NULL
+
+=== temporal_growth ===
+  x                      = <obrigatorio>
+
+=== term_frequency ===
+  x                      = <obrigatorio>
+  field                  = c("title", "abstract")
+  stopwords              = c("and", "the", "for", "with", "under", "of", "in", "to")
+
+=== tfidf_terms ===
+  x                      = <obrigatorio>
+  group                  = c("year", "source")
+  field                  = c("title", "abstract")
+
+=== to_bibliometrix ===
+  x                      = <obrigatorio>
+
+=== to_biblium ===
+  x                      = <obrigatorio>
+
+=== trend_topics ===
+  x                      = <obrigatorio>
+  min_total              = 1
+
+=== validate_biblium ===
+  x                      = <obrigatorio>
+  groups                 = <obrigatorio>
+  entity                 = c("keyword", "author")
+  permutations           = 999
+  seed                   = 1
+
+=== validate_plan ===
+  plan                   = <obrigatorio>
+
+
+=== metodos S3 ===
+ [1] "%||%"                          "as_biblio_project"            
+ [3] "association_residuals"         "audit_biblio"                 
+ [5] "backend_status"                "biblio_app"                   
+ [7] "biblio_health"                 "biblio_import"                
+ [9] "biblio_load"                   "biblio_metrics"               
+[11] "biblio_query"                  "biblio_report"                
+[13] "biblio_store"                  "bibliographic_network"        
+[15] "biblium_backend_status"        "biblium_compare_groups"       
+[17] "citation_trajectory"           "citation_velocity"            
+[19] "compare_groups"                "compare_sources"              
+[21] "deduplicate_biblio"            "describe_biblio"              
+[23] "disruption_index"              "enable_python_backend"        
+[25] "example_biblio"                "export_biblio"                
+[27] "export_vosviewer"              "fetch_openalex"               
+[29] "fetch_opencitations"           "form_groups"                  
+[31] "form_plan"                     "group_ca"                     
+[33] "group_mca"                     "install_biblium_backend"      
+[35] "llm_citation_context"          "llm_classify"                 
+[37] "llm_configure"                 "llm_gap_analysis"             
+[39] "llm_get_config"                "llm_query_expand"             
+[41] "llm_status"                    "llm_summarize"                
+[43] "llm_topic_discovery"           "network_centrality"           
+[45] "network_communities"           "network_stability"            
+[47] "normalized_citations"          "print.biblio_group_comparison"
+[49] "print.biblio_project"          "python_backend_status"        
+[51] "rpys"                          "run_plan"                     
+[53] "semantic_search"               "sensitivity_analysis"         
+[55] "temporal_growth"               "term_frequency"               
+[57] "tfidf_terms"                   "to_bibliometrix"              
+[59] "to_biblium"                    "trend_topics"                 
+[61] "validate_biblium"              "validate_plan"                

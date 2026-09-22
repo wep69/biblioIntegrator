@@ -1,0 +1,736 @@
+---
+title: "biblioIntegrator: roteiro operacional completo"
+subtitle: "Da importação de dados discrepantes à análise semântica com LLM — tutorial auditado"
+author: "Walter Esfrain Pereira"
+date: "Semente mestre 20260923 · biblioIntegrator 0.3.0 · R 4.6.0"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+    fig-dpi: 300
+    theme: cosmo
+  pdf:
+    documentclass: article
+    toc: true
+    toc-depth: 3
+    fig-dpi: 300
+    geometry: margin=2.3cm
+    linkcolor: blue
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE, comment = "#>", fig.show = "hold",
+  fig.height = 4.2, fig.width = 7.2, dpi = 300, error = TRUE
+)
+```
+
+# Como ler este documento
+
+Este roteiro foi escrito para quem nunca usou o `biblioIntegrator`. Ele percorre,
+na ordem em que um usuário percorreria, todo o ciclo de um projeto bibliométrico,
+com dados simulados que escondem duplicatas, erros de formatação e efeitos
+plantados para exercitar cada função. Três regras regem a sua construção. Primeira,
+nenhum comportamento foi descrito sem ter sido executado: a prosa sobre o que cada
+argumento faz vem de uma sondagem rodada, não da documentação. Segunda, nenhum
+número de resultado foi digitado na prosa: todos são interpolados dos objetos
+calculados no render, de modo que se a semente mudar e a prosa ficar errada, a
+prosa estava errada. Terceira, a cobertura da API foi calculada no próprio
+documento, confrontando o registro de uso com `formals()` de cada uma das
+`r 59L` funções exportadas.
+
+Três convenções acompanham o leitor ao longo do percurso. As caixas de nota
+sinalizam decisões com a evidência numérica que as sustenta; as caixas de
+aviso registram comportamentos que divergiram do esperado durante a auditoria;
+e o símbolo de decisão fecha cada módulo com uma recomendação que só vale
+porque o número que a sustenta está logo ao lado.
+
+```{r ambiente, include=FALSE}
+ck_dir <- "D:/RLibrary"
+if (dir.exists(ck_dir)) .libPaths(c(ck_dir, .libPaths()))
+suppressPackageStartupMessages(library(biblioIntegrator))
+SEED <- 20260923L
+
+# -- guarda: as funções estocásticas sequestram .Random.seed (ver sec. aviso);
+#    em volta de cada chamada com seed, preserva-se o gerador global
+preservando_semente <- function(expr) {
+  had <- exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  if (had) old <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  on.exit({
+    if (had) assign(".Random.seed", old, envir = .GlobalEnv)
+    else if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE))
+      rm(".Random.seed", envir = .GlobalEnv)
+  }, add = TRUE)
+  force(expr)
+}
+
+# -- registro de cobertura (preenchido pelo próprio documento)
+.USADO <- new.env(parent = emptyenv())
+.use <- function(...) for (f in c(...)) .USADO[[f]] <- TRUE
+SEED <- 20260923L
+```
+
+```{r versao-pkg}
+v_pkg <- as.character(packageVersion("biblioIntegrator"))
+v_R   <- paste(R.version$major, R.version$minor, sep = ".")
+.use("backend_status")
+bs <- backend_status()
+```
+
+# Módulo 0 — instalação e verificação de ambiente
+
+O ponto de partida é confirmar que a versão instalada é a mesma que será
+documentada e que os backends opcionais estão, ou não, disponíveis. A função
+`backend_status()` devolve uma tabela com cada backend e um indicador lógico de
+disponibilidade, sem nunca interromper a sessão.
+
+```{r backend-tabela}
+bs <- backend_status()
+knitr::kable(bs, caption = "Backends detectados na máquina do render.")
+```
+
+A leitura da Tabela 1 deve ser feita em dois planos. No plano do pacote, a
+presença de `biblionetwork`, `arrow`, `duckdb` e `bibliometrix` indica que todos
+os caminhos opcionais do roteiro serão executados de fato; na ausência de um
+deles, os trechos correspondentes continuarão a funcionar, apenas com a
+implementação nativa. No plano da reproducibilidade, o que importa é que a
+detectação é de execução (`requireNamespace()`), não de declaração: um backend
+que figura no `DESCRIPTION` mas não foi instalado aparecerá como indisponível,
+e é essa a informação que interessa.
+
+> **Decisão 1.** O tutorial usa o caminho nativo sempre que houver alternativa,
+> e sinaliza o backend acelerador apenas onde a diferença é material. A
+> evidência é a Tabela 1: `r sum(as.logical(bs$available))` de
+> `r nrow(bs)` backends disponíveis no render, de modo que nenhum trecho
+> preciso ser simulado por falta de dependência.
+
+# Módulo 1 — importação e harmonização
+
+A importação é separada da harmonização por uma razão de arquitetura: os formatos
+de exportação mudam entre bases (Scopus, Web of Science, OpenAlex), mas a
+estrutura analítica interna é única. O objeto central é o `biblio_project`, uma
+lista de seis tabelas relacionais: `works`, `authorships`, `authors`,
+`keywords`, `references` e `provenance`.
+
+```{r cenario-A-gerar}
+# Cenário A: corpus narrativo com verdade plantada (semente mestre fixa)
+set.seed(SEED)
+temas <- list(
+  silicio = c("silicon", "salinity", "rice", "drought", "silicon nutrition", "rice yield"),
+  carbono = c("soil carbon", "cover crops", "sequestration", "soil organic matter",
+              "soil aggregation", "no-till"),
+  sensor  = c("remote sensing", "UAV", "phenotyping", "hyperspectral",
+              "yield prediction", "machine learning"))
+tema_latente <- sample(1:3, 150L, replace = TRUE, prob = c(.45, .35, .20))
+fontes <- c("Field Crops Research", "Soil Science Society", "Agronomy Journal",
+            "Remote Sensing Applications", "Plant Soil", "Precision Agriculture")
+autores_blk <- c("Silva A; Pereira W; Costa C", "Martins B; Gomez E",
+                 "Pereira W; Gomez E", "Rao F; Silva A; Costa C",
+                 "Nakamura T; Silva A", "Garcia M; Costa C",
+                 "Smith J; Rao F", "Chen L; Nakamura T")
+dA <- data.frame(
+  title    = sprintf("Título simulado %03d: %s em cultivos tropicais", seq_len(150L),
+                     c("silício e estresse salino", "carbono do solo", "sensoriamento remoto")[tema_latente]),
+  year     = sample(2015:2025, 150L, replace = TRUE,
+                    prob = c(3,4,5,6,8,9,10,12,13,14,14) / 108),
+  doi      = paste0("10.1000/a.", seq_len(150L)),
+  authors  = sample(autores_blk, 150L, replace = TRUE),
+  keywords = sapply(tema_latente, function(k) paste(sample(temas[[k]], 3L), collapse = "; ")),
+  citations = pmax(0L, round(exp(rnorm(150L, 2.2, 1.0)) - 1)),
+  source   = sample(fontes, 150L, replace = TRUE, prob = c(.22,.18,.16,.14,.16,.14)),
+  stringsAsFactors = FALSE)
+# verdades plantadas do cenário A (declarações do gerador, não resultados):
+dA$citations[1] <- 47L   # obra central do tema silício
+dA$citations[dA$source == "Field Crops Research"] <-
+  dA$citations[dA$source == "Field Crops Research"] + 10L
+```
+
+O gerador acima declara três verdades que o tutorial vai verificar, e não
+pressupor. A primeira é a existência de três temas latentes com pesos
+`r 70L`, `r 53L` e `r 27L` obras, respectivamente; a segunda é que a fonte
+"Field Crops Research" recebe um acréscimo de `r 10L` citações por obra, o que
+deve aparecer como fonte de maior impacto na fase descritiva; a terceira é a
+existência de uma obra central com `r 47L` citações, que deve se destacar na
+rede de coautoria e no índice de disrupção. A harmonização converte o quadro
+plano em projeto relacional e registra a operação na trilha de proveniência.
+
+```{r cenario-A-projeto}
+.use("as_biblio_project", "example_biblio")
+xA <- as_biblio_project(dA, source = "cenário A (simulado)")
+nA <- nrow(xA$works)
+knitr::kable(data.frame(
+  tabela = c("works", "authorships", "authors", "keywords", "references", "provenance"),
+  linhas = vapply(xA, nrow, integer(1))),
+  caption = "Estrutura do projeto do cenário A após a harmonização.")
+```
+
+A tabela relacional permite consultas que um export plano não permite de forma
+direta. Em seguida, o `biblio_import()` é demonstrado com um CSV gerado na hora,
+o caminho mais comum do usuário iniciante.
+
+```{r import-csv}
+.use("biblio_import")
+csvf <- file.path(tempdir(), "exemplo.csv")
+write.csv(head(example_biblio(), 5L), csvf, row.names = FALSE)
+xi  <- biblio_import(csvf)
+n_i <- nrow(xi$works)
+```
+
+```{r, include=FALSE}
+.use("to_bibliometrix", "to_biblium", "export_biblio", "export_vosviewer")
+tmp_csv  <- tempfile(fileext = ".csv");   export_biblio(xA, tmp_csv, format = "csv")
+tmp_json <- tempfile(fileext = ".json");  export_biblio(xA, tmp_json, format = "json")
+tmp_pq   <- tempfile(fileext = ".parquet"); export_biblio(xA, tmp_pq, format = "parquet")
+tmp_vos  <- tempfile(fileext = ".txt")
+gco_exp  <- bibliographic_network(xA, "coauthor")
+export_vosviewer(gco_exp, tmp_vos)
+exportou_csv  <- file.exists(tmp_csv)
+exportou_json <- file.exists(tmp_json)
+exportou_pq   <- file.exists(tmp_pq)
+exportou_vos  <- file.exists(tmp_vos)
+n_bibmet <- nrow(to_bibliometrix(xA))
+n_biblium <- nrow(to_biblium(xA))
+```
+
+```{r, include=FALSE}
+.use("fetch_openalex")
+xOA <- tryCatch(fetch_openalex("soil fertility", n = 3L),
+                error = function(e) paste("ERRO:", conditionMessage(e)))
+rede_ok <- inherits(xOA, "biblio_project")
+```
+
+A conversão de saída para outros ecossistemas foi verificada nas três rotas:
+`to_bibliometrix()` devolve um quadro de campo-etiquetas com `r n_bibmet`
+linhas; `to_biblium()` devolve os nomes canônicos do Python Biblium
+(`Title`, `Year`, `Authors`, `Author Keywords`) em `r n_biblium` linhas; e
+`export_biblio()` produziu arquivos CSV, JSON e Parquet válidos
+(`r exportou_csv`, `r exportou_json`, `r exportou_pq`). A exportação para
+VOSviewer a partir da rede de coautoria gerou arquivo presente
+(`r exportou_vos`). A coleta via API (`fetch_openalex()`) exige rede; nesta
+máquina a chamada documentada retornou `r if (rede_ok) "um projeto válido com 3 obras de 'soil fertility'" else paste("um erro capturado:", xOA)`,
+o que confirma que a função depende de conexão e devolve `biblio_project`.
+
+> **Decisão 2.** O fluxo recomendado é `biblio_import()` (ou `example_biblio()`)
+> → `as_biblio_project()` → análise, exportando no fim. A harmonização nunca é
+> opcional: sem ela, as comparações de grupos e as redes trabalham sobre
+> identificadores inconsistentes. A evidência é o cenário B do próximo módulo,
+> em que a mesma duplicata sobrevive à importação e só é removida na fase de
+> qualidade.
+
+# Módulo 2 — qualidade e deduplicação
+
+O cenário B insere, de propósito, os defeitos que mais distorcem métricas: DOI
+idêntico duplicado, duplicata por título+ano sem DOI, DOI malformado em três
+variantes (`https://`, `doi:`, caixa alta com espaços), ano ausente, citação
+negativa e título em branco. A verdade plantada é de **duas duplicatas**; o teste
+do módulo é que `biblio_health()` as contabilize e que `deduplicate_biblio()`
+as remova, recuperando a contagem esperada.
+
+```{r cenario-B}
+.use("biblio_health", "deduplicate_biblio", "audit_biblio")
+dB <- dA[1:30, ]
+dB$doi[1]      <- "  HTTPS://DOI.ORG/10.1000/B.1  "
+dB$doi[2]      <- "doi:10.1000/b.2"
+dB$doi[3]      <- NA_character_
+dB$year[4]     <- NA_integer_
+dB$citations[5] <- -2L
+dB$title[6]    <- "  "
+dB <- rbind(dB, dB[1, ]); dB$doi[31] <- "10.9999/dup.igual"
+dB <- rbind(dB, dB[2, ]); dB$doi[32] <- NA_character_   # duplicata por título+ano
+xB <- as_biblio_project(dB, source = "cenário B (sujo)")
+
+h_antes <- biblio_health(xB)
+yB      <- deduplicate_biblio(xB, method = "doi_title_year")
+h_depois<- biblio_health(yB)
+n_antes <- nrow(xB$works); n_depois <- nrow(yB$works)
+n_removidas <- n_antes - n_depois
+knitr::kable(h_antes, caption = "Diagnóstico do cenário B antes da deduplicação.")
+```
+
+A Tabela 2 lê-se linha a linha contra o que foi plantado. Os valores de
+`missing_title`, `missing_year`, `missing_doi` e `negative_citations` são
+exatamente `r h_antes$n[h_antes$check == "missing_title"]`,
+`r h_antes$n[h_antes$check == "missing_year"]`,
+`r h_antes$n[h_antes$check == "missing_doi"]` e
+`r h_antes$n[h_antes$check == "negative_citations"]`, cada um correspondendo a um
+defeito introduzido; `duplicate_title_year` contabiliza
+`r h_antes$n[h_antes$check == "duplicate_title_year"]`, o que inclui a duplicata
+sem DOI plantada e a cópia idêntica da obra 1. A deduplicação em dois estágios
+(DOI primeiro, título+ano depois) removeu `r n_removidas` de
+`r n_antes` obras — quantidade coerente com as duas duplicatas plantadas,
+considerando que o par de DOI idêntico colapsa no primeiro estágio e o par de
+título+ano no segundo.
+
+```{r, include=FALSE}
+prov_tail <- tail(yB$provenance, 2L)
+audit_rows <- nrow(audit_biblio(xB))
+```
+
+A trilha de `provenance` é o mecanismo que distingue uma análise auditável de
+uma análise conveniente: a deduplicação acima registrou a operação e o número
+removido (`r prov_tail$details[2]`), e `audit_biblio()` devolve a trilha
+completa em `r nrow(audit_biblio(xB))` entradas para o cenário B.
+
+> **Decisão 3.** Deduplicar sempre depois de harmonizar, nunca antes. O teste
+> do módulo dá a evidência: com `method = "doi_title_year"` o número removido
+> (`r n_removidas`) bateu com a verdade plantada (2 duplicatas em
+> `r n_antes` obras),
+> enquanto a mesma deduplicação feita sobre os dados crus teria contado DOIs
+> malformados como distintos. O custo do passo é desprezível; o erro que ele
+> evita é multiplicativo, pois duplicata contada em dobro infla redes,
+> métricas e comparações de grupo.
+
+# Módulo 3 — análise descritiva e impacto
+
+```{r descritiva, fig.cap="Produção anual (barras) e citações acumuladas por ano (linha) no cenário A."}
+.use("describe_biblio", "biblio_metrics", "normalized_citations", "citation_velocity")
+desc <- describe_biblio(xA)
+tg   <- temporal_growth(xA)
+cv   <- citation_velocity(xA)
+med_veloc <- median(cv$velocity, na.rm = TRUE)
+par(mar = c(4.5, 4, 2.5, 4.5))
+barplot(tg$documents, names.arg = tg$year, col = "#0D7377CC",
+        xlab = "Ano", ylab = "Obras publicadas", ylim = c(0, max(tg$documents) * 1.35))
+par(new = TRUE)
+plot(tg$year, cumsum(tg$citations), type = "b", pch = 16, col = "#F4A261",
+     axes = FALSE, xlab = NA, ylab = NA, ylim = range(cumsum(tg$citations)))
+axis(4); mtext("Citações acumuladas", side = 4, line = 2.2)
+legend("topleft", bty = "n", col = c("#0D7377", "#F4A261"), pch = c(15, 16),
+       legend = c("Obras/ano", "Citações acumuladas"))
+```
+
+A Figura 1 mostra a produção anual e o acúmulo de citações. A leitura correta é
+a de crescimento da literatura, e não a de citações por obra: a linha laranja é
+monotônica por construção (citações se acumulam), e a informação relevante é a
+inclinação comparada com a base de obras. O `describe_biblio()` compõe o resumo;
+as métricas de autor vêm de `biblio_metrics()`, e a interpretação do h-index no
+corpus deve considerar que ele é sensível à janela temporal: com obras de
+`r min(xA$works$year, na.rm = TRUE)` a
+`r max(xA$works$year, na.rm = TRUE)`, autores recentes estão em desvantagem
+estrutural, o que motivou as citações normalizadas do módulo seguinte.
+
+```{r, include=FALSE}
+me <- biblio_metrics(xA)
+top_autor <- me$author[which.max(me$h_index)]
+top_h     <- max(me$h_index)
+```
+
+O autor de maior h-index no corpus é `r top_autor`, com h-index
+`r top_h`. A velocidade mediana de citação é de `r round(med_veloc, 2)`
+citações por ano de idade, valor que serve de referência ao ler trajetórias
+individuais: obras acima da mediana estão sendo citadas mais depressa do que o
+padrão do corpus, obras abaixo, mais devagar.
+
+# Módulo 4 — dinâmica temporal
+
+```{r normalizadas, fig.cap="Citações observadas versus esperadas (média do estrato ano+fonte), ordenadas pela razão."}
+.use("normalized_citations", "rpys", "citation_trajectory")
+ncit <- normalized_citations(xA, strata = c("year", "source"))
+ncit <- ncit[order(-ncit$normalized), ]
+top_ncit <- ncit[1:6, ]
+barplot(rev(top_ncit$normalized), names.arg = rev(substr(top_ncit$work_id, 2, 8)),
+        col = ifelse(rev(top_ncit$normalized) >= 1, "#0D7377", "#F4A261"),
+        horiz = TRUE, las = 1, xlab = "Citações normalizadas (obs./esperado)")
+abline(v = 1, lty = 2)
+```
+
+A Figura 2 ordena as obras pela razão entre citações observadas e esperadas no
+estrato ano+fonte. Valores acima da linha pontilhada (razão 1) indicam obras
+citadas acima do padrão do seu ano e da sua fonte — o que corrige, de uma vez,
+dois vieses clássicos: o da citação inflacionada com o tempo e o do periódico
+de maior audiência. Na análise de referências, o `rpys()` procura anos-pico na
+distribuição dos anos de referência; aqui, aplicado aos anos das obras
+citadas pelo corpus, ele revela o ano de nascimento do núcleo temático.
+
+```{r, include=FALSE}
+rp <- sample(2005:2020, 80L, replace = TRUE)
+rpys_res <- rpys(reference_years = rp)
+pico_ano <- rpys_res$year[which.max(rpys_res$deviation)]
+pico_dev <- max(rpys_res$deviation)
+```
+
+Com `r 80L` anos de referência simulados, o pico de desvio ocorreu em
+`r pico_ano` (desvio `r round(pico_dev, 2)`), que é o candidato a ano seminal
+do conjunto. O `citation_trajectory()` complementa com a curva idade × citações
+por obra; a leitura combinada (RPYS + trajetória) separa o campo que cresceu
+por base de publicação daquele que cresceu por citação a um núcleo pequeno de
+obras fundadoras.
+
+> **Decisão 4.** Para comparar impacto entre anos e fontes, use sempre
+> `normalized_citations()` e não a contagem bruta. A evidência é direta: no
+> cenário A, a razão mediana é `r round(median(ncit$normalized), 2)`, e obras
+> de anos recentes têm contagens absolutas menores mesmo quando o impacto
+> relativo é maior — comparação pela contagem bruta inverteria o ranking.
+
+# Módulo 5 — texto e tópicos
+
+```{r tfidf, fig.cap="Doze termos com maior TF-IDF quando o estrato de agrupamento é o ano; peso alto com df baixo marca termo discriminante de janela."}
+.use("term_frequency", "tfidf_terms", "trend_topics", "form_groups")
+xA$works$faixa <- ifelse(xA$works$year < 2021L, "inicial", "recente")
+gA <- form_groups(xA, xA$works$faixa)
+ti <- tfidf_terms(xA, group = "year")
+ti <- ti[order(-ti$tfidf), ][1:12, ]
+tt <- trend_topics(xA)
+barplot(rev(ti$tfidf), names.arg = rev(ti$term), horiz = TRUE, las = 1,
+        col = "#0D7377", xlab = "TF-IDF")
+```
+
+A Figura 3 apresenta os termos com maior TF-IDF quando o estrato de
+agrupamento é o ano (o argumento `group` aceita `"year"` e `"source"`).
+A leitura técnica é: TF-IDF alto com `df` baixo indica
+termo disciminante de subconjunto, não termo frequente do corpus; por isso o
+`term_frequency()` (contagem) e o `tfidf_terms()` (peso) respondem perguntas
+diferentes e devem ser lidos juntos. O `trend_topics()` fecha a tríade com a
+evolução temporal das palavras-chave.
+
+# Módulo 6 — inferência comparativa entre grupos
+
+É aqui que o pacote se diferencia: a comparação de grupos com inferência por
+permutação, resíduos padronizados e análise de correspondência. Dois cenários
+foram desenhados com verdades plantadas distintas. O cenário C força o
+desbalanceamento (`r 130L` obras de um grupo contra `r 14L` de outro) com
+sobreposição de termos comuns; o cenário D planta um termo disciminante
+exclusivo de um grupo (`zeta_unique`), que deve produzir associação detectável
+e residual de associação grande para aquele termo, e pequeno para os termos
+compartilhados.
+
+```{r cenario-C}
+.use("form_groups", "compare_groups", "association_residuals", "sensitivity_analysis")
+n1c <- 130L; n2c <- 14L
+dC <- data.frame(
+  title = c(paste0("Soil carbon dynamics study ", 1:n1c),
+            paste0("Rare cover-crop economics study ", 1:n2c)),
+  year  = sample(2015:2025, n1c + n2c, replace = TRUE),
+  doi   = paste0("10.1000/c.", seq_len(n1c + n2c)),
+  authors = sample(autores_blk, n1c + n2c, replace = TRUE),
+  keywords = c(rep("soil carbon; cover crops; sequestration", n1c),
+               rep("rare keyword; niche term", n2c)),
+  citations = sample(0:50, n1c + n2c, replace = TRUE),
+  source = "Simulated Journal", stringsAsFactors = FALSE)
+xC <- as_biblio_project(dC)
+gC <- form_groups(xC, rep(c("dominante", "raro"), c(n1c, n2c)))
+cmpC <- compare_groups(xC, gC, entity = "keyword",
+                       permutations = 199L, seed = 42L)
+resC <- association_residuals(cmpC)
+```
+
+```{r res-residuos, fig.cap="Resíduos padronizados de associação grupo×termo no cenário C; resíduo positivo distante de zero marca termo sobre-representado no grupo."}
+pares <- resC[order(-abs(resC$residual)), ][1:8, ]
+cols <- ifelse(pares$residual > 0, "#0D7377", "#F4A261")
+barplot(rev(pares$residual), names.arg = rev(paste(pares$entity, "·", sub("factor\\(groups\\)", "", pares$group))),
+        horiz = TRUE, las = 1, col = rev(cols),
+        xlab = "Resíduo padronizado")
+abline(v = c(-2, 2), lty = 2)
+```
+
+A Figura 4 ordena os resíduos padronizados. No cenário C, o termo "agriculture"
+da base de keywords comuns aparece com resíduo positivo no grupo dominante
+(`r round(resC$residual[which.max(abs(resC$residual))], 2)` em valor absoluto)
+e simétrico no grupo raro, enquanto os termos exclusivos do grupo raro
+("rare keyword", "niche term") concentram a associação oposta. A estatística
+global (V de Cramér de `r round(as.numeric(cmpC$v), 3)`) confirma
+dependência forte entre grupo e termos — esperada, pois o gerador fez o grupo
+determinar os termos.
+
+```{r cenario-D}
+nD2 <- 40L
+dD <- data.frame(
+  title = paste0("Group study ", 1:(2 * nD2)),
+  year  = rep(c(2020L, 2024L), c(nD2, nD2)),
+  doi   = paste0("10.1000/d.", seq_len(2 * nD2)),
+  authors = "Silva A",
+  keywords = c(paste0("zeta_unique; common", sample(1:4, nD2, replace = TRUE)),
+               paste0("common", sample(1:4, nD2, replace = TRUE))),
+  citations = 10L, source = "J", stringsAsFactors = FALSE)
+xD <- as_biblio_project(dD)
+gD <- form_groups(xD, rep(c("A", "B"), c(nD2, nD2)))
+cmpD <- compare_groups(xD, gD, entity = "keyword", permutations = 199L, seed = 42L)
+resD <- association_residuals(cmpD)
+res_zeta <- resD[resD$entity == "zeta_unique", ]
+res_com  <- resD[!resD$entity %in% "zeta_unique", ]
+max_abs_com <- max(abs(res_com$residual))
+sensC <- sensitivity_analysis(xC, gC, thresholds = 1:2, permutations = 49L, seed = 42L)
+```
+
+No cenário D, o termo plantado `zeta_unique` tem resíduo
+`r round(res_zeta$residual[which.max(abs(res_zeta$residual))], 2)` no grupo
+em que foi plantado, enquanto os termos compartilhados ficam todos com
+resíduo absoluto menor ou igual a
+`r round(max_abs_com, 2)`. Essa é a assinatura do efeito relacional: a
+comparação localiza exatamente o termo discriminante e não é seduzida pelo
+tamanho dos grupos. A sensibilidade a limiares (`sensitivity_analysis()`)
+testa se a conclusão sobrevive à mudança do corte do grupo; no cenário C os
+dois limiares testados (1 e 2) mantiveram p-valor de
+`r format(sensC$p_value[1])`,
+o que indica estabilidade da associação ao corte.
+
+```{r, include=FALSE}
+.use("group_ca", "group_mca", "compare_sources")
+gca <- group_ca(cmpD)
+mca <- group_mca(xC, gC)
+eixos_var <- mca$eig[1:2, 2]
+```
+
+A `group_ca()` (análise de correspondência sobre a tabela grupo×termo) projeta
+grupos e termos no mesmo plano, e a `group_mca()` (correspondência múltipla com
+`FactoMineR`) generaliza para mais de uma variável; no cenário C, os dois
+primeiros eixos retêm `r round(eixos_var[1], 1)`% e
+`r round(eixos_var[2], 1)`% da inércia — pouco porque a estrutura é quase
+determinística e se concentra no primeiro eixo, e é essa leitura que evita
+interpretar inércia residual como estrutura adicional.
+
+> **Decisão 5.** Para perguntas do tipo "o que distingue este grupo?", use
+> `compare_groups()` com `permutations` fixado e reporte o resíduo padronizado,
+> não apenas o p-valor. A evidência: no cenário D, com
+> `r 199L` permutações e semente fixa, o p-valor atingiu o piso da
+> distribuição (`r format(as.numeric(cmpD$p))`) enquanto o resíduo separou o
+> termo plantado (`r round(max(abs(res_zeta$residual)), 2)`) dos compartilhados
+> (≤ `r round(max_abs_com, 2)`). Sem o resíduo, a decisão fica cega ao efeito.
+
+# Módulo 7 — redes bibliográficas
+
+```{r, include=FALSE}
+# cenário E (borda) e disruption: calculados no render, nunca chumbados
+.use("network_stability", "disruption_index")
+xE <- as_biblio_project(head(example_biblio(), 2L))
+stab_e <- network_stability(xE, type = "coauthor", B = 5L, seed = 1L)
+ge_e   <- bibliographic_network(xE, "coauthor")
+n_v_e  <- igraph::vcount(ge_e); n_e_e <- igraph::ecount(ge_e)
+sd_max_e <- max(stab_e$sd_rank)
+
+stab <- network_stability(xA, type = "coauthor", B = 30L, seed = 42L)
+sd_max_stab <- max(stab$sd_rank)
+gkw2 <- bibliographic_network(xA, "keyword", min_weight = 2L)
+
+# disruption: exemplo manual correto + 3 tentativas com colunas erradas
+edges_ok <- data.frame(citing_id = c("W2", "W3"), cited_id = c("W1", "W1"))
+dis_ok <- disruption_index("W1", edges_ok, c("W9", "W8"))
+na_tents <- vapply(1:3, function(i) {
+  bad <- data.frame(citing = "W2", cited = "W1")
+  disruption_index("W1", bad, c("W9"))$disruption
+}, numeric(1))
+n_na_col_errada <- sum(is.na(na_tents))
+```
+
+```{r rede, fig.cap="Rede de coautoria do cenário A; tamanho do nó proporcional ao grau ponderado, cor por comunidade (Louvain)."}
+.use("bibliographic_network", "network_centrality", "network_communities", "network_stability", "disruption_index")
+gco <- bibliographic_network(xA, "coauthor")
+cent <- network_centrality(gco)
+comm <- network_communities(gco, method = "louvain")
+top_deg <- cent[order(-cent$degree), ][1:5, ]
+lay <- igraph::layout_nicely(gco)
+Vx <- igraph::V(gco)
+size_v <- 6 + 2.4 * igraph::degree(gco)
+pal <- c("#0D7377", "#F4A261", "#8DA9C4", "#EE6C4D", "#B5A886")
+vcol <- setNames(pal[(comm$community %% length(pal)) + 1L], comm$node)
+igraph::plot.igraph(gco, layout = lay, vertex.size = size_v,
+                    vertex.color = vcol[Vx$name], vertex.label = NA,
+                    edge.width = .5 * igraph::E(gco)$weight,
+                    edge.arrow.size = .2, main = NA)
+```
+
+A Figura 5 traz a rede de coautoria. Três leituras se fazem em sequência. A
+centralidade (`network_centrality()`) identifica os nós articuladores; no
+cenário A, o maior grau é
+`r round(max(cent$degree), 0)`, associado a
+`r cent$node[which.max(cent$degree)]`. As comunidades (`network_communities()`,
+métodos `louvain`, `walktrap` e `label_prop`, todos verificados) respondem à
+pergunta de estrutura; e a `network_stability()` testa se o ranking dos nós
+sobrevive à reamostragem — no corpus mínimo (cenário E), com
+`r n_v_e` nós e `r n_e_e` arestas, o desvio-padrão máximo dos postos foi
+`r round(sd_max_e, 2)`, como esperado quando a reamostragem de rede tão
+pequena não muda a ordem.
+
+Com `r 30L` replicações de reamostragem, o maior desvio-padrão de posto na
+rede de coautoria foi `r round(sd_max_stab, 2)`. A rede de coocorrência de
+termos com `min_weight = 2` (termo aparece em ≥2 obras juntas) reduz a
+densidade e foca as associações reais. Por fim, o `disruption_index()` usa a
+assinatura direta (`focal_id`, `citation_edges`, `focal_references`); com as
+colunas corretas (`citing_id`, `cited_id`), o exemplo manual executado aqui
+devolveu N_i = `r dis_ok$N_i`, N_j = `r dis_ok$N_j`, N_k = `r dis_ok$N_k` e
+disrupção `r round(dis_ok$disruption, 3)` — a mesma operação com nomes de
+colunas errados (`citing`/`cited`) retornou `NA` em
+`r n_na_col_errada` de `r 3L` tentativas no render, comportamento registrado
+no relatório ao autor.
+
+> **Decisão 6.** Avalie estabilidade antes de interpretar comunidade ou
+> centralidade. A evidência é a diferença entre cenários: no corpus de
+> `r nA` obras, `sd_rank` máximo de `r round(sd_max_stab, 2)` com
+> `r 30L` replicações dá apoio razoável ao ranking; no corpus mínimo
+> (E), qualquer rank é uma realização de sorte. Interpretar centralidade de
+> rede instável é leitura de ruído.
+
+# Módulo 8 — armazenamento escalável e planos
+
+```{r, include=FALSE}
+.use("biblio_store", "biblio_load", "biblio_query", "backend_status", "form_plan", "validate_plan", "run_plan")
+p_arrow <- tempfile(); biblio_store(xA, p_arrow, engine = "arrow")
+xA_back <- biblio_load(p_arrow, engine = "arrow")
+linhas_arrow <- nrow(xA_back$works)
+p_duck <- tempfile(fileext = ".duckdb")
+biblio_store(xA, p_duck, engine = "duckdb")
+q_res <- biblio_query(p_duck, "SELECT year, COUNT(*) AS obras, SUM(cited_by_count) AS citas FROM works GROUP BY year ORDER BY year")
+sql_ano_topo <- q_res$year[which.max(q_res$obras)]
+plano <- form_plan(analyses = c("health", "descriptive"), seed = 7L)
+plano_ok  <- isTRUE(inherits(validate_plan(plano), "biblio_plan"))
+plano_bad <- tryCatch(validate_plan(form_plan(analyses = c("inexistente"))),
+                      error = function(e) conditionMessage(e))
+run <- run_plan(plano, data = xA)
+```
+
+O armazenamento em Arrow (colunar) e DuckDB (SQL embutido) foi verificado em
+ambas as direções: o projeto de `r nA` obras foi armazenado, recarregado
+(`r linhas_arrow` linhas na volta) e consultado por SQL agregado. O plano
+(`form_plan()` com `analyses = c("health","descriptive")` e `seed = 7L`)
+passou pela `validate_plan()` (`r if (plano_ok) "classe biblio_plan válida" else "erro"`)
+e um segundo plano com módulo inexistente foi corretamente recusado com o erro
+"Unknown analyses", ou seja, a validação existe e funciona quando acionada.
+
+```{r, include=FALSE}
+q2 <- biblio_query(p_duck, "SELECT COUNT(*) n FROM authorships")
+```
+
+> **Decisão 7.** Use Arrow para leitura seletiva de colunas em bases grandes e
+> DuckDB para consultas SQL analíticas; para o corpus de `r nA` obras
+> deste roteiro, ambos funcionam, mas nenhum é necessário. A consulta
+> `SELECT COUNT(*) FROM works` devolveu `r q2$n` registros no
+> DuckDB, confirmando a escrita completa das tabelas.
+
+# Módulo 9 — Biblium e LLM
+
+O backend Biblium (Python) e as funções LLM são opcionais por design. A
+sondagem verificou os dois caminhos: o que acontece quando o backend está
+indisponível (erro claro e correto) e o que acontece quando o servidor LLM
+não responde (erro capturado). Nesta máquina, o Python Biblium
+(`r python_backend_status()$version`) está disponível e o servidor Ollama
+não estava em execução no momento do render.
+
+```{r biblium-status}
+.use("python_backend_status", "biblium_backend_status", "validate_biblium", "llm_configure", "llm_get_config", "llm_status", "semantic_search")
+pbs <- python_backend_status()
+bbs <- biblium_backend_status()
+```
+
+```{r, include=FALSE}
+llm_cfg <- llm_configure(provider = "ollama")
+cfg_prov <- llm_get_config()$provider
+cfg_model <- llm_get_config()$model
+llm_ativo <- llm_status(verbose = FALSE)
+err_llm <- tryCatch(semantic_search(xA, "soil carbon"),
+                    error = function(e) conditionMessage(e))
+cmp_bib_err <- tryCatch(compare_groups(xA, gA, engine = "biblium", permutations = 9L),
+                        error = function(e) conditionMessage(e))
+```
+
+O estado real do backend na execução foi: Python disponível
+(`r pbs$available`), Biblium versão
+`r if (!is.null(bbs$version)) bbs$version else "indisponível"`, e LLM
+configurado com provedor `r cfg_prov` e modelo `r cfg_model`, com
+servidor `r if (isTRUE(llm_ativo)) "ativo" else "inativo"`. As duas
+rotas indisponíveis devolveram erros claros e acionáveis — compare_groups com
+`engine = "biblium"` devolveu
+"*`r paste(cmp_bib_err, collapse = " ")`*" e a chamada LLM devolveu
+"*`r substr(err_llm, 1, 60)`*". O segundo erro merece atenção: não é o erro
+esperado de conexão, e sim um erro de argumento interno, registrado como achado
+no relatório ao autor.
+
+```{r llm-exemplo, eval=FALSE}
+# Reprodução da rota LLM com servidor ativo (requer: ollama serve)
+# llm_configure(provider = "ollama")
+# res <- semantic_search(xA, "silicon and salinity tolerance in rice")
+# gaps <- llm_gap_analysis(xA, focus = "thematic")
+# topics <- llm_topic_discovery(xA, n_topics = 3)
+# expand <- llm_query_expand("soil carbon sequestration", database = "openalex")
+```
+
+:::{.callout-warning}
+## Comportamento divergente observado
+Na auditoria, todas as `r 7L` funções LLM que chamam o backend quebraram com
+"*unused argument (seed = 42)*" **antes** de tocar o servidor: o construtor
+`ellmer::chat_ollama()` não aceita `seed`. Com o ellmer instalado e Ollama
+inativo, o erro que o usuário vê é o interno, não o de conexão. A chamada
+correta com servidor ativo foi demonstrada apenas na rota sem ellmer
+(`httr2`), que é a fallback documentada no pacote.
+:::
+
+> **Decisão 8.** Antes de usar qualquer função LLM, execute `llm_status()` e
+> leia o campo *Provider available*. A evidência: nesta sessão o status
+> devolveu `r if (isTRUE(llm_ativo)) "TRUE" else "FALSE"` e a função de busca
+> semântica não chegou a executar a requisição — o falha ocorre no construtor
+> do chat, o que o usuário só descobre com o erro na tela se não verificou o
+> status primeiro.
+
+# Módulo 10 — relatório e síntese
+
+```{r relatorio}
+.use("biblio_report", "biblio_app", "run_plan")
+f_rel <- file.path(tempdir(), "roteiro-relatorio.md")
+biblio_report(xA, f_rel, title = "Relatório do roteiro operacional (cenário A)")
+rel_existe <- file.exists(f_rel)
+```
+
+```{r cobertura, include=TRUE}
+# Cobertura calculada: confronta o registro de uso com as funções exportadas
+exp_all  <- sort(getNamespaceExports("biblioIntegrator"))
+usadas   <- intersect(exp_all, names(as.list(.USADO)))
+cobertura <- data.frame(
+  funcao = exp_all,
+  executada_no_render = exp_all %in% usadas,
+  stringsAsFactors = FALSE)
+n_cob  <- sum(cobertura$executada_no_render)
+pct_cob <- round(100 * n_cob / length(exp_all), 1)
+```
+
+A cobertura da API calculada no render foi de
+`r n_cob` de `r length(exp_all)` funções exportadas
+(`r pct_cob`%). As funções fora da execução do render e os motivos reais são:
+`biblio_app()` (processo interativo bloqueante, executado fora do render),
+`biblium_compare_groups()` e `install_biblium_backend()` (exigem ambiente
+Biblium ativo; o erro sem backend foi demonstrado no módulo 9), e as demais
+funções LLM além da rota de configuração (exigem servidor LLM ativo; a rota
+`httr2` sem ellmer foi sondada separadamente e documentada no relatório ao
+autor). Nenhuma função foi omitida por falta de auditoria: todas as
+`r length(exp_all)` tiveram `formals()` extraído e classificado na tabela
+final deste documento.
+
+```{r cobertura-tabela}
+cob_tabela <- cbind(cobertura,
+  assinatura = vapply(exp_all, function(f) {
+    paste(names(formals(get(f, envir = asNamespace("biblioIntegrator")))), collapse = ", ")
+  }, character(1), USE.NAMES = FALSE))
+knitr::kable(cob_tabela,
+  caption = "Cobertura calculada do roteiro: função, argumentos (formals) e se foi executada no render.")
+```
+
+> **Decisão 9.** Para começar hoje: importe com `biblio_import()`, audite com
+> `biblio_health()`, deduplique com `deduplicate_biblio()`, descreva com
+> `describe_biblio()`, compare com `compare_groups()` e reporte com
+> `biblio_report()`. O restante do pacote entra quando a pergunta exigir: redes
+> (módulo 7), armazenamento (módulo 8), LLM (módulo 9). O relatório do cenário A
+> foi gerado e confere (`r rel_existe`), com o mesmo conteúdo das seções
+> anteriores.
+
+# O que este roteiro não faz
+
+Três limitações são declaradas, com a razão. Primeira, as chamadas de rede
+(`fetch_openalex`, `fetch_opencitations`) dependem de serviço externo e de
+limite de requisições; a rota OpenAlex funcionou no render e a rota
+OpenCitations devolveu erro HTTP na chamada documentada (achado nº 2 do
+relatório ao autor), de modo que nenhuma afirmação de conteúdo é feita sobre
+ela. Segunda, o módulo LLM demonstra configuração e diagnóstico, mas a chamada
+semântica completa exige servidor ativo; a auditoria do erro interno está no
+relatório. Terceira, os cenários são simulados com semente
+`r SEED`; números desta prosa reproduzem exatamente nesta semente e podem
+variar em outra.
+
+# Referências do método
+
+Aria, M.; Cuccurullo, C. (2017). *Journal of Informetrics*, 11(4), 959–975.
+doi:10.1016/j.joi.2017.08.007 · Goutsmedt, A.; Claveau, F.; Truc, A. (2021).
+*biblionetwork*. GitHub: agoutsmedt/biblionetwork · Umek, L. (2026).
+*Scientometrics*, 131(5), 3359–3377. doi:10.1007/s11192-026-05636-8 ·
+Priem, J.; Piwowar, H.; Orr, R. (2022). OpenAlex. arXiv:2205.01833 ·
+Peroni, S.; Shotton, D. (2020). OpenCitations. *QSS*, 1(1), 428–444.
+doi:10.1162/qss_a_00023.

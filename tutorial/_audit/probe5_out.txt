@@ -1,0 +1,65 @@
+===== A1: validate_plan aceita modulo invalido? (3 tentativas) =====
+t 1 : class = simpleError ; error msg = Unknown analyses: inexistente_A 
+t 2 : class = simpleError ; error msg = Unknown analyses: inexistente_B 
+t 3 : class = simpleError ; error msg = Unknown analyses: NA 
+O que form_plan produz?
+List of 6
+ $ source  : NULL
+ $ analyses: chr "inexistente"
+ $ network : chr "coauthor"
+ $ group   : NULL
+ $ report  : chr "markdown"
+ $ seed    : int 123
+ - attr(*, "class")= chr "biblio_plan"
+
+===== A2: compare_groups engine=biblium sem python (3 tentativas) =====
+t 1 : class = simpleError ; Biblium backend is unavailable; run install_biblium_backend(). 
+t 2 : class = simpleError ; Biblium backend is unavailable; run install_biblium_backend(). 
+t 3 : class = simpleError ; Biblium backend is unavailable; run install_biblium_backend(). 
+
+===== A3: biblio_store overwrite=FALSE recusa? (3 tentativas) =====
+t 1 : sem erro, retornou: C:/Users/wep69/AppData/Local/Temp/RtmpUdOB1P/file6fe04380129d 
+t 2 : sem erro, retornou: C:/Users/wep69/AppData/Local/Temp/RtmpUdOB1P/file6fe066c67439 
+t 3 : sem erro, retornou: C:/Users/wep69/AppData/Local/Temp/RtmpUdOB1P/file6fe02c97453 
+
+===== A4: rpys com argumento nomeado errado =====
+class: simpleError ERRO: unused argument (rpys = rp) 
+
+===== A5: disruption_index semantica correta =====
+  focal_id N_i N_j N_k disruption
+1       W1   0   0   0         NA
+  focal_id N_i N_j N_k disruption
+1       W1   0   0   0         NA
+
+===== A6: fetch_openalex de novo (rede) =====
+class: biblio_project ;
+$works
+                           work_id
+1 https://openalex.org/W2134236819
+2 https://openalex.org/W3172579493
+3 https://openalex.org/W1519487144
+                                                                   title year
+1                     Soil Fertility and Biodiversity in Organic Farming 2002
+2                                         Soil Fertility and Fertilizers 1957
+3 Soil Fertility and Fertilizers: An Introduction to Nutrient Management 1998
+                               doi                         source
+1          10.1126/science.1071148                        Science
+2 10.1097/00010694-195704000-00019                   Soil Science
+3                                  Medical Entomology and Zoology
+  cited_by_count abstract
+1           2942         
+2           2532         
+3           2224         
+
+$authorships
+                                            work_id author_id
+P. Maeder          https://openalex.org/W2134236819 A00001069
+Andreas Fließbach  https://openalex.org/W2134236819 A00003fd8
+David Dubois       https://openalex.org/W2134236819 A00001df3
+Lucie Gunst        https://openalex.org/W2134236819 A000019ad
+P. M. Fried        https://openalex.org/W2134236819 A0000154f
+U. Niggli          https://openalex.org/W2134236819 A000010a2
+Samuel L. Tisdale  https://openalex.org/W3172579493 A000035ca
+W. L. Nelson       https://openalex.org/W3172579493 A00001b6a
+Samuel L. Tisdale1 https://openalex.org/W1519487144 A000035ca
+

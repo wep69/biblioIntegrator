@@ -432,7 +432,7 @@ print(audit)
 audit_result <- audit_biblio(proj)
 print(audit_result)
 #>                    timestamp         operation                        details
-#> 1 2026-09-22 01:45:35.543823 as_biblio_project source=agronomy tutorial; n=12
+#> 1 2026-09-22 03:19:24.605927 as_biblio_project source=agronomy tutorial; n=12
 ```
 
 > **Key concept:** Treat a failed health check as a **hard gate**. Do
@@ -1781,11 +1781,11 @@ cat(readLines(f), sep = "\n")
 
 f <- tempfile(fileext = ".md")
 biblio_report(proj, f)
-#> [1] "/tmp/Rtmp1pjkcY/file24ca2a289b24.md"
+#> [1] "C:/Users/wep69/AppData/Local/Temp/RtmpqWzW4H/file6f742f953766.md"
 cat(readLines(f, n = 30), sep = "\n")
 #> # Bibliometric Analysis Report
 #> 
-#> Generated: 2026-09-22 01:45:43.185364
+#> Generated: 2026-09-22 03:19:31.491167
 #> 
 #> ## Corpus summary
 #> Documents: **12**  
@@ -3433,7 +3433,7 @@ for (pkg in deps) {
 ``` r
 
 cat("R:", R.version.string, "\n")
-#> R: R version 4.6.1 (2026-06-24)
+#> R: R version 4.6.0 (2026-04-24 ucrt)
 cat("biblioIntegrator:",
     as.character(packageVersion("biblioIntegrator")), "\n")
 #> biblioIntegrator: 0.3.0
@@ -3484,22 +3484,20 @@ and
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
-#> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.5 LTS
+#> R version 4.6.0 (2026-04-24 ucrt)
+#> Platform: x86_64-w64-mingw32/x64
+#> Running under: Windows 11 x64 (build 26200)
 #> 
 #> Matrix products: default
-#> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#>   LAPACK version 3.12.1
 #> 
 #> locale:
-#>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
-#>  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
-#>  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
-#> [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
+#> [1] LC_COLLATE=Portuguese_Brazil.utf8  LC_CTYPE=Portuguese_Brazil.utf8   
+#> [3] LC_MONETARY=Portuguese_Brazil.utf8 LC_NUMERIC=C                      
+#> [5] LC_TIME=Portuguese_Brazil.utf8    
 #> 
-#> time zone: UTC
-#> tzcode source: system (glibc)
+#> time zone: America/Sao_Paulo
+#> tzcode source: internal
 #> 
 #> attached base packages:
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
@@ -3513,35 +3511,35 @@ sessionInfo()
 #>   [7] fastmap_1.2.0          duckdb_1.5.5           janeaustenr_1.0.0     
 #>  [10] promises_1.5.0         XML_3.99-0.24          digest_0.6.39         
 #>  [13] mime_0.13              lifecycle_1.0.5        qpdf_1.4.1            
-#>  [16] tokenizers_0.3.0       magrittr_2.0.5         compiler_4.6.1        
-#>  [19] rlang_1.3.0            sass_0.4.10            tools_4.6.1           
+#>  [16] tokenizers_0.3.0       magrittr_2.0.5         compiler_4.6.0        
+#>  [19] rlang_1.3.0            sass_0.4.10            tools_4.6.0           
 #>  [22] igraph_2.3.3           tidytext_0.4.3         yaml_2.3.12           
 #>  [25] data.table_1.18.6.1    askpass_1.2.1          htmlwidgets_1.6.4     
 #>  [28] bit_4.6.0              plyr_1.8.9             RColorBrewer_1.1-3    
 #>  [31] ca_0.72                purrr_1.2.2            pubmedR_1.0.2         
-#>  [34] contentanalysis_1.1.1  desc_1.4.3             grid_4.6.1            
+#>  [34] contentanalysis_1.1.1  desc_1.4.3             grid_4.6.0            
 #>  [37] xtable_1.8-8           ggplot2_4.0.3          scales_1.4.0          
-#>  [40] cli_3.6.6              rmarkdown_2.32         ragg_1.5.2            
-#>  [43] generics_0.1.4         stringdist_0.9.17      otel_0.2.0            
-#>  [46] httr_1.4.9             tzdb_0.5.0             visNetwork_2.1.4      
-#>  [49] readxl_1.5.0.1         DBI_1.3.0              cachem_1.1.0          
-#>  [52] stringr_1.6.0          rscopus_0.9.0          parallel_4.6.1        
-#>  [55] assertthat_0.2.1       cellranger_1.1.0       base64enc_0.1-6       
-#>  [58] vctrs_0.7.3            Matrix_1.7-5           jsonlite_2.0.0        
-#>  [61] hms_1.1.4              bit64_4.8.6            ggrepel_0.9.8         
-#>  [64] systemfonts_1.3.2      biblionetwork_0.1.0    plotly_4.12.1         
-#>  [67] tidyr_1.3.2            jquerylib_0.1.4        glue_1.8.1            
-#>  [70] pkgdown_2.2.1          stringi_1.8.9          gtable_0.3.6          
-#>  [73] later_1.4.8            shinycssloaders_1.1.0  pillar_1.11.1         
-#>  [76] htmltools_0.5.9        bibliometrixData_0.3.0 R6_2.6.1              
-#>  [79] httr2_1.3.0            textshaping_1.0.5      Rdpack_2.6.6          
-#>  [82] evaluate_1.0.5         shiny_1.14.0           lattice_0.22-9        
-#>  [85] readr_2.2.0            rentrez_1.2.4          rbibutils_2.4.1       
-#>  [88] SnowballC_0.7.1        openxlsx_4.2.9         openalexR_3.1.0       
-#>  [91] httpuv_1.6.17          bslib_0.12.0           zip_3.0.2             
-#>  [94] Rcpp_1.1.2             bibliometrix_5.5.0     dimensionsR_0.0.3     
-#>  [97] xfun_0.61              fs_2.1.0               forcats_1.0.1         
-#> [100] pdftools_3.9.1         pkgconfig_2.0.3
+#>  [40] dichromat_2.0-1        cli_3.6.6              rmarkdown_2.32        
+#>  [43] ragg_1.5.2             generics_0.1.4         stringdist_0.9.17     
+#>  [46] otel_0.2.0             httr_1.4.9             tzdb_0.5.0            
+#>  [49] visNetwork_2.1.4       readxl_1.5.0.1         DBI_1.3.0             
+#>  [52] cachem_1.1.0           stringr_1.6.0          rscopus_0.9.0         
+#>  [55] parallel_4.6.0         assertthat_0.2.1       cellranger_1.1.0      
+#>  [58] base64enc_0.1-6        vctrs_0.7.3            Matrix_1.7-6          
+#>  [61] jsonlite_2.0.0         hms_1.1.4              bit64_4.8.6           
+#>  [64] ggrepel_0.9.8          systemfonts_1.3.2      biblionetwork_0.1.0   
+#>  [67] plotly_4.12.1          tidyr_1.3.2            jquerylib_0.1.4       
+#>  [70] glue_1.8.1             pkgdown_2.2.1          stringi_1.8.9         
+#>  [73] gtable_0.3.6           later_1.4.8            shinycssloaders_1.1.0 
+#>  [76] pillar_1.11.1          htmltools_0.5.9        bibliometrixData_0.3.0
+#>  [79] R6_2.6.1               httr2_1.3.0            textshaping_1.0.5     
+#>  [82] Rdpack_2.6.6           evaluate_1.0.5         shiny_1.14.0          
+#>  [85] lattice_0.23-1         readr_2.2.0            rentrez_1.2.4         
+#>  [88] rbibutils_2.4.1        SnowballC_0.7.1        openxlsx_4.2.9        
+#>  [91] openalexR_3.1.0        httpuv_1.6.17          bslib_0.12.0          
+#>  [94] zip_3.0.2              Rcpp_1.1.2             bibliometrix_5.5.0    
+#>  [97] dimensionsR_0.0.3      xfun_0.61              fs_2.1.0              
+#> [100] forcats_1.0.1          pdftools_3.9.1         pkgconfig_2.0.3
 ```
 
 ------------------------------------------------------------------------

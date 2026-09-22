@@ -61,6 +61,20 @@ for core use.
 Full documentation is available at
 <https://wep69.github.io/biblioIntegrator/>.
 
+## Tutorials
+
+Two self-contained tutorials ship in the repository, both generated from
+Quarto sources with executable code and rendered outputs:
+
+| Tutorial | Audience | Contents |
+|----|----|----|
+| [`tutorial-agronomia/`](https://wep69.github.io/biblioIntegrator/tutorial-agronomia/) | Doutorandos em Agronomia | 12 módulos, 52 figuras, 117 tabelas, 24 tarefas e 24 gabaritos; três corpora (didático, simulado com verdades plantadas e real por API); validação cruzada com Python Biblium; uso de LLM |
+| [`tutorial/`](https://wep69.github.io/biblioIntegrator/tutorial/) | Usuários e mantenedores | Roteiro operacional auditado, com relatório de achados ao autor do pacote |
+
+Cada pasta traz o `.qmd`, as saídas HTML e PDF, os scripts de montagem e
+a pasta `_auditoria/` com os verificadores que fundamentam as afirmações
+do texto.
+
 ## Citation
 
 If you use biblioIntegrator in your research, please cite:
@@ -102,7 +116,7 @@ Describe, compute metrics and export bibliometric data.
 - [`term_frequency()`](https://wep69.github.io/biblioIntegrator/reference/term_frequency.md)
   : Term frequency from titles or abstracts
 - [`tfidf_terms()`](https://wep69.github.io/biblioIntegrator/reference/tfidf_terms.md)
-  : TF-IDF terms by year or source
+  : TF-IDF terms by grouping stratum
 - [`trend_topics()`](https://wep69.github.io/biblioIntegrator/reference/trend_topics.md)
   : Topic trajectories by year
 - [`export_biblio()`](https://wep69.github.io/biblioIntegrator/reference/export_biblio.md)
@@ -264,6 +278,17 @@ Optional LLM-powered semantic analysis.
 
 - [Overview and Package
   Architecture](https://wep69.github.io/biblioIntegrator/articles/v00-overview.md):
+
+### Tutorial completo para Agronomia
+
+Tutorial progressivo para doutorandos em Agronomia: 12 módulos, 52
+figuras, 117 tabelas, 24 tarefas e 24 gabaritos comentados, com três
+corpora (didático, simulado com verdades plantadas e real obtido por
+API), validação cruzada com o pacote Python Biblium e uso de modelos de
+linguagem.
+
+- [Bibliometria aplicada à Agronomia com o pacote
+  biblioIntegrator](https://wep69.github.io/biblioIntegrator/articles/biblioIntegrator-agronomia.md):
 
 ### Tutorials
 

@@ -387,9 +387,9 @@ corpus, as expected for the example data.
 # Build coauthorship network using the native engine (always available)
 g_coauthor <- bibliographic_network(x, "coauthor")
 g_coauthor
-#> IGRAPH 2ab8f3b UNW- 7 10 -- 
+#> IGRAPH 79d32c6 UNW- 7 10 -- 
 #> + attr: name (v/c), weight (e/n)
-#> + edges from 2ab8f3b (vertex names):
+#> + edges from 79d32c6 (vertex names):
 #>  [1] A000008c4--A00000621 A00000905--A000008ad A000008c4--A00000f4d
 #>  [4] A00000f4d--A00000f73 A00000f4d--A0000043f A000008c4--A0000043f
 #>  [7] A00000f73--A000008ad A00000f4d--A00000621 A00000905--A0000043f
@@ -497,9 +497,9 @@ head(data.frame(
 
 g_keyword <- bibliographic_network(x, "keyword", min_weight = 1)
 g_keyword
-#> IGRAPH 4cb95f1 UNW- 24 28 -- 
+#> IGRAPH 7a0c88f UNW- 24 28 -- 
 #> + attr: name (v/c), weight (e/n)
-#> + edges from 4cb95f1 (vertex names):
+#> + edges from 7a0c88f (vertex names):
 #>  [1] cover crops    --aggregation    cover crops    --soil carbon   
 #>  [3] silicon        --drought        maize          --efficiency    
 #>  [5] nitrogen       --efficiency     maize          --drought       
@@ -1998,22 +1998,20 @@ biblionetwork version (if used).
 
 # Capture versions
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
-#> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.5 LTS
+#> R version 4.6.0 (2026-04-24 ucrt)
+#> Platform: x86_64-w64-mingw32/x64
+#> Running under: Windows 11 x64 (build 26200)
 #> 
 #> Matrix products: default
-#> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#>   LAPACK version 3.12.1
 #> 
 #> locale:
-#>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
-#>  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
-#>  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
-#> [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
+#> [1] LC_COLLATE=Portuguese_Brazil.utf8  LC_CTYPE=Portuguese_Brazil.utf8   
+#> [3] LC_MONETARY=Portuguese_Brazil.utf8 LC_NUMERIC=C                      
+#> [5] LC_TIME=Portuguese_Brazil.utf8    
 #> 
-#> time zone: UTC
-#> tzcode source: system (glibc)
+#> time zone: America/Sao_Paulo
+#> tzcode source: internal
 #> 
 #> attached base packages:
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
@@ -2026,15 +2024,15 @@ sessionInfo()
 #>  [4] rlang_1.3.0         xfun_0.61           otel_0.2.0         
 #>  [7] textshaping_1.0.5   data.table_1.18.6.1 jsonlite_2.0.0     
 #> [10] glue_1.8.1          htmltools_0.5.9     ragg_1.5.2         
-#> [13] sass_0.4.10         rmarkdown_2.32      grid_4.6.1         
+#> [13] sass_0.4.10         rmarkdown_2.32      grid_4.6.0         
 #> [16] evaluate_1.0.5      jquerylib_0.1.4     fastmap_1.2.0      
-#> [19] yaml_2.3.12         lifecycle_1.0.5     compiler_4.6.1     
+#> [19] yaml_2.3.12         lifecycle_1.0.5     compiler_4.6.0     
 #> [22] igraph_2.3.3        fs_2.1.0            pkgconfig_2.0.3    
-#> [25] htmlwidgets_1.6.4   biblionetwork_0.1.0 lattice_0.22-9     
+#> [25] htmlwidgets_1.6.4   biblionetwork_0.1.0 lattice_0.23-1     
 #> [28] systemfonts_1.3.2   digest_0.6.39       R6_2.6.1           
 #> [31] pillar_1.11.1       Rdpack_2.6.6        magrittr_2.0.5     
-#> [34] rbibutils_2.4.1     Matrix_1.7-5        bslib_0.12.0       
-#> [37] tools_4.6.1         pkgdown_2.2.1       cachem_1.1.0       
+#> [34] rbibutils_2.4.1     Matrix_1.7-6        bslib_0.12.0       
+#> [37] tools_4.6.0         pkgdown_2.2.1       cachem_1.1.0       
 #> [40] desc_1.4.3
 ```
 
@@ -2176,22 +2174,20 @@ cat("\nDone.\n")
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
-#> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.5 LTS
+#> R version 4.6.0 (2026-04-24 ucrt)
+#> Platform: x86_64-w64-mingw32/x64
+#> Running under: Windows 11 x64 (build 26200)
 #> 
 #> Matrix products: default
-#> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#>   LAPACK version 3.12.1
 #> 
 #> locale:
-#>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
-#>  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
-#>  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
-#> [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
+#> [1] LC_COLLATE=Portuguese_Brazil.utf8  LC_CTYPE=Portuguese_Brazil.utf8   
+#> [3] LC_MONETARY=Portuguese_Brazil.utf8 LC_NUMERIC=C                      
+#> [5] LC_TIME=Portuguese_Brazil.utf8    
 #> 
-#> time zone: UTC
-#> tzcode source: system (glibc)
+#> time zone: America/Sao_Paulo
+#> tzcode source: internal
 #> 
 #> attached base packages:
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
@@ -2204,15 +2200,15 @@ sessionInfo()
 #>  [4] rlang_1.3.0         xfun_0.61           otel_0.2.0         
 #>  [7] textshaping_1.0.5   data.table_1.18.6.1 jsonlite_2.0.0     
 #> [10] glue_1.8.1          htmltools_0.5.9     ragg_1.5.2         
-#> [13] sass_0.4.10         rmarkdown_2.32      grid_4.6.1         
+#> [13] sass_0.4.10         rmarkdown_2.32      grid_4.6.0         
 #> [16] evaluate_1.0.5      jquerylib_0.1.4     fastmap_1.2.0      
-#> [19] yaml_2.3.12         lifecycle_1.0.5     compiler_4.6.1     
+#> [19] yaml_2.3.12         lifecycle_1.0.5     compiler_4.6.0     
 #> [22] igraph_2.3.3        fs_2.1.0            pkgconfig_2.0.3    
-#> [25] htmlwidgets_1.6.4   biblionetwork_0.1.0 lattice_0.22-9     
+#> [25] htmlwidgets_1.6.4   biblionetwork_0.1.0 lattice_0.23-1     
 #> [28] systemfonts_1.3.2   digest_0.6.39       R6_2.6.1           
 #> [31] pillar_1.11.1       Rdpack_2.6.6        magrittr_2.0.5     
-#> [34] rbibutils_2.4.1     Matrix_1.7-5        bslib_0.12.0       
-#> [37] tools_4.6.1         pkgdown_2.2.1       cachem_1.1.0       
+#> [34] rbibutils_2.4.1     Matrix_1.7-6        bslib_0.12.0       
+#> [37] tools_4.6.0         pkgdown_2.2.1       cachem_1.1.0       
 #> [40] desc_1.4.3
 ```
 

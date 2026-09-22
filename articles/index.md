@@ -5,6 +5,17 @@
 - [Overview and Package
   Architecture](https://wep69.github.io/biblioIntegrator/articles/v00-overview.md):
 
+### Tutorial completo para Agronomia
+
+Tutorial progressivo para doutorandos em Agronomia: 12 módulos, 52
+figuras, 117 tabelas, 24 tarefas e 24 gabaritos comentados, com três
+corpora (didático, simulado com verdades plantadas e real obtido por
+API), validação cruzada com o pacote Python Biblium e uso de modelos de
+linguagem.
+
+- [Bibliometria aplicada à Agronomia com o pacote
+  biblioIntegrator](https://wep69.github.io/biblioIntegrator/articles/biblioIntegrator-agronomia.md):
+
 ### Tutorials
 
 - [Import and

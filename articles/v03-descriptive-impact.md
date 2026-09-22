@@ -114,6 +114,7 @@ library(biblioIntegrator)
 if (requireNamespace("plotly", quietly = TRUE)) {
   library(plotly)
 }
+#> Warning: package 'plotly' was built under R version 4.6.1
 #> Loading required package: ggplot2
 #> 
 #> Attaching package: 'plotly'
@@ -2188,22 +2189,20 @@ Every metric should be interpreted in context:
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
-#> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.5 LTS
+#> R version 4.6.0 (2026-04-24 ucrt)
+#> Platform: x86_64-w64-mingw32/x64
+#> Running under: Windows 11 x64 (build 26200)
 #> 
 #> Matrix products: default
-#> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#>   LAPACK version 3.12.1
 #> 
 #> locale:
-#>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
-#>  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
-#>  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
-#> [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
+#> [1] LC_COLLATE=Portuguese_Brazil.utf8  LC_CTYPE=Portuguese_Brazil.utf8   
+#> [3] LC_MONETARY=Portuguese_Brazil.utf8 LC_NUMERIC=C                      
+#> [5] LC_TIME=Portuguese_Brazil.utf8    
 #> 
-#> time zone: UTC
-#> tzcode source: system (glibc)
+#> time zone: America/Sao_Paulo
+#> tzcode source: internal
 #> 
 #> attached base packages:
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
@@ -2213,21 +2212,22 @@ sessionInfo()
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] gtable_0.3.6        jsonlite_2.0.0      dplyr_1.2.1        
-#>  [4] compiler_4.6.1      tidyselect_1.2.1    tidyr_1.3.2        
-#>  [7] jquerylib_0.1.4     systemfonts_1.3.2   scales_1.4.0       
-#> [10] textshaping_1.0.5   yaml_2.3.12         fastmap_1.2.0      
-#> [13] R6_2.6.1            generics_0.1.4      knitr_1.52         
-#> [16] htmlwidgets_1.6.4   tibble_3.3.1        desc_1.4.3         
-#> [19] bslib_0.12.0        pillar_1.11.1       RColorBrewer_1.1-3 
-#> [22] rlang_1.3.0         cachem_1.1.0        xfun_0.61          
-#> [25] fs_2.1.0            sass_0.4.10         S7_0.2.2           
-#> [28] otel_0.2.0          viridisLite_0.4.3   cli_3.6.6          
-#> [31] withr_3.0.3         pkgdown_2.2.1       magrittr_2.0.5     
-#> [34] digest_0.6.39       grid_4.6.1          lifecycle_1.0.5    
-#> [37] vctrs_0.7.3         evaluate_1.0.5      glue_1.8.1         
-#> [40] data.table_1.18.6.1 farver_2.1.2        ragg_1.5.2         
-#> [43] purrr_1.2.2         httr_1.4.9          rmarkdown_2.32     
-#> [46] tools_4.6.1         pkgconfig_2.0.3     htmltools_0.5.9
+#>  [4] compiler_4.6.0      tidyselect_1.2.1    dichromat_2.0-1    
+#>  [7] tidyr_1.3.2         jquerylib_0.1.4     systemfonts_1.3.2  
+#> [10] scales_1.4.0        textshaping_1.0.5   yaml_2.3.12        
+#> [13] fastmap_1.2.0       R6_2.6.1            generics_0.1.4     
+#> [16] knitr_1.52          htmlwidgets_1.6.4   tibble_3.3.1       
+#> [19] desc_1.4.3          bslib_0.12.0        pillar_1.11.1      
+#> [22] RColorBrewer_1.1-3  rlang_1.3.0         cachem_1.1.0       
+#> [25] xfun_0.61           fs_2.1.0            sass_0.4.10        
+#> [28] S7_0.2.2            otel_0.2.0          viridisLite_0.4.3  
+#> [31] cli_3.6.6           withr_3.0.3         pkgdown_2.2.1      
+#> [34] magrittr_2.0.5      digest_0.6.39       grid_4.6.0         
+#> [37] lifecycle_1.0.5     vctrs_0.7.3         data.table_1.18.6.1
+#> [40] evaluate_1.0.5      glue_1.8.1          farver_2.1.2       
+#> [43] ragg_1.5.2          purrr_1.2.2         httr_1.4.9         
+#> [46] rmarkdown_2.32      tools_4.6.0         pkgconfig_2.0.3    
+#> [49] htmltools_0.5.9
 ```
 
 ## 18. Quick reference card

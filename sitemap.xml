@@ -1,6 +1,6 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://wep69.github.io/biblioIntegrator/404.html</loc></url>
-<url><loc>https://wep69.github.io/biblioIntegrator/LICENSE-text.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/articles/biblioIntegrator-agronomia.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/articles/index.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/articles/v00-overview.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/articles/v01-import-harmonize.html</loc></url>
@@ -15,11 +15,13 @@
 <url><loc>https://wep69.github.io/biblioIntegrator/articles/v10-llm-integration.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/authors.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/index.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/LICENSE-text.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/news/index.html</loc></url>
-<url><loc>https://wep69.github.io/biblioIntegrator/reference/as_biblio_project.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/association_residuals.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/reference/as_biblio_project.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/audit_biblio.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/backend_status.html</loc></url>
+<url><loc>https://wep69.github.io/biblioIntegrator/reference/bibliographic_network.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/biblioIntegrator-package.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/biblio_app.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/biblio_health.html</loc></url>
@@ -29,7 +31,6 @@
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/biblio_query.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/biblio_report.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/biblio_store.html</loc></url>
-<url><loc>https://wep69.github.io/biblioIntegrator/reference/bibliographic_network.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/biblium_backend_status.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/biblium_compare_groups.html</loc></url>
 <url><loc>https://wep69.github.io/biblioIntegrator/reference/citation_trajectory.html</loc></url>

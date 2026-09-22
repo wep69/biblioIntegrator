@@ -19,6 +19,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/v00-overview.html">Overview and Package Architecture</a></li>
+    <li><a class="dropdown-item" href="../articles/biblioIntegrator-agronomia.html">Bibliometria aplicada à Agronomia com o pacote biblioIntegrator</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul></li>
@@ -40,7 +41,23 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.0" id="bibliointegrator-030">biblioIntegrator 0.3.0<a class="anchor" aria-label="anchor" href="#bibliointegrator-030"></a></h2>
-<ul><li>Added optional LLM integration for semantic bibliometric analysis.</li>
+<ul><li>Fixed issues reported by the audited tutorial (<code>tutorial/RELATORIO-AO-AUTOR.md</code>):
+<ul><li>LLM backend no longer passes <code>seed</code> to <code><a href="https://ellmer.tidyverse.org/reference/chat_ollama.html" class="external-link">ellmer::chat_ollama()</a></code>, which rejected the argument and broke every LLM function when <code>ellmer</code> was installed.</li>
+<li>
+<code><a href="../reference/fetch_opencitations.html">fetch_opencitations()</a></code> normalizes identifiers to the <code>doi:</code> PID form required by the OpenCitations v2 API (previously returned HTTP 400).</li>
+<li>
+<code>biblio_store(overwrite = FALSE)</code> now refuses to write over an existing path instead of silently replacing it.</li>
+<li>
+<code><a href="../reference/disruption_index.html">disruption_index()</a></code> validates <code>citing_id</code>/<code>cited_id</code> columns instead of silently returning <code>NA</code> counts.</li>
+<li>Stochastic functions (<code><a href="../reference/compare_groups.html">compare_groups()</a></code>, <code><a href="../reference/network_stability.html">network_stability()</a></code>, <code><a href="../reference/sensitivity_analysis.html">sensitivity_analysis()</a></code>, <code><a href="../reference/run_plan.html">run_plan()</a></code>) restore the caller’s <code>.Random.seed</code> after honoring the <code>seed</code> argument.</li>
+<li>
+<code><a href="../reference/run_plan.html">run_plan()</a></code>/<code><a href="../reference/validate_plan.html">validate_plan()</a></code> error message mentions the expected argument order.</li>
+<li>
+<code>tfidf_terms(group =)</code> accepts any column of <code>x$works</code> as stratum.</li>
+<li>
+<code><a href="../reference/biblium_backend_status.html">biblium_backend_status()</a></code> caches its result per session (invalidated by <code><a href="../reference/install_biblium_backend.html">install_biblium_backend()</a></code> and <code><a href="../reference/enable_python_backend.html">enable_python_backend()</a></code>).</li>
+</ul></li>
+<li>Added optional LLM integration for semantic bibliometric analysis.</li>
 <li>New functions: semantic_search(), llm_topic_discovery(), llm_summarize(), llm_gap_analysis(), llm_query_expand(), llm_classify(), llm_citation_context().</li>
 <li>Supported LLM providers: Ollama (local, free), Google Gemini (free tier), OpenAI, Anthropic, Hugging Face.</li>
 <li>New llm_configure() for provider setup, llm_status() for diagnostics.</li>

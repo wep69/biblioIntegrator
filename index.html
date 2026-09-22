@@ -36,6 +36,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="articles/v00-overview.html">Overview and Package Architecture</a></li>
+    <li><a class="dropdown-item" href="articles/biblioIntegrator-agronomia.html">Bibliometria aplicada à Agronomia com o pacote biblioIntegrator</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><a class="dropdown-item" href="articles/index.html">More articles...</a></li>
   </ul>
@@ -70,7 +71,7 @@
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"wep69/biblioIntegrator"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Full install with vignettes</span></span>
-<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"wep69/biblioIntegrator"</span>, build_vignettes <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"wep69/biblioIntegrator"</span>, build_vignettes <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
@@ -139,6 +140,36 @@
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
 </h2>
 <p>Full documentation is available at <a href="https://wep69.github.io/biblioIntegrator/" class="uri">https://wep69.github.io/biblioIntegrator/</a>.</p>
+</div>
+<div class="section level2">
+<h2 id="tutorials">Tutorials<a class="anchor" aria-label="anchor" href="#tutorials"></a>
+</h2>
+<p>Two self-contained tutorials ship in the repository, both generated from Quarto sources with executable code and rendered outputs:</p>
+<table class="table">
+<colgroup>
+<col width="33%">
+<col width="33%">
+<col width="33%">
+</colgroup>
+<thead><tr>
+<th>Tutorial</th>
+<th>Audience</th>
+<th>Contents</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><a href="tutorial-agronomia/"><code>tutorial-agronomia/</code></a></td>
+<td>Doutorandos em Agronomia</td>
+<td>12 módulos, 52 figuras, 117 tabelas, 24 tarefas e 24 gabaritos; três corpora (didático, simulado com verdades plantadas e real por API); validação cruzada com Python Biblium; uso de LLM</td>
+</tr>
+<tr>
+<td><a href="tutorial/"><code>tutorial/</code></a></td>
+<td>Usuários e mantenedores</td>
+<td>Roteiro operacional auditado, com relatório de achados ao autor do pacote</td>
+</tr>
+</tbody>
+</table>
+<p>Cada pasta traz o <code>.qmd</code>, as saídas HTML e PDF, os scripts de montagem e a pasta <code>_auditoria/</code> com os verificadores que fundamentam as afirmações do texto.</p>
 </div>
 <div class="section level2">
 <h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>

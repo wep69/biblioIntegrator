@@ -60,5 +60,5 @@ sensitivity_analysis(x,g,thresholds=c(1,3),permutations=9,seed=2)
 subset(sensitivity_analysis(x,g,1:2,permutations=9), entities>1)
 #>   threshold entities cramers_v p_value
 #> 1         1       24 0.8532904     0.5
-#> 2         2        7 0.5916080     0.4
+#> 2         2        7 0.5916080     0.6
 ```

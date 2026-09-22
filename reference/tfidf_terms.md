@@ -1,6 +1,6 @@
-# TF-IDF terms by year or source
+# TF-IDF terms by grouping stratum
 
-TF-IDF terms by year or source
+TF-IDF terms by grouping stratum
 
 ## Usage
 
@@ -16,7 +16,8 @@ tfidf_terms(x, group = c("year", "source"), field = c("title", "abstract"))
 
 - group:
 
-  `"year"` or `"source"`.
+  Column of `x$works` used as stratum: `"year"` (default), `"source"`,
+  or any other column of `x$works`.
 
 - field:
 

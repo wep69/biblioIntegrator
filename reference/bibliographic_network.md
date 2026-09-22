@@ -44,17 +44,17 @@ An igraph object with an `engine` attribute.
 
 ``` r
 x <- as_biblio_project(example_biblio()); bibliographic_network(x,"coauthor")
-#> IGRAPH 6b8fa86 UNW- 7 10 -- 
+#> IGRAPH 3a0fb1b UNW- 7 10 -- 
 #> + attr: name (v/c), weight (e/n)
-#> + edges from 6b8fa86 (vertex names):
+#> + edges from 3a0fb1b (vertex names):
 #>  [1] A000008c4--A00000621 A00000905--A000008ad A000008c4--A00000f4d
 #>  [4] A00000f4d--A00000f73 A00000f4d--A0000043f A000008c4--A0000043f
 #>  [7] A00000f73--A000008ad A00000f4d--A00000621 A00000905--A0000043f
 #> [10] A00000f73--A00000621
 bibliographic_network(x,"keyword",min_weight=1)
-#> IGRAPH 4bf14fd UNW- 24 28 -- 
+#> IGRAPH 3a11381 UNW- 24 28 -- 
 #> + attr: name (v/c), weight (e/n)
-#> + edges from 4bf14fd (vertex names):
+#> + edges from 3a11381 (vertex names):
 #>  [1] cover crops    --aggregation    cover crops    --soil carbon   
 #>  [3] silicon        --drought        maize          --efficiency    
 #>  [5] nitrogen       --efficiency     maize          --drought       
@@ -67,9 +67,9 @@ bibliographic_network(x,"keyword",min_weight=1)
 if (requireNamespace("biblionetwork", quietly = TRUE)) {
   bibliographic_network(x, "coauthor", engine = "biblionetwork")
 }
-#> IGRAPH 3830e59 UNW- 7 10 -- 
+#> IGRAPH 3a15524 UNW- 7 10 -- 
 #> + attr: name (v/c), weight (e/n)
-#> + edges from 3830e59 (vertex names):
+#> + edges from 3a15524 (vertex names):
 #>  [1] A000008c4--A00000621 A00000905--A000008ad A000008c4--A00000f4d
 #>  [4] A00000f4d--A00000f73 A00000f4d--A0000043f A000008c4--A0000043f
 #>  [7] A00000f73--A000008ad A00000f4d--A00000621 A00000905--A0000043f

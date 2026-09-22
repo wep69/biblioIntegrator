@@ -19,6 +19,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/v00-overview.html">Overview and Package Architecture</a></li>
+    <li><a class="dropdown-item" href="../articles/biblioIntegrator-agronomia.html">Bibliometria aplicada à Agronomia com o pacote biblioIntegrator</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul></li>
@@ -65,7 +66,7 @@
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">audit_biblio</span><span class="op">(</span><span class="fu"><a href="as_biblio_project.html">as_biblio_project</a></span><span class="op">(</span><span class="fu"><a href="example_biblio.html">example_biblio</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                    timestamp         operation           details</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 2026-09-22 01:43:20.716718 as_biblio_project source=user; n=12</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 2026-09-22 03:17:00.185724 as_biblio_project source=user; n=12</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="fu">audit_biblio</span><span class="op">(</span><span class="fu"><a href="as_biblio_project.html">as_biblio_project</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="example_biblio.html">example_biblio</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="fu">audit_biblio</span><span class="op">(</span><span class="fu"><a href="as_biblio_project.html">as_biblio_project</a></span><span class="op">(</span><span class="fu"><a href="example_biblio.html">example_biblio</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>

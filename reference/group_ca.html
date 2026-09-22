@@ -19,6 +19,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/v00-overview.html">Overview and Package Architecture</a></li>
+    <li><a class="dropdown-item" href="../articles/biblioIntegrator-agronomia.html">Bibliometria aplicada à Agronomia com o pacote biblioIntegrator</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul></li>
@@ -70,46 +71,46 @@
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">z</span> <span class="op">&lt;-</span> <span class="fu"><a href="compare_groups.html">compare_groups</a></span><span class="op">(</span><span class="fu"><a href="as_biblio_project.html">as_biblio_project</a></span><span class="op">(</span><span class="fu"><a href="example_biblio.html">example_biblio</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>,<span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>,<span class="st">"b"</span><span class="op">)</span>,<span class="fl">6</span><span class="op">)</span>,permutations<span class="op">=</span><span class="fl">19</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">group_ca</span><span class="op">(</span><span class="va">z</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $rows</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       [,1] [,2]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> factor(groups)a -0.8015268    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> factor(groups)b  0.9083970    0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                       [,1]        [,2]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> factor(groups)a -0.8015268 2.03212e-16</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> factor(groups)b  0.9083970 2.03212e-16</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $columns</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                         [,1] [,2]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> aggregation      -0.93933644    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> climate-smart     1.06458129    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> cover crops       0.06262243    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> drought           1.06458129    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> efficiency       -0.93933644    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> machine learning  1.06458129    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> maize             0.06262243    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> management        1.06458129    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> meta-analysis     1.06458129    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> nitrogen         -0.93933644    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> phenotyping      -0.93933644    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> remote sensing   -0.93933644    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rice             -0.93933644    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> rotation          1.06458129    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> salinity         -0.93933644    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> silicon           0.39660872    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> soil              0.06262243    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> soil carbon       1.06458129    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> soil microbiome   1.06458129    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> soybean          -0.93933644    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> stress            1.06458129    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> uav              -0.93933644    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> wheat            -0.93933644    0</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> yield             1.06458129    0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         [,1]          [,2]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> aggregation      -0.93933644  1.104267e-15</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> climate-smart     1.06458129  1.112184e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> cover crops       0.06262243  2.259742e-18</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> drought           1.06458129  1.112184e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> efficiency       -0.93933644 -3.510677e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> machine learning  1.06458129  1.112184e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> maize             0.06262243  2.259742e-18</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> management        1.06458129  1.112184e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> meta-analysis     1.06458129  1.112184e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> nitrogen         -0.93933644 -1.241601e-16</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> phenotyping      -0.93933644 -3.510677e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> remote sensing   -0.93933644 -3.510677e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rice             -0.93933644 -3.510677e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> rotation          1.06458129  1.112184e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> salinity         -0.93933644 -1.241601e-16</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> silicon           0.39660872  1.714275e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> soil              0.06262243  2.259742e-18</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> soil carbon       1.06458129  1.112184e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> soil microbiome   1.06458129  1.112184e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> soybean          -0.93933644 -1.241601e-16</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> stress            1.06458129  1.112184e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> uav              -0.93933644 -3.510677e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> wheat            -0.93933644 -3.510677e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> yield             1.06458129  1.112184e-17</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $singular_values</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.8532904 0.0000000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 8.532904e-01 2.032120e-16</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span><span class="fu">group_ca</span><span class="op">(</span><span class="va">z</span>,ndim<span class="op">=</span><span class="fl">1</span><span class="op">)</span><span class="op">$</span><span class="va">rows</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                       [,1]</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> factor(groups)a -0.8015268</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> factor(groups)b  0.9083970</span>
 <span class="r-in"><span><span class="fu">group_ca</span><span class="op">(</span><span class="va">z</span><span class="op">)</span><span class="op">$</span><span class="va">singular_values</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.8532904 0.0000000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 8.532904e-01 2.032120e-16</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

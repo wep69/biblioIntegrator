@@ -459,7 +459,7 @@ references), this table will be populated with `citing_id` and
 
 x$provenance
 #>                    timestamp         operation                      details
-#> 1 2026-09-22 01:44:04.570643 as_biblio_project source=teaching corpus; n=12
+#> 1 2026-09-22 03:17:47.558147 as_biblio_project source=teaching corpus; n=12
 ```
 
 Every operation that touches the `biblio_project` appends a row here.
@@ -865,7 +865,7 @@ richest part of the project.
 
 audit_biblio(x)
 #>                    timestamp         operation                      details
-#> 1 2026-09-22 01:44:04.570643 as_biblio_project source=teaching corpus; n=12
+#> 1 2026-09-22 03:17:47.558147 as_biblio_project source=teaching corpus; n=12
 ```
 
 ``` r
@@ -898,8 +898,8 @@ x_dup_p <- as_biblio_project(x_dup, source = "duplicated")
 x_dedup <- deduplicate_biblio(x_dup_p)
 audit_biblio(x_dedup)
 #>                    timestamp          operation                 details
-#> 1 2026-09-22 01:44:06.847377  as_biblio_project source=duplicated; n=13
-#> 2 2026-09-22 01:44:06.848449 deduplicate_biblio               removed=1
+#> 1 2026-09-22 03:17:49.638036  as_biblio_project source=duplicated; n=13
+#> 2 2026-09-22 03:17:49.639707 deduplicate_biblio               removed=1
 ```
 
 ### 6.7 The health diagnostic
@@ -1255,8 +1255,8 @@ for (fmt in c("csv", "json")) {
   export_biblio(x, d, format = fmt)
   cat(fmt, ":", length(list.files(d)), "files in", d, "\n")
 }
-#> csv : 6 files in /tmp/RtmpUhX6tO/export_csv 
-#> json : 6 files in /tmp/RtmpUhX6tO/export_json
+#> csv : 6 files in C:\Users\wep69\AppData\Local\Temp\RtmpUxp3uM/export_csv 
+#> json : 6 files in C:\Users\wep69\AppData\Local\Temp\RtmpUxp3uM/export_json
 ```
 
 ### 8.4 `export_vosviewer()` — VOSviewer network files
@@ -1557,8 +1557,8 @@ cat("After dedup:", nrow(x_dedup$works), "works\n")
 
 audit_biblio(x_dedup)
 #>                    timestamp          operation                        details
-#> 1 2026-09-22 01:44:09.524046  as_biblio_project source=merged_scopus_wos; n=16
-#> 2 2026-09-22 01:44:09.591517 deduplicate_biblio                      removed=4
+#> 1 2026-09-22 03:17:52.128248  as_biblio_project source=merged_scopus_wos; n=16
+#> 2 2026-09-22 03:17:52.191304 deduplicate_biblio                      removed=4
 ```
 
 The provenance table tells you the full story: which sources were
@@ -1872,7 +1872,7 @@ validate_integrity(proj)
 #> 5   reference_cited_orphans 0
 audit_biblio(proj)
 #>                    timestamp         operation                       details
-#> 1 2026-09-22 01:44:10.106373 as_biblio_project source=thesis-chapter-2; n=12
+#> 1 2026-09-22 03:17:52.667844 as_biblio_project source=thesis-chapter-2; n=12
 
 # Step 5: Export for downstream tools
 # 5a: bibliometrix for a colleague
@@ -2060,22 +2060,20 @@ Convert to UTF-8 CSV and import natively.
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
-#> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.5 LTS
+#> R version 4.6.0 (2026-04-24 ucrt)
+#> Platform: x86_64-w64-mingw32/x64
+#> Running under: Windows 11 x64 (build 26200)
 #> 
 #> Matrix products: default
-#> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#>   LAPACK version 3.12.1
 #> 
 #> locale:
-#>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
-#>  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
-#>  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
-#> [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
+#> [1] LC_COLLATE=Portuguese_Brazil.utf8  LC_CTYPE=Portuguese_Brazil.utf8   
+#> [3] LC_MONETARY=Portuguese_Brazil.utf8 LC_NUMERIC=C                      
+#> [5] LC_TIME=Portuguese_Brazil.utf8    
 #> 
-#> time zone: UTC
-#> tzcode source: system (glibc)
+#> time zone: America/Sao_Paulo
+#> tzcode source: internal
 #> 
 #> attached base packages:
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
@@ -2089,12 +2087,12 @@ sessionInfo()
 #>  [7] data.table_1.18.6.1 jsonlite_2.0.0      htmltools_0.5.9    
 #> [10] ragg_1.5.2          sass_0.4.10         rmarkdown_2.32     
 #> [13] evaluate_1.0.5      jquerylib_0.1.4     fastmap_1.2.0      
-#> [16] yaml_2.3.12         lifecycle_1.0.5     compiler_4.6.1     
+#> [16] yaml_2.3.12         lifecycle_1.0.5     compiler_4.6.0     
 #> [19] igraph_2.3.3        fs_2.1.0            htmlwidgets_1.6.4  
 #> [22] pkgconfig_2.0.3     biblionetwork_0.1.0 systemfonts_1.3.2  
 #> [25] digest_0.6.39       R6_2.6.1            Rdpack_2.6.6       
 #> [28] rbibutils_2.4.1     magrittr_2.0.5      bslib_0.12.0       
-#> [31] tools_4.6.1         pkgdown_2.2.1       cachem_1.1.0       
+#> [31] tools_4.6.0         pkgdown_2.2.1       cachem_1.1.0       
 #> [34] desc_1.4.3
 ```
 

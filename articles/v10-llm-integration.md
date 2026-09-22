@@ -2770,22 +2770,20 @@ for full R object preservation.
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
-#> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.5 LTS
+#> R version 4.6.0 (2026-04-24 ucrt)
+#> Platform: x86_64-w64-mingw32/x64
+#> Running under: Windows 11 x64 (build 26200)
 #> 
 #> Matrix products: default
-#> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#>   LAPACK version 3.12.1
 #> 
 #> locale:
-#>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
-#>  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
-#>  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
-#> [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
+#> [1] LC_COLLATE=Portuguese_Brazil.utf8  LC_CTYPE=Portuguese_Brazil.utf8   
+#> [3] LC_MONETARY=Portuguese_Brazil.utf8 LC_NUMERIC=C                      
+#> [5] LC_TIME=Portuguese_Brazil.utf8    
 #> 
-#> time zone: UTC
-#> tzcode source: system (glibc)
+#> time zone: America/Sao_Paulo
+#> tzcode source: internal
 #> 
 #> attached base packages:
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
@@ -2799,8 +2797,8 @@ sessionInfo()
 #>  [5] otel_0.2.0        textshaping_1.0.5 glue_1.8.1        htmltools_0.5.9  
 #>  [9] ragg_1.5.2        sass_0.4.10       rmarkdown_2.32    evaluate_1.0.5   
 #> [13] jquerylib_0.1.4   fastmap_1.2.0     yaml_2.3.12       lifecycle_1.0.5  
-#> [17] compiler_4.6.1    fs_2.1.0          pkgconfig_2.0.3   htmlwidgets_1.6.4
+#> [17] compiler_4.6.0    fs_2.1.0          pkgconfig_2.0.3   htmlwidgets_1.6.4
 #> [21] systemfonts_1.3.2 digest_0.6.39     R6_2.6.1          pillar_1.11.1    
-#> [25] magrittr_2.0.5    bslib_0.12.0      tools_4.6.1       pkgdown_2.2.1    
+#> [25] magrittr_2.0.5    bslib_0.12.0      tools_4.6.0       pkgdown_2.2.1    
 #> [29] cachem_1.1.0      desc_1.4.3
 ```

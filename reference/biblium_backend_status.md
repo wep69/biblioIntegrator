@@ -22,32 +22,30 @@ A list with availability, Python path and Biblium version.
 
 ``` r
 biblium_backend_status()
-#> Downloading uv...
-#> Done!
 #> $available
-#> [1] FALSE
+#> [1] TRUE
 #> 
 #> $python
-#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/ka0OLm6bEvr-E1K5/bin/python"
+#> [1] "H:/uv/AppDataLocalUv/cache/archive-v0/MfuOKTFtveE-Nd3l_RFiM/Scripts/python.exe"
 #> 
 #> $version
-#> [1] NA
+#> [1] "2.16.0"
 #> 
 #> $reason
-#> [1] "Biblium could not be imported"
+#> [1] "ok"
 #> 
 python_backend_status()
 #> $available
-#> [1] FALSE
+#> [1] TRUE
 #> 
 #> $python
-#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/ka0OLm6bEvr-E1K5/bin/python"
+#> [1] "H:/uv/AppDataLocalUv/cache/archive-v0/MfuOKTFtveE-Nd3l_RFiM/Scripts/python.exe"
 #> 
 #> $version
-#> [1] NA
+#> [1] "2.16.0"
 #> 
 #> $reason
-#> [1] "Biblium could not be imported"
+#> [1] "ok"
 #> 
 names(biblium_backend_status())
 #> [1] "available" "python"    "version"   "reason"   

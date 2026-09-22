@@ -1210,12 +1210,14 @@ and CTEs - Window functions for running calculations
 
 ``` r
 
-# Monitor memory usage
+# Monitor memory usage com base R, sem dependencia externa: gc() informa o uso
+# corrente em megabytes na coluna "used".
 monitor_memory <- function(expr, label = "Operation") {
-  before <- pryr::mem_used()
-  result <- eval(expr)
-  after <- pryr::mem_used()
-  cat(sprintf("%s: %.2f MB\n", label, (after - before) / 1024^2))
+  gc(reset = TRUE)
+  before <- sum(gc()[, "used"])
+  result <- force(expr)
+  after <- sum(gc()[, "used"])
+  cat(sprintf("%s: %.2f MB\n", label, after - before))
   invisible(result)
 }
 

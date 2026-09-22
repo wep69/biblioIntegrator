@@ -26,7 +26,7 @@ Describe, compute metrics and export bibliometric data.
 - [`term_frequency()`](https://wep69.github.io/biblioIntegrator/reference/term_frequency.md)
   : Term frequency from titles or abstracts
 - [`tfidf_terms()`](https://wep69.github.io/biblioIntegrator/reference/tfidf_terms.md)
-  : TF-IDF terms by year or source
+  : TF-IDF terms by grouping stratum
 - [`trend_topics()`](https://wep69.github.io/biblioIntegrator/reference/trend_topics.md)
   : Topic trajectories by year
 - [`export_biblio()`](https://wep69.github.io/biblioIntegrator/reference/export_biblio.md)

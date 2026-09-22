@@ -1,7 +1,8 @@
-pandoc: 3.8.3
+pandoc: '3.9'
 pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
+  articles/biblioIntegrator-agronomia: biblioIntegrator-agronomia.html
   v00-overview: v00-overview.html
   v01-import-harmonize: v01-import-harmonize.html
   v02-quality-dedup: v02-quality-dedup.html
@@ -13,7 +14,7 @@ articles:
   v08-scalable-backends: v08-scalable-backends.html
   v09-python-report-ui: v09-python-report-ui.html
   v10-llm-integration: v10-llm-integration.html
-last_built: 2026-09-22T01:43Z
+last_built: 2026-09-22T06:16Z
 urls:
   reference: https://wep69.github.io/biblioIntegrator/reference
   article: https://wep69.github.io/biblioIntegrator/articles

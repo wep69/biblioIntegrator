@@ -46,10 +46,10 @@ network_communities(g,"walktrap")
 network_communities(g,"label_prop")
 #>        node community
 #> 1 A000008c4         1
-#> 2 A00000905         2
+#> 2 A00000905         1
 #> 3 A00000f4d         1
-#> 4 A00000f73         2
+#> 4 A00000f73         1
 #> 5 A00000621         1
-#> 6 A000008ad         2
+#> 6 A000008ad         1
 #> 7 A0000043f         1
 ```

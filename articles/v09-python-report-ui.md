@@ -200,16 +200,16 @@ The simplest way to inspect the current Python configuration:
 st <- python_backend_status()
 st
 #> $available
-#> [1] FALSE
+#> [1] TRUE
 #> 
 #> $python
-#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/ka0OLm6bEvr-E1K5/bin/python"
+#> [1] "H:/uv/AppDataLocalUv/cache/archive-v0/MfuOKTFtveE-Nd3l_RFiM/Scripts/python.exe"
 #> 
 #> $version
-#> [1] NA
+#> [1] "2.16.0"
 #> 
 #> $reason
-#> [1] "Biblium could not be imported"
+#> [1] "ok"
 ```
 
 The return value is a list with four fields:
@@ -226,13 +226,13 @@ The return value is a list with four fields:
 names(st)
 #> [1] "available" "python"    "version"   "reason"
 cat("Available:", st$available, "\n")
-#> Available: FALSE
+#> Available: TRUE
 cat("Python:   ", st$python,    "\n")
-#> Python:    /home/runner/.cache/R/reticulate/uv/cache/archive-v0/ka0OLm6bEvr-E1K5/bin/python
+#> Python:    H:/uv/AppDataLocalUv/cache/archive-v0/MfuOKTFtveE-Nd3l_RFiM/Scripts/python.exe
 cat("Version:  ", st$version,   "\n")
-#> Version:   NA
+#> Version:   2.16.0
 cat("Reason:   ", st$reason,    "\n")
-#> Reason:    Biblium could not be imported
+#> Reason:    ok
 ```
 
 #### `biblium_backend_status()`
@@ -271,7 +271,7 @@ through a three-tier cascade:
 
 cat("Env var: ",
     Sys.getenv("BIBLIOINTEGRATOR_PYTHON", unset = "<not set>"), "\n")
-#> Env var:  <not set>
+#> Env var:  H:/uv/AppDataLocalUv/cache/archive-v0/MfuOKTFtveE-Nd3l_RFiM/Scripts/python.exe
 cat("Option : ",
     getOption("biblioIntegrator.python",  default = "<not set>"), "\n")
 #> Option :  <not set>
@@ -292,9 +292,7 @@ if (isTRUE(st$available)) {
   cat("Next: install_biblium_backend() or",
       "enable_python_backend(path)\n")
 }
-#> Biblium is NOT available.
-#> Reason: Biblium could not be imported 
-#> Next: install_biblium_backend() or enable_python_backend(path)
+#> Biblium is ready.  Version: 2.16.0
 ```
 
 ### Installing Biblium
@@ -513,7 +511,7 @@ is called, the package:
 
 bridge_path <- system.file("python", package = "biblioIntegrator")
 cat("Bridge location:", bridge_path, "\n")
-#> Bridge location: /home/runner/work/_temp/Library/biblioIntegrator/python
+#> Bridge location: C:/Users/wep69/AppData/Local/Temp/RtmpaiVm2d/libtest/biblioIntegrator/python
 dir(bridge_path)
 #> [1] "biblium_bridge.py"
 ```
@@ -795,11 +793,11 @@ report includes:
 
 f_md <- tempfile(fileext = ".md")
 biblio_report(x, f_md)
-#> [1] "/tmp/Rtmp3JCLh7/file25483a3c75ff.md"
+#> [1] "C:/Users/wep69/AppData/Local/Temp/RtmpK2KHgj/file70c04c867c4c.md"
 file.exists(f_md)
 #> [1] TRUE
 cat("Path:", normalizePath(f_md, winslash = "/"), "\n")
-#> Path: /tmp/Rtmp3JCLh7/file25483a3c75ff.md
+#> Path: C:/Users/wep69/AppData/Local/Temp/RtmpK2KHgj/file70c04c867c4c.md
 ```
 
 #### Inspecting the Output
@@ -814,7 +812,7 @@ cat("First 30 lines:\n")
 writeLines(lines[seq_len(min(30, length(lines)))])
 #> # Bibliometric Analysis Report
 #> 
-#> Generated: 2026-09-22 01:46:11.800446
+#> Generated: 2026-09-22 03:20:10.309072
 #> 
 #> ## Corpus summary
 #> Documents: **12**  
@@ -889,11 +887,11 @@ biblio_report(
   x, f_title,
   title = "Agronomic Bibliometric Map — Nutrition Studies"
 )
-#> [1] "/tmp/Rtmp3JCLh7/file25486729ada6.md"
+#> [1] "C:/Users/wep69/AppData/Local/Temp/RtmpK2KHgj/file70c065e42a5a.md"
 readLines(f_title, n = 3, warn = FALSE)
 #> [1] "# Agronomic Bibliometric Map — Nutrition Studies"
 #> [2] ""                                                
-#> [3] "Generated: 2026-09-22 01:46:11.957155"
+#> [3] "Generated: 2026-09-22 03:20:10.451634"
 ```
 
 ### HTML Reports
@@ -965,7 +963,7 @@ accepts a plain data frame if it matches the schema of
 f_df <- tempfile(fileext = ".md")
 biblio_report(example_biblio(), f_df,
               title = "Report from raw data frame")
-#> [1] "/tmp/Rtmp3JCLh7/file2548717fe1d7.md"
+#> [1] "C:/Users/wep69/AppData/Local/Temp/RtmpK2KHgj/file70c0516846f3.md"
 file.exists(f_df)
 #> [1] TRUE
 ```
@@ -980,7 +978,7 @@ logged:
 
 audit_biblio(x)
 #>                    timestamp         operation                          details
-#> 1 2026-09-22 01:46:07.274304 as_biblio_project source=v09 teaching corpus; n=12
+#> 1 2026-09-22 03:20:01.984475 as_biblio_project source=v09 teaching corpus; n=12
 ```
 
 This is what makes reports **auditable**: a reviewer can trace every
@@ -994,9 +992,9 @@ number back to a named transformation step.
 x2 <- as_biblio_project(example_biblio(), source = "grant review")
 f_report <- file.path(tempdir(), "grant-review-report.md")
 biblio_report(x2, f_report, title = "Grant literature mapping")
-#> [1] "/tmp/Rtmp3JCLh7/grant-review-report.md"
+#> [1] "C:/Users/wep69/AppData/Local/Temp/RtmpK2KHgj/grant-review-report.md"
 cat("Report saved to:", f_report, "\n")
-#> Report saved to: /tmp/Rtmp3JCLh7/grant-review-report.md
+#> Report saved to: C:\Users\wep69\AppData\Local\Temp\RtmpK2KHgj/grant-review-report.md
 ```
 
 ### Multi-Format Export
@@ -1973,7 +1971,7 @@ ca  <- group_ca(cmp)
 # Report
 f <- file.path(tempdir(), "thesis-review.md")
 biblio_report(x, f, title = "Thesis literature review")
-#> [1] "/tmp/Rtmp3JCLh7/thesis-review.md"
+#> [1] "C:/Users/wep69/AppData/Local/Temp/RtmpK2KHgj/thesis-review.md"
 ```
 
 ### Mistake 5: Forgetting That `validate_biblium()` Requires Both Engines
@@ -2229,25 +2227,25 @@ cat("\n=== Python/Biblium Status ===\n")
 #> === Python/Biblium Status ===
 print(python_backend_status())
 #> $available
-#> [1] FALSE
+#> [1] TRUE
 #> 
 #> $python
-#> [1] "/home/runner/.cache/R/reticulate/uv/cache/archive-v0/ka0OLm6bEvr-E1K5/bin/python"
+#> [1] "H:/uv/AppDataLocalUv/cache/archive-v0/MfuOKTFtveE-Nd3l_RFiM/Scripts/python.exe"
 #> 
 #> $version
-#> [1] NA
+#> [1] "2.16.0"
 #> 
 #> $reason
-#> [1] "Biblium could not be imported"
+#> [1] "ok"
 
 # 10. Report generation
 f_report <- file.path(tempdir(), "end-to-end-report.md")
 biblio_report(proj, f_report,
               title = "End-to-End Bibliometric Analysis")
-#> [1] "/tmp/Rtmp3JCLh7/end-to-end-report.md"
+#> [1] "C:/Users/wep69/AppData/Local/Temp/RtmpK2KHgj/end-to-end-report.md"
 cat("\nReport saved to:", f_report, "\n")
 #> 
-#> Report saved to: /tmp/Rtmp3JCLh7/end-to-end-report.md
+#> Report saved to: C:\Users\wep69\AppData\Local\Temp\RtmpK2KHgj/end-to-end-report.md
 
 # 11. Plan-based execution
 plan <- form_plan(
@@ -2330,22 +2328,20 @@ cat("\nPlan results:", paste(names(plan_res), collapse = ", "),
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
-#> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.5 LTS
+#> R version 4.6.0 (2026-04-24 ucrt)
+#> Platform: x86_64-w64-mingw32/x64
+#> Running under: Windows 11 x64 (build 26200)
 #> 
 #> Matrix products: default
-#> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#>   LAPACK version 3.12.1
 #> 
 #> locale:
-#>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
-#>  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
-#>  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
-#> [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
+#> [1] LC_COLLATE=Portuguese_Brazil.utf8  LC_CTYPE=Portuguese_Brazil.utf8   
+#> [3] LC_MONETARY=Portuguese_Brazil.utf8 LC_NUMERIC=C                      
+#> [5] LC_TIME=Portuguese_Brazil.utf8    
 #> 
-#> time zone: UTC
-#> tzcode source: system (glibc)
+#> time zone: America/Sao_Paulo
+#> tzcode source: internal
 #> 
 #> attached base packages:
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
@@ -2359,36 +2355,37 @@ sessionInfo()
 #>   [7] fastmap_1.2.0          duckdb_1.5.5           janeaustenr_1.0.0     
 #>  [10] promises_1.5.0         XML_3.99-0.24          digest_0.6.39         
 #>  [13] mime_0.13              lifecycle_1.0.5        qpdf_1.4.1            
-#>  [16] tokenizers_0.3.0       magrittr_2.0.5         compiler_4.6.1        
-#>  [19] rlang_1.3.0            sass_0.4.10            tools_4.6.1           
+#>  [16] tokenizers_0.3.0       magrittr_2.0.5         compiler_4.6.0        
+#>  [19] rlang_1.3.0            sass_0.4.10            tools_4.6.0           
 #>  [22] igraph_2.3.3           tidytext_0.4.3         yaml_2.3.12           
 #>  [25] data.table_1.18.6.1    askpass_1.2.1          htmlwidgets_1.6.4     
 #>  [28] bit_4.6.0              reticulate_1.47.0      plyr_1.8.9            
 #>  [31] RColorBrewer_1.1-3     ca_0.72                withr_3.0.3           
 #>  [34] purrr_1.2.2            pubmedR_1.0.2          contentanalysis_1.1.1 
-#>  [37] desc_1.4.3             grid_4.6.1             xtable_1.8-8          
-#>  [40] ggplot2_4.0.3          scales_1.4.0           cli_3.6.6             
-#>  [43] rmarkdown_2.32         ragg_1.5.2             generics_0.1.4        
-#>  [46] stringdist_0.9.17      otel_0.2.0             httr_1.4.9            
-#>  [49] tzdb_0.5.0             visNetwork_2.1.4       readxl_1.5.0.1        
-#>  [52] DBI_1.3.0              cachem_1.1.0           stringr_1.6.0         
-#>  [55] rscopus_0.9.0          parallel_4.6.1         assertthat_0.2.1      
-#>  [58] cellranger_1.1.0       base64enc_0.1-6        vctrs_0.7.3           
-#>  [61] Matrix_1.7-5           jsonlite_2.0.0         hms_1.1.4             
-#>  [64] bit64_4.8.6            ggrepel_0.9.8          systemfonts_1.3.2     
-#>  [67] biblionetwork_0.1.0    plotly_4.12.1          tidyr_1.3.2           
-#>  [70] jquerylib_0.1.4        glue_1.8.1             pkgdown_2.2.1         
-#>  [73] stringi_1.8.9          gtable_0.3.6           later_1.4.8           
-#>  [76] shinycssloaders_1.1.0  tibble_3.3.1           pillar_1.11.1         
-#>  [79] htmltools_0.5.9        bibliometrixData_0.3.0 R6_2.6.1              
-#>  [82] httr2_1.3.0            textshaping_1.0.5      Rdpack_2.6.6          
-#>  [85] evaluate_1.0.5         shiny_1.14.0           lattice_0.22-9        
-#>  [88] readr_2.2.0            rentrez_1.2.4          rbibutils_2.4.1       
-#>  [91] png_0.1-9              SnowballC_0.7.1        openxlsx_4.2.9        
-#>  [94] openalexR_3.1.0        httpuv_1.6.17          bslib_0.12.0          
-#>  [97] zip_3.0.2              Rcpp_1.1.2             bibliometrix_5.5.0    
-#> [100] dimensionsR_0.0.3      xfun_0.61              fs_2.1.0              
-#> [103] forcats_1.0.1          pdftools_3.9.1         pkgconfig_2.0.3
+#>  [37] desc_1.4.3             grid_4.6.0             xtable_1.8-8          
+#>  [40] ggplot2_4.0.3          scales_1.4.0           dichromat_2.0-1       
+#>  [43] cli_3.6.6              rmarkdown_2.32         ragg_1.5.2            
+#>  [46] generics_0.1.4         stringdist_0.9.17      otel_0.2.0            
+#>  [49] httr_1.4.9             tzdb_0.5.0             visNetwork_2.1.4      
+#>  [52] readxl_1.5.0.1         DBI_1.3.0              cachem_1.1.0          
+#>  [55] stringr_1.6.0          rscopus_0.9.0          parallel_4.6.0        
+#>  [58] assertthat_0.2.1       cellranger_1.1.0       base64enc_0.1-6       
+#>  [61] vctrs_0.7.3            Matrix_1.7-6           jsonlite_2.0.0        
+#>  [64] hms_1.1.4              bit64_4.8.6            ggrepel_0.9.8         
+#>  [67] systemfonts_1.3.2      biblionetwork_0.1.0    plotly_4.12.1         
+#>  [70] tidyr_1.3.2            jquerylib_0.1.4        glue_1.8.1            
+#>  [73] pkgdown_2.2.1          stringi_1.8.9          gtable_0.3.6          
+#>  [76] later_1.4.8            shinycssloaders_1.1.0  tibble_3.3.1          
+#>  [79] pillar_1.11.1          htmltools_0.5.9        bibliometrixData_0.3.0
+#>  [82] R6_2.6.1               httr2_1.3.0            textshaping_1.0.5     
+#>  [85] Rdpack_2.6.6           shiny_1.14.0           evaluate_1.0.5        
+#>  [88] lattice_0.23-1         readr_2.2.0            rentrez_1.2.4         
+#>  [91] rbibutils_2.4.1        png_0.1-9              SnowballC_0.7.1       
+#>  [94] openxlsx_4.2.9         httpuv_1.6.17          openalexR_3.1.0       
+#>  [97] bslib_0.12.0           zip_3.0.2              Rcpp_1.1.2            
+#> [100] bibliometrix_5.5.0     xfun_0.61              dimensionsR_0.0.3     
+#> [103] fs_2.1.0               forcats_1.0.1          pdftools_3.9.1        
+#> [106] pkgconfig_2.0.3
 ```
 
 ------------------------------------------------------------------------

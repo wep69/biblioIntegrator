@@ -835,8 +835,8 @@ cat("Provenance log:\n")
 #> Provenance log:
 print(audit_log)
 #>                    timestamp          operation                   details
-#> 1 2026-09-22 01:44:20.186418  as_biblio_project source=contaminated; n=15
-#> 2 2026-09-22 01:44:20.350461 deduplicate_biblio                 removed=1
+#> 1 2026-09-22 03:18:03.463073  as_biblio_project source=contaminated; n=15
+#> 2 2026-09-22 03:18:03.606759 deduplicate_biblio                 removed=1
 
 cat("\nProvenance entries:\n")
 #> 
@@ -1126,8 +1126,8 @@ cat("Provenance log:\n")
 #> Provenance log:
 print(audit_log)
 #>                    timestamp          operation                 details
-#> 1 2026-09-22 01:44:22.146633  as_biblio_project source=audit demo; n=12
-#> 2 2026-09-22 01:44:22.147751 deduplicate_biblio               removed=0
+#> 1 2026-09-22 03:18:05.206548  as_biblio_project source=audit demo; n=12
+#> 2 2026-09-22 03:18:05.208223 deduplicate_biblio               removed=0
 ```
 
 ### Interpreting Provenance Entries
@@ -1147,11 +1147,11 @@ for (i in seq_len(nrow(audit_log))) {
   cat(sprintf("  Details: %s\n", entry$details))
   cat("\n")
 }
-#> Entry 1 [2026-09-22 01:44:22.146633]
+#> Entry 1 [2026-09-22 03:18:05.206548]
 #>   Operation: as_biblio_project
 #>   Details: source=audit demo; n=12
 #> 
-#> Entry 2 [2026-09-22 01:44:22.147751]
+#> Entry 2 [2026-09-22 03:18:05.208223]
 #>   Operation: deduplicate_biblio
 #>   Details: removed=0
 ```
@@ -1245,14 +1245,14 @@ temp_file <- tempfile(fileext = ".csv")
 write.csv(audit_df, temp_file, row.names = FALSE)
 
 cat("Audit trail saved to:", temp_file, "\n")
-#> Audit trail saved to: /tmp/Rtmpa4fHDj/file238d2755c7e7.csv
+#> Audit trail saved to: C:\Users\wep69\AppData\Local\Temp\Rtmp0gBW78\file8c443be76a18.csv
 cat("\nAudit trail contents:\n")
 #> 
 #> Audit trail contents:
 print(audit_df)
 #>                    timestamp          operation
-#> 1 2026-09-22 01:44:22.819048  as_biblio_project
-#> 2 2026-09-22 01:44:22.820056 deduplicate_biblio
+#> 1 2026-09-22 03:18:05.828064  as_biblio_project
+#> 2 2026-09-22 03:18:05.829662 deduplicate_biblio
 #>                             details
 #> 1 source=reproducibility demo; n=12
 #> 2                         removed=0
@@ -1610,8 +1610,8 @@ cat("Provenance after deduplication:\n")
 #> Provenance after deduplication:
 print(audit_log)
 #>                    timestamp          operation                      details
-#> 1 2026-09-22 01:44:24.205042  as_biblio_project source=provenance demo; n=12
-#> 2 2026-09-22 01:44:24.206077 deduplicate_biblio                    removed=0
+#> 1 2026-09-22 03:18:07.104172  as_biblio_project source=provenance demo; n=12
+#> 2 2026-09-22 03:18:07.105751 deduplicate_biblio                    removed=0
 
 cat("\nThis log records:\n")
 #> 
@@ -2075,8 +2075,8 @@ cat("Complete audit trail:\n")
 #> Complete audit trail:
 print(audit_log)
 #>                    timestamp          operation                       details
-#> 1 2026-09-22 01:44:25.422354  as_biblio_project source=WoS+Scopus merge; n=17
-#> 2 2026-09-22 01:44:25.749808 deduplicate_biblio                     removed=3
+#> 1 2026-09-22 03:18:08.216191  as_biblio_project source=WoS+Scopus merge; n=17
+#> 2 2026-09-22 03:18:08.498748 deduplicate_biblio                     removed=3
 
 cat("\nSummary of transformations:\n")
 #> 
@@ -2222,22 +2222,20 @@ browseVignettes("biblioIntegrator")
 ``` r
 
 sessionInfo()
-#> R version 4.6.1 (2026-06-24)
-#> Platform: x86_64-pc-linux-gnu
-#> Running under: Ubuntu 24.04.5 LTS
+#> R version 4.6.0 (2026-04-24 ucrt)
+#> Platform: x86_64-w64-mingw32/x64
+#> Running under: Windows 11 x64 (build 26200)
 #> 
 #> Matrix products: default
-#> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
-#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#>   LAPACK version 3.12.1
 #> 
 #> locale:
-#>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
-#>  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
-#>  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
-#> [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
+#> [1] LC_COLLATE=Portuguese_Brazil.utf8  LC_CTYPE=Portuguese_Brazil.utf8   
+#> [3] LC_MONETARY=Portuguese_Brazil.utf8 LC_NUMERIC=C                      
+#> [5] LC_TIME=Portuguese_Brazil.utf8    
 #> 
-#> time zone: UTC
-#> tzcode source: system (glibc)
+#> time zone: America/Sao_Paulo
+#> tzcode source: internal
 #> 
 #> attached base packages:
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
@@ -2247,10 +2245,10 @@ sessionInfo()
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] digest_0.6.39     desc_1.4.3        R6_2.6.1          fastmap_1.2.0    
-#>  [5] xfun_0.61         cachem_1.1.0      parallel_4.6.1    knitr_1.52       
+#>  [5] xfun_0.61         cachem_1.1.0      parallel_4.6.0    knitr_1.52       
 #>  [9] htmltools_0.5.9   rmarkdown_2.32    lifecycle_1.0.5   cli_3.6.6        
 #> [13] sass_0.4.10       pkgdown_2.2.1     textshaping_1.0.5 jquerylib_0.1.4  
-#> [17] systemfonts_1.3.2 compiler_4.6.1    tools_4.6.1       ragg_1.5.2       
+#> [17] systemfonts_1.3.2 compiler_4.6.0    tools_4.6.0       ragg_1.5.2       
 #> [21] bslib_0.12.0      evaluate_1.0.5    yaml_2.3.12       otel_0.2.0       
 #> [25] jsonlite_2.0.0    rlang_1.3.0       fs_2.1.0          htmlwidgets_1.6.4
 ```

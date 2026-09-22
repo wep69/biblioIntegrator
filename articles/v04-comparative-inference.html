@@ -34,6 +34,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/v00-overview.html">Overview and Package Architecture</a></li>
+    <li><a class="dropdown-item" href="../articles/biblioIntegrator-agronomia.html">Bibliometria aplicada à Agronomia com o pacote biblioIntegrator</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul>
@@ -279,7 +280,7 @@ making it ideal for bibliometric data.</p>
 = 0.05 testing. If <em>p</em> is close to the significance boundary,
 increase <em>B</em>.</p>
 <p>The permutation <em>p</em>-value is computed as</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mtext mathvariant="normal">perm</mtext></msub><mo>=</mo><mfrac><mrow><mn>1</mn><mo>+</mo><munderover><mo>∑</mo><mrow><mi>b</mi><mo>=</mo><mn>1</mn></mrow><mi>B</mi></munderover><mspace width="0.167em"></mspace><mn>𝟏</mn><mspace width="-0.167em"></mspace><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><msubsup><mi>χ</mi><mi>b</mi><mn>2</mn></msubsup><mo>≥</mo><msubsup><mi>χ</mi><mtext mathvariant="normal">obs</mtext><mn>2</mn></msubsup><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo></mrow><mrow><mn>1</mn><mo>+</mo><mi>B</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mtext mathvariant="normal">perm</mtext></msub><mo>=</mo><mfrac><mrow><mn>1</mn><mo>+</mo><munderover><mo>∑</mo><mrow><mi>b</mi><mo>=</mo><mn>1</mn></mrow><mi>B</mi></munderover><mspace width="0.167em"></mspace><mn mathvariant="bold">𝟏</mn><mspace width="-0.167em"></mspace><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><msubsup><mi>χ</mi><mi>b</mi><mn>2</mn></msubsup><mo>≥</mo><msubsup><mi>χ</mi><mtext mathvariant="normal">obs</mtext><mn>2</mn></msubsup><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo></mrow><mrow><mn>1</mn><mo>+</mo><mi>B</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">
 p_{\text{perm}} = \frac{1 + \sum_{b=1}^{B}\,
 \mathbf{1}\!\bigl(\chi^2_b \geq \chi^2_{\text{obs}}\bigr)}{1 + B}
 </annotation></semantics></math></p>

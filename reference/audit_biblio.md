@@ -23,7 +23,7 @@ A data frame.
 ``` r
 audit_biblio(as_biblio_project(example_biblio()))
 #>                    timestamp         operation           details
-#> 1 2026-09-22 01:43:20.716718 as_biblio_project source=user; n=12
+#> 1 2026-09-22 03:17:00.185724 as_biblio_project source=user; n=12
 nrow(audit_biblio(as_biblio_project(head(example_biblio()))))
 #> [1] 1
 names(audit_biblio(as_biblio_project(example_biblio())))

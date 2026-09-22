@@ -24,7 +24,8 @@ biblio_store(x, path, engine = c("arrow", "duckdb"), overwrite = FALSE)
 
 - overwrite:
 
-  Replace existing output.
+  Replace existing output; when `FALSE` (default), an existing `path`
+  raises an error.
 
 ## Value
 
@@ -47,21 +48,15 @@ if (requireNamespace("duckdb", quietly = TRUE) &&
   biblio_store(x, p, "duckdb")
   biblio_load(p, "duckdb")
 }
-#> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpsbMboI/duckdb
-#> This is removed when the R session ends.
-#> • Extensions are re-downloaded each session.
-#> • Secrets are lost.
-#> ℹ Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
-#> ℹ Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
+#> duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+#> ℹ C:\Users\wep69/.duckdb
+#> This persists across sessions and is shared with the DuckDB CLI and other clients.
+#> ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
 #> ℹ See ?duckdb_storage for details and alternatives.
-#> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpsbMboI/duckdb
-#> This is removed when the R session ends.
-#> • Extensions are re-downloaded each session.
-#> • Secrets are lost.
-#> ℹ Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
-#> ℹ Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
+#> duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+#> ℹ C:\Users\wep69/.duckdb
+#> This persists across sessions and is shared with the DuckDB CLI and other clients.
+#> ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
 #> ℹ See ?duckdb_storage for details and alternatives.
 #> <biblio_project> 12 works; 7 authors; 32 work-keyword links
 if (requireNamespace("arrow", quietly = TRUE)) {

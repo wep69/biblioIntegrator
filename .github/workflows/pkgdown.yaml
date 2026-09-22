@@ -61,7 +61,17 @@ jobs:
       - name: Build site
         run: |
           source("tools/pkgdown-patch.R")
-          pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+          ok <- tryCatch({
+            pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+            TRUE
+          }, error = function(e) {
+            cat("\n=== FALHA NO BUILD DO SITE ===\n", conditionMessage(e), "\n")
+            cat("=== artigos Quarto em modo verboso ===\n")
+            try(pkgdown::build_articles(pkgdown::as_pkgdown("."), quiet = FALSE),
+                silent = TRUE)
+            FALSE
+          })
+          if (!ok) quit(status = 1)
         shell: Rscript {0}
 
       - name: Deploy to GitHub pages 🚀

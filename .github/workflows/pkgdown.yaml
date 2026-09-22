@@ -48,7 +48,6 @@ jobs:
       - name: Instalar Biblium
         run: |
           python -m pip install --upgrade pip
-          python -m pip install biblium==2.16.0
           PYEXE=$(python -c 'import sys; print(sys.executable)')
           echo "BIBLIOINTEGRATOR_PYTHON=$PYEXE" >> $GITHUB_ENV
           echo "RETICULATE_PYTHON=$PYEXE" >> $GITHUB_ENV
@@ -59,9 +58,19 @@ jobs:
           extra-packages: any::pkgdown, local::.
           needs: website
 
-      - name: Conferir backend Python
+      # Instala o Biblium pelo reticulate, isto e, exatamente no interpretador
+      # que as vinhetas e o artigo usam. O pip do sistema pode escrever em outro
+      # prefixo de site-packages, e nesse caso py_module_available() devolve
+      # FALSE mesmo com a instalacao bem-sucedida.
+      - name: Instalar Biblium no Python do reticulate
         run: |
-          Rscript -e 'cat("python do reticulate:", reticulate::py_config()$python, "\n"); cat("biblium importavel:", reticulate::py_module_available("biblium"), "\n")'
+          Rscript -e '
+            reticulate::py_install("biblium==2.16.0", pip = TRUE)
+            cfg <- reticulate::py_config()
+            cat("python:", cfg$python, "\n")
+            cat("libpython:", cfg$libpython, "\n")
+            cat("biblium importavel:", reticulate::py_module_available("biblium"), "\n")
+          '
 
       # O pkgdown grava o YAML de metadados do Quarto com booleanos no estilo
       # YAML 1.1 ("yes"/"no"), que o Quarto le como texto e recusa, abortando a

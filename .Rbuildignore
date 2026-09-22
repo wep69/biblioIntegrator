@@ -39,3 +39,6 @@
 
 # Artigos do site pkgdown (publicados, mas fora do tarball)
 ^vignettes/articles$
+
+# Projeto Quarto dos artigos do site (nao faz parte do pacote)
+^vignettes/_quarto\.yaml$

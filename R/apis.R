@@ -29,6 +29,11 @@ fetch_openalex <- function(query,n=25,mailto=NULL) {
 #' fetch_opencitations("10.1038/nature12373",direction="references")
 #' head(fetch_opencitations("10.1038/nature12373"))
 #' }
+.oc_pid <- function(identifier) {
+  id=trimws(as.character(identifier)[1]); if(is.na(id)||!nzchar(id)) stop("identifier is empty.",call.=FALSE)
+  id=sub("^https?://(dx\\.)?doi\\.org/","",id); if(!grepl(":",id,fixed=TRUE)) id=paste0("doi:",id)
+  utils::URLencode(id,reserved=FALSE)
+}
 fetch_opencitations <- function(identifier,direction=c("citations","references")) {
-  direction=match.arg(direction); id=utils::URLencode(identifier,reserved=TRUE); u=paste0("https://api.opencitations.net/index/v2/",direction,"/",id); r=httr2::req_perform(httr2::request(u)); as.data.frame(httr2::resp_body_json(r,simplifyVector=TRUE),stringsAsFactors=FALSE)
+  direction=match.arg(direction); id=.oc_pid(identifier); u=paste0("https://api.opencitations.net/index/v2/",direction,"/",id); r=httr2::req_perform(httr2::request(u)); as.data.frame(httr2::resp_body_json(r,simplifyVector=TRUE),stringsAsFactors=FALSE)
 }

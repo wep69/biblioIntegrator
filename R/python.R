@@ -26,13 +26,15 @@ to_biblium <- function(x) {
 #' biblium_backend_status()
 #' python_backend_status()
 #' names(biblium_backend_status())
+.bi_status_cache <- new.env(parent=emptyenv())
 biblium_backend_status <- function(python=NULL) {
+  if(is.null(python)&&!is.null(.bi_status_cache$status))return(.bi_status_cache$status)
   if(!requireNamespace("reticulate",quietly=TRUE)) return(list(available=FALSE,python=NA_character_,version=NA_character_,reason="reticulate not installed"))
   py=.bi_python(python); if(!is.null(py)) try(reticulate::use_python(py,required=FALSE),silent=TRUE)
   ok=tryCatch(reticulate::py_module_available("biblium"),error=function(e)FALSE)
   ver=if(ok)tryCatch(as.character(reticulate::import("biblium",convert=TRUE)$`__version__`),error=function(e)NA_character_) else NA_character_
   cfg=tryCatch(reticulate::py_config(),error=function(e)NULL)
-  list(available=isTRUE(ok)&&!is.na(ver),python=if(is.null(cfg)) py %||% NA_character_ else cfg$python,version=ver,reason=if(ok&&!is.na(ver))"ok" else "Biblium could not be imported")
+  res=list(available=isTRUE(ok)&&!is.na(ver),python=if(is.null(cfg)) py %||% NA_character_ else cfg$python,version=ver,reason=if(ok&&!is.na(ver))"ok" else "Biblium could not be imported"); if(is.null(python)).bi_status_cache$status=res; res
 }
 
 #' Backward-compatible Python backend status
@@ -61,7 +63,7 @@ install_biblium_backend <- function(envname="r-bibliointegrator",python=NULL,ver
   if(!requireNamespace("reticulate",quietly=TRUE)) stop("Install 'reticulate'.",call.=FALSE)
   if(!reticulate::virtualenv_exists(envname)) reticulate::virtualenv_create(envname=envname,python=python)
   reticulate::py_install(c(paste0("biblium==",version),"huggingface_hub","plotly"),envname=envname,pip=TRUE)
-  p=reticulate::virtualenv_python(envname); message("Set options(biblioIntegrator.python = ",dQuote(p),") before initializing Python."); invisible(p)
+  .bi_status_cache$status <- NULL; p=reticulate::virtualenv_python(envname); message("Set options(biblioIntegrator.python = ",dQuote(p),") before initializing Python."); invisible(p)
 }
 
 #' Enable an existing Python backend

@@ -2,14 +2,14 @@
 % Please edit documentation in R/temporal_text.R
 \name{tfidf_terms}
 \alias{tfidf_terms}
-\title{TF-IDF terms by year or source}
+\title{TF-IDF terms by grouping stratum}
 \usage{
 tfidf_terms(x, group = c("year", "source"), field = c("title", "abstract"))
 }
 \arguments{
 \item{x}{A \code{biblio_project}.}
 
-\item{group}{\code{"year"} or \code{"source"}.}
+\item{group}{Column of \code{x$works} used as stratum: \code{"year"} (default), \code{"source"}, or any other column of \code{x$works}.}
 
 \item{field}{Text field.}
 }
@@ -17,7 +17,7 @@ tfidf_terms(x, group = c("year", "source"), field = c("title", "abstract"))
 Long data frame with term frequency and TF-IDF.
 }
 \description{
-TF-IDF terms by year or source
+TF-IDF terms by grouping stratum
 }
 \examples{
 head(tfidf_terms(as_biblio_project(example_biblio())),6)

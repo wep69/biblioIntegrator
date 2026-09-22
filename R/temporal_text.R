@@ -41,9 +41,9 @@ term_frequency <- function(x,field=c("title","abstract"),stopwords=c("and","the"
   field=match.arg(field); z=.bi_tokens(x$works[[field]]); z=z[!z%in%tolower(stopwords)]; s=sort(table(z),decreasing=TRUE); data.frame(term=names(s),n=as.integer(s),row.names=NULL)
 }
 
-#' TF-IDF terms by year or source
+#' TF-IDF terms by grouping stratum
 #' @param x A `biblio_project`.
-#' @param group `"year"` or `"source"`.
+#' @param group Column of `x$works` used as stratum: `"year"` (default), `"source"`, or any other column of `x$works`.
 #' @param field Text field.
 #' @return Long data frame with term frequency and TF-IDF.
 #' @export
@@ -52,7 +52,7 @@ term_frequency <- function(x,field=c("title","abstract"),stopwords=c("and","the"
 #' head(tfidf_terms(as_biblio_project(example_biblio()),group="source"),6)
 #' subset(tfidf_terms(as_biblio_project(example_biblio())), tfidf>0)[1:3,]
 tfidf_terms <- function(x,group=c("year","source"),field=c("title","abstract")) {
-  group=match.arg(group); field=match.arg(field); w=x$works; rows=list()
+  if(length(group)>1)group=group[1]; field=match.arg(field); w=x$works; if(!group%in%names(w))stop("'group' must name a column of x$works (e.g. 'year' or 'source').",call.=FALSE); rows=list()
   for(i in seq_len(nrow(w))){z=unique(.bi_tokens(w[[field]][i])); if(length(z))rows[[i]]=data.frame(group=as.character(w[[group]][i]),term=z,stringsAsFactors=FALSE)}
   d=do.call(rbind,rows); if(is.null(d))return(data.frame()); n=stats::aggregate(list(n=rep(1,nrow(d))),list(group=d$group,term=d$term),sum); docs=length(unique(n$group)); df=stats::aggregate(list(df=n$group),list(term=n$term),function(z)length(unique(z))); n=merge(n,df,by="term"); n$tfidf=n$n*log(docs/pmax(1,n$df)); n[order(-n$tfidf),]
 }
@@ -100,5 +100,5 @@ citation_trajectory <- function(x,current_year=as.integer(format(Sys.Date(),"%Y"
 #' disruption_index("f",e,c("r1","r2"))
 #' disruption_index("f",data.frame(citing_id="a",cited_id="f"),character())
 disruption_index <- function(focal_id,citation_edges,focal_references) {
-  a=citation_edges; cit_f=unique(a$citing_id[a$cited_id==focal_id]); cit_r=unique(a$citing_id[a$cited_id%in%focal_references]); ni=length(setdiff(cit_f,cit_r)); nj=length(intersect(cit_f,cit_r)); nk=length(setdiff(cit_r,cit_f)); den=ni+nj+nk; data.frame(focal_id=focal_id,N_i=ni,N_j=nj,N_k=nk,disruption=if(den) (ni-nj)/den else NA_real_)
+  a=citation_edges; if(!all(c("citing_id","cited_id")%in%names(a))) stop("citation_edges must have columns 'citing_id' and 'cited_id'.",call.=FALSE); cit_f=unique(a$citing_id[a$cited_id==focal_id]); cit_r=unique(a$citing_id[a$cited_id%in%focal_references]); ni=length(setdiff(cit_f,cit_r)); nj=length(intersect(cit_f,cit_r)); nk=length(setdiff(cit_r,cit_f)); den=ni+nj+nk; data.frame(focal_id=focal_id,N_i=ni,N_j=nj,N_k=nk,disruption=if(den) (ni-nj)/den else NA_real_)
 }

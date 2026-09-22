@@ -45,6 +45,18 @@
   m <- matrix(0,n,length(vals),dimnames=list(ids,vals)); ii <- match(tab$work_id,ids); jj <- match(tab[[nm]],vals)
   ok <- !is.na(ii)&!is.na(jj); m[cbind(ii[ok],jj[ok])] <- 1; m
 }
+# guarda de gerador aleatorio: captura/restaura .Random.seed do usuário (A5)
+.bi_rng_get <- function() {
+  if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE))
+    list(had = TRUE, old = get(".Random.seed", envir = .GlobalEnv, inherits = FALSE))
+  else list(had = FALSE, old = NULL)
+}
+.bi_rng_set <- function(state) {
+  if (state$had) assign(".Random.seed", state$old, envir = .GlobalEnv)
+  else if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE))
+    rm(list = ".Random.seed", envir = .GlobalEnv)
+  invisible(NULL)
+}
 
 #' Example bibliographic corpus
 #'

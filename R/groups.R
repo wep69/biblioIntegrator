@@ -54,7 +54,7 @@ compare_groups <- function(x, groups, entity=c("keyword","author"), permutations
   }
   G=form_groups(x,groups); E=.bi_entity_matrix(x,entity); if(ncol(E)<2) stop("At least two entities are required.",call.=FALSE)
   st=.bi_assoc_stat(G,E); overlap=any(rowSums(G)>1)
-  if(!is.null(seed)) set.seed(seed)
+  sr=.bi_rng_get(); on.exit(.bi_rng_set(sr),add=TRUE); if(!is.null(seed)) set.seed(seed)
   p=NA_real_
   if(permutations>0) { sims=replicate(permutations,{Gp=G[sample.int(nrow(G)),,drop=FALSE]; .bi_assoc_stat(Gp,E)$chi}); p=(1+sum(sims>=st$chi))/(permutations+1) }
   else if(!overlap) p=stats::pchisq(st$chi,df=(nrow(st$O)-1)*(ncol(st$O)-1),lower.tail=FALSE)
@@ -134,6 +134,6 @@ group_mca <- function(x,groups,entity=c("keyword","author"),ncp=2) {
 #' sensitivity_analysis(x,g,thresholds=c(1,3),permutations=9,seed=2)
 #' subset(sensitivity_analysis(x,g,1:2,permutations=9), entities>1)
 sensitivity_analysis <- function(x,groups,thresholds=c(1,2,3),entity=c("keyword","author"),permutations=99,seed=NULL) {
-  entity=match.arg(entity); G=form_groups(x,groups); E0=.bi_entity_matrix(x,entity); if(!is.null(seed)) set.seed(seed)
+  entity=match.arg(entity); G=form_groups(x,groups); E0=.bi_entity_matrix(x,entity); sr=.bi_rng_get(); on.exit(.bi_rng_set(sr),add=TRUE); if(!is.null(seed)) set.seed(seed)
   do.call(rbind,lapply(thresholds,function(t){ E=E0[,colSums(E0)>=t,drop=FALSE]; if(ncol(E)<2)return(data.frame(threshold=t,entities=ncol(E),cramers_v=NA,p_value=NA)); st=.bi_assoc_stat(G,E); sims=replicate(permutations,.bi_assoc_stat(G[sample.int(nrow(G)),,drop=FALSE],E)$chi); data.frame(threshold=t,entities=ncol(E),cramers_v=st$V,p_value=(1+sum(sims>=st$chi))/(permutations+1)) }))
 }

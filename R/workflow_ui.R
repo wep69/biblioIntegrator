@@ -25,7 +25,7 @@ form_plan <- function(source=NULL,analyses=c("health","descriptive","temporal","
 #' validate_plan(form_plan(network="keyword"))
 #' inherits(validate_plan(form_plan(report="html")),"biblio_plan")
 validate_plan <- function(plan) {
-  if(!inherits(plan,"biblio_plan"))stop("`plan` must be created by form_plan().",call.=FALSE)
+  if(!inherits(plan,"biblio_plan"))stop("`plan` must be created by form_plan(). Note the argument order: run_plan(plan, data).",call.=FALSE)
   allowed=c("health","descriptive","temporal","network","text","groups"); bad=setdiff(plan$analyses,allowed); if(length(bad))stop("Unknown analyses: ",paste(bad,collapse=", "),call.=FALSE)
   if(!plan$network%in%c("coauthor","keyword","citation"))stop("Invalid network type.",call.=FALSE); invisible(plan)
 }
@@ -40,7 +40,7 @@ validate_plan <- function(plan) {
 #' run_plan(form_plan(analyses=c("health","text")),as_biblio_project(example_biblio()))
 #' names(run_plan(form_plan(analyses="network"),example_biblio()))
 run_plan <- function(plan,data=NULL) {
-  validate_plan(plan); set.seed(plan$seed); x=if(is.null(data))biblio_import(plan$source) else as_biblio_project(data); out=list(project=x)
+  validate_plan(plan); sr=.bi_rng_get(); on.exit(.bi_rng_set(sr),add=TRUE); set.seed(plan$seed); x=if(is.null(data))biblio_import(plan$source) else as_biblio_project(data); out=list(project=x)
   if("health"%in%plan$analyses)out$health=biblio_health(x)
   if("descriptive"%in%plan$analyses)out$descriptive=describe_biblio(x)
   if("temporal"%in%plan$analyses)out$temporal=temporal_growth(x)

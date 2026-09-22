@@ -13,7 +13,7 @@ biblio_store(x, path, engine = c("arrow", "duckdb"), overwrite = FALSE)
 
 \item{engine}{Storage engine.}
 
-\item{overwrite}{Replace existing output.}
+\item{overwrite}{Replace existing output; when \code{FALSE} (default), an existing \code{path} raises an error.}
 }
 \value{
 Normalized output path, invisibly.

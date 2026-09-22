@@ -213,8 +213,7 @@ llm_status <- function(provider = NULL, verbose = TRUE) {
   chat <- switch(provider,
     "ollama" = ellmer::chat_ollama(
       model    = model,
-      base_url = config$base_url,
-      seed     = 42
+      base_url = config$base_url
     ),
     "gemini" = ellmer::chat_google_gemini(
       model   = model,

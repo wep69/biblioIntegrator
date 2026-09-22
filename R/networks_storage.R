@@ -93,7 +93,7 @@ network_communities <- function(graph,method=c("louvain","walktrap","label_prop"
 #' network_stability(x,type="keyword",B=8,fraction=.8,seed=2)
 #' head(network_stability(x,B=6,seed=3),3)
 network_stability <- function(x,type=c("coauthor","keyword"),B=100,fraction=.8,seed=NULL) {
-  type=match.arg(type); if(!is.null(seed))set.seed(seed); ids=x$works$work_id; keepn=max(2,floor(length(ids)*fraction)); ranks=list()
+  type=match.arg(type); sr=.bi_rng_get(); on.exit(.bi_rng_set(sr),add=TRUE); if(!is.null(seed))set.seed(seed); ids=x$works$work_id; keepn=max(2,floor(length(ids)*fraction)); ranks=list()
   for(b in seq_len(B)){ k=sample(ids,keepn); y=x; y$works=x$works[x$works$work_id%in%k,,drop=FALSE]; y$authorships=x$authorships[x$authorships$work_id%in%k,,drop=FALSE]; y$keywords=x$keywords[x$keywords$work_id%in%k,,drop=FALSE]; g=bibliographic_network(y,type,engine="native"); if(igraph::vcount(g)){ d=igraph::degree(g); ranks[[b]]=data.frame(node=names(d),rank=rank(-d,ties.method="average")) }}
   a=do.call(rbind,ranks); if(is.null(a))return(data.frame()); m=stats::aggregate(rank~node,a,function(z)c(mean=mean(z),sd=stats::sd(z),n=length(z))); data.frame(node=m$node,mean_rank=m$rank[,"mean"],sd_rank=m$rank[,"sd"],replicates=m$rank[,"n"],row.names=NULL)
 }
@@ -102,7 +102,7 @@ network_stability <- function(x,type=c("coauthor","keyword"),B=100,fraction=.8,s
 #' @param x A `biblio_project`.
 #' @param path Directory (Arrow) or database file (DuckDB).
 #' @param engine Storage engine.
-#' @param overwrite Replace existing output.
+#' @param overwrite Replace existing output; when `FALSE` (default), an existing `path` raises an error.
 #' @return Normalized output path, invisibly.
 #' @export
 #' @examples
@@ -125,7 +125,7 @@ network_stability <- function(x,type=c("coauthor","keyword"),B=100,fraction=.8,s
 #' }
 #' }
 biblio_store <- function(x,path,engine=c("arrow","duckdb"),overwrite=FALSE) {
-  engine=match.arg(engine); tabs=c("works","authors","authorships","keywords","references","provenance")
+  engine=match.arg(engine); if(!overwrite&&(dir.exists(path)||file.exists(path))) stop("path exists; use overwrite=TRUE",call.=FALSE); tabs=c("works","authors","authorships","keywords","references","provenance")
   if(engine=="arrow") {
     if(!requireNamespace("arrow",quietly=TRUE)) stop("Install 'arrow'.",call.=FALSE); if(dir.exists(path)&&overwrite)unlink(path,recursive=TRUE); dir.create(path,recursive=TRUE,showWarnings=FALSE)
     for(n in tabs) arrow::write_parquet(x[[n]],file.path(path,paste0(n,".parquet")))

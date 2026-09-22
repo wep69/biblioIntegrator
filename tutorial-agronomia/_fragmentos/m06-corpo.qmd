@@ -34,7 +34,7 @@ os grupos, a rodar o teste, a interpretar os resíduos célula por célula e a
 medir o tamanho do efeito — porque p-valor pequeno não é sinônimo de achado
 importante.
 
-## Grupos sobrepostos: a matriz de pertencimento
+## Do rótulo de grupo à matriz de pertencimento
 
 A função `form_groups()` não devolve uma lista: ela devolve uma **matriz de
 pertencimento** com uma linha por obra e uma coluna por grupo, valendo `1` quando
@@ -443,7 +443,7 @@ Os três limiares testados deixam `r paste(unique(sens$entities), collapse = " e
 termos — ou seja, todos os `r ncol(cmp_per$observed)` sobrevivem a um corte de três
 obras —, o V é exatamente `r round(unique(sens$cramers_v), 4)` nos três, e o
 p-valor também não se move: `r min(sens$p_value)` em toda a grade. Como esse é
-justamente o menor p-valor alcançável com `r sens$permutations[1]` permutações, a
+justamente o menor p-valor alcançável com 199 permutações, a
 leitura correta é que o acaso não produziu, em nenhum dos três testes, associação
 tão forte quanto a observada. A **estabilidade** desses números é a informação que
 se procura: quando o resultado não se move ao longo de uma grade razoável de

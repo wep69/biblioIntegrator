@@ -83,21 +83,114 @@ provável no código e o teste de regressão sugerido.
 | B7.7 | `fetch_openalex()` | `n = 0` → `HTTP 400 Bad Request`; `query = ""` devolve 25 obras sem aviso; `mailto` inválido é aceito | validar `n` e `query` na entrada |
 | B7.8 | OpenAlex sem resumos | o campo `abstract` existe e vem vazio em 40/40 obras (limitação de licença da fonte) | registrar na documentação que `term_frequency(field = "abstract")` será vazio para acervos obtidos por essa rota |
 
+## B8 (ALTA) — `work_id` repetido faz os dois motores construírem tabelas de contingência diferentes
+
+| Campo | Conteúdo |
+|---|---|
+| Sintoma | com 280 obras e **276 identificadores distintos** (as quatro colisões do achado B1), `compare_groups()` nativo e `biblium_compare_groups()` discordam nos totais: 1.228 pares obra-termo no nativo contra 1.257 no Biblium — 29 excedentes, exatamente as palavras-chave sob os identificadores repetidos |
+| Causa provável | o motor nativo resolve o vínculo com `match(work_id, ids)`, atribuindo os termos à **primeira** ocorrência do identificador; a ponte `to_biblium()` entrega a tabela larga e o Biblium **replica** a lista de termos em cada cópia da obra |
+| Consequência | `validate_biblium()` acusa 0,770 % de diferença no qui-quadrado e 0,781 % no V de Cramér que **não** vêm dos motores, e sim dos identificadores. Removidas as cópias (276 linhas), as duas estatísticas coincidem na precisão da máquina (diferença 0,0000000) e só o p-valor de permutação segue divergindo (0,004 contra 0,006), como esperado |
+| Correção sugerida | garantir unicidade de `work_id` na construção (ver B1); opcionalmente, `to_biblium()` pode avisar quando houver identificador repetido |
+| Teste de regressão | com identificadores únicos, a diferença relativa entre motores deve ficar abaixo de 1e-6 para χ² e V |
+
+## B9 (MÉDIA) — `llm_gap_analysis()` monta o prompt sem os nomes das fontes e dos termos
+
+| Campo | Conteúdo |
+|---|---|
+| Sintoma | o resumo do corpus enviado ao modelo sai como `Top sources: 37, 34, 32, 29, 28` e `Top keywords: 77, 76, 76, 69, 65` — apenas as contagens |
+| Causa provável | o prompt é construído com `paste()` sobre objetos `table`, e `paste()` descarta os nomes |
+| Consequência | a análise de lacunas passa a operar sobre contagens anônimas, o que degrada a resposta e favorece conclusões sem relação com o vocabulário do acervo |
+| Correção sugerida | incluir nome e contagem no resumo do corpus |
+| Teste de regressão | inspecionar o prompt gerado e exigir que contenha ao menos um nome de periódico e um termo real do acervo |
+
+## B10 (MÉDIA) — Retorno malformado do modelo pode virar quadro só de `NA`, sem aviso
+
+| Campo | Conteúdo |
+|---|---|
+| Sintoma | sete cenários com o backend instrumentado: JSON válido → quadro utilizável; **chaves erradas (`[{"foo":"bar"}]`) → quadro com todas as células `NA` e nenhum aviso**; texto solto e JSON truncado → quadro vazio com o aviso "Could not parse structured response. Returning raw text."; `[]` → `argumento inválido para operador unário`; `{"a": 1}` → `` `$` operator is invalid for atomic vectors `` |
+| Consequência | o caso das chaves erradas é o mais perigoso: a forma do resultado é a esperada, o conteúdo é vazio e o usuário não é avisado. Além disso, um registro com `work_id` inexistente foi aceito em silêncio e trazia a **maior** confiança declarada do conjunto (0,95) — filtrar por `confidence` não elimina referência fantasma |
+| Correção sugerida | validar o esquema do retorno (colunas obrigatórias e identificadores pertencentes ao acervo) e avisar quando a taxa de células vazias for alta |
+| Teste de regressão | alimentar `.llm_chat` com chaves erradas e exigir aviso em vez de silêncio |
+
+## B11 (MÉDIA) — O aviso do Biblium não chega ao R como condição
+
+| Campo | Conteúdo |
+|---|---|
+| Sintoma | `withCallingHandlers(warning = ...)` captura **zero** avisos: o texto sai pelo `stderr` do Python e exige `reticulate::py_capture_output()` para ser silenciado. Mensagem: "Groups are disjoint: the asymptotic chi-squared test is unbiased; the permutation results below are reported for completeness only." |
+| Consequência | quem envolve a chamada em `tryCatch(..., warning = )` não silencia nada, e a mensagem polui relatórios e documentos renderizados |
+| Correção sugerida | capturar o `stderr` na ponte e reemitir como `warning()` do R, ou documentar `py_capture_output()` na ajuda |
+| Nota | com grupos **sobrepostos** o aviso desaparece, o que é coerente com o teor da mensagem |
+
+## B12 (BAIXA) — Armadilhas de comparação entre motores e de ambiente
+
+| # | Achado | Detalhe |
+|---|---|---|
+| B12.1 | Ordem das colunas difere | o nativo ordena alfabeticamente e o Biblium por frequência decrescente. Correlacionar resíduos **sem alinhar por nome** dá −0,3448; com alinhamento, 0,9977 — é a diferença entre "os motores discordam" e "os motores concordam" |
+| B12.2 | Rótulos de entidade diferem com `entity = "author"` | o nativo devolve identificador (`A00000662`) e o Biblium, nome de exibição (`Silva AP`); a indexação por `[rownames(M1), colnames(M1)]` estoura com erro de subscrição |
+| B12.3 | Precedência do interpretador Python | `python` (argumento) → `BIBLIOINTEGRATOR_PYTHON` (ambiente) → `options(biblioIntegrator.python)` → padrão do reticulate; **a variável de ambiente ganha da opção** |
+| B12.4 | Interpretador fixado após o primeiro uso | com caminho inexistente, o reticulate cai em silêncio no interpretador padrão e o `reason` vira "Biblium could not be imported"; o interpretador fica fixado na sessão e `_bi_status_cache` pode devolver estado antigo |
+| B12.5 | Nomes das variáveis de chave | `llm_configure()` lê `OLLAMA_API_KEY`, `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` e `HF_API_KEY` — **não** `GEMINI_API_KEY` nem `HF_TOKEN` |
+| B12.6 | Acervos sem resumo | nenhum dos três corpora tem `abstract` (0 de 280, 0 de 40, 0 de 12): `.llm_format_abstracts()` devolve "No abstracts available." e as funções baseadas em resumo responderiam sobre o nada. Os payloads ainda são truncados (obras em 8.000 e resumos em 12.000 caracteres), o que invalida a conta ingênua de custo por "nº de obras × resumo médio" |
+| B12.7 | `form_groups()` com um só nível | vetor constante falha com "contrastes podem ser aplicados apenas a fatores com 2 ou mais níveis", enquanto matriz de uma coluna passa — assimetria entre as duas entradas |
+| B12.8 | `llm_citation_context()` | é a única função de LLM que não depende de servidor: sem referências no acervo emite "No references found in corpus." e devolve quadro 0×4, via de falha limpa e útil como exemplo didático |
+
+## B13 (ALTA) — O motor nativo duplica pares de coautores: arestas em excesso e grau impossível
+
+| Campo | Conteúdo |
+|---|---|
+| Sintoma | `bibliographic_network(x, "coauthor", engine = "native")` devolve **120 arestas** para 16 autores — exatamente n(n−1)/2, o máximo teórico —, mas só **91 pares distintos**: 29 pares aparecem nos dois sentidos. Com o mesmo acervo, `engine = "biblionetwork"` devolve 91 |
+| Verificação independente | recalculado pelo autor deste relatório: 16 vértices, 120 pares possíveis, 120 arestas no nativo, 91 no biblionetwork, 91 pares distintos e **29 repetidos** |
+| Causa provável | `.bi_edges_native()` agrega com `weight ~ from + to` sem ordenar o par, de modo que (A,B) e (B,A) contam como arestas separadas em rede não direcionada |
+| Consequências medidas | grau máximo **20**, impossível com 16 vértices (máximo real 15); grau médio 15 contra 11,375; densidade 1,0 contra 0,7583; intermediação de Silva AP 0,4952 contra 0,4095; peso máximo de par 61 contra 64 |
+| O que **não** muda | força e PageRank de cada autor são idênticos entre os motores (conferido nó a nó) — só as medidas baseadas em contagem de arestas divergem |
+| Alcance silencioso | `engine = "auto"` usa `biblionetwork` para coautoria e **mascara** o defeito; ele aparece quando o motor nativo é pedido explicitamente — e é o motor que `network_stability()` usa internamente (ver B14) |
+| Correção sugerida | ordenar o par antes de agregar (`pmin`/`pmax` sobre os identificadores) e/ou forçar `igraph::as_undirected(..., mode = "collapse")` na construção |
+| Teste de regressão | em rede não direcionada, `expect_equal(ecount(g), length(unique(apply(as_edgelist(g), 1, function(z) paste(sort(z), collapse = "|")))))` |
+
+## B14 (ALTA) — `network_stability()` ranqueia por grau do motor nativo, e não pela centralidade publicada
+
+| Campo | Conteúdo |
+|---|---|
+| Sintoma | o ranking devolvido por `network_stability()` aponta Smith J em primeiro lugar (posto médio 1,65) quando a centralidade da rede publicada aponta Silva AP (grau 15, intermediação 0,4095, que na estabilidade aparece com posto 3,95) |
+| Causa provável | a função reconstrói cada réplica com `engine = "native"` (herdando o defeito B13) e ordena por **grau**, não pela medida escolhida pelo usuário |
+| Evidência | correlação de Spearman entre posto médio da estabilidade e grau do motor nativo = **−0,9904** |
+| Consequência | a análise de robustez mede a estabilidade de outra rede, não a da rede relatada no artigo; o autor conclui que o nó mais central é instável quando o problema é a medida usada |
+| Correção sugerida | expor o motor e a medida de centralidade em `network_stability()` e usar o mesmo motor da rede publicada |
+| Teste de regressão | com o motor corrigido, o primeiro colocado da estabilidade deve coincidir com o primeiro colocado de `network_centrality()` |
+
+## B15 (MÉDIA) — Casos-limite de comparação e de rede que devolvem número em vez de recusa
+
+| # | Achado | Detalhe |
+|---|---|---|
+| B15.1 | Rede de citação com `references` vazia | `bibliographic_network(x, "citation")` para com `arguments imply differing number of rows: 0, 1`, mensagem que não menciona citação nem ausência de referências |
+| B15.2 | `sensitivity_analysis()` | não devolve a coluna `permutations` prevista na especificação (só `threshold, entities, cramers_v, p_value`) e omite o χ², de modo que não se vê que o χ² é constante entre limiares; com `entity = "author"` os p-valores oscilam (0,500 / 0,515 / 0,415) |
+| B15.3 | `compare_sources()` com uma única base | falha com `n < m` (origem no `combn`) em vez de devolver a cobertura trivial; sem nomes nos argumentos as colunas saem como `source1`/`source2` |
+| B15.4 | `compare_groups(permutations = 0)` | não devolve `NA`: cai no ramo assintótico (`pchisq`) e devolve p = 0,000249, dando aparência de inferência exata |
+| B15.5 | Um único grupo | `compare_groups()` devolve χ² = 0, V = 0 e p = 1 em silêncio; `group_mca()` ainda devolve duas dimensões (24,1 % e 14,9 %) sem aviso |
+| B15.6 | `entity = "keyword"` com vetor de rótulos | os nomes de coluna saem como `factor(groups)2010-2019`; passar `cbind(...)` com nomes resolve |
+| B15.7 | `igraph` 2.3.3 | `as.undirected()` está descontinuado; usar `as_undirected()` |
+
 ---
 
 ## Cobertura e método
 
 - As receitas do tutorial foram exercitadas em 45 chamadas distintas, cobrindo as
   59 funções exportadas; nenhuma delas falhou por erro de assinatura.
-- Todos os números dos 12 módulos e dos 22 gabaritos são calculados no momento da
-  renderização: uma planilha de verificação percorreu 800 expressões inline do
-  documento sem encontrar número de resultado digitado à mão.
+- **1.223 expressões de chunk** e **1.049 expressões inline** foram executadas
+  pelos verificadores, sem um único erro.
+- Todos os números dos 12 módulos e dos 24 gabaritos são calculados no momento da
+  renderização: nenhuma expressão de resultado foi digitada à mão no texto (o
+  verificador aponta apenas duas menções legítimas a limiares e parâmetros).
+- O documento final tem 52 figuras e 117 tabelas, cada uma com legenda e parágrafo
+  de leitura; 134 rótulos de chunk, nenhum repetido.
 - Dois achados candidatos foram **refutados** antes de virar texto e não constam
   aqui: (i) `validate_plan()` recusa módulos inválidos com mensagem clara;
   (ii) `fetch_opencitations()` normaliza corretamente as três formas de
   identificador (DOI nu, `doi:` e URL).
-- O achado B1 foi verificado de forma independente pelo autor do relatório,
-  recalculando o hash à mão para o par em conflito.
+- O achado B1 foi verificado de forma independente pelo autor deste relatório,
+  recalculando o hash à mão para o par em conflito; o achado B8 foi confirmado
+  pela coincidência das estatísticas dos dois motores depois de removidas as
+  obras com identificador repetido.
 
 ## Arquivos de verificação
 

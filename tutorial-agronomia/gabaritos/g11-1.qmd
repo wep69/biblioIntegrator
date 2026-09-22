@@ -3,6 +3,7 @@
 ### Código completo e executável
 
 ```{r gab-m11-1}
+#| tbl-cap: "Orcamento de tokens da tarefa 11.1: tokens por chamada e tokens totais para 2.800 obras em lotes de 100, por operacao."
 # ---------------------------------------------------------------------------
 # Tarefa 11.1: orcamento e proveniencia de uma analise assistida por LLM,
 # SEM executar nenhuma chamada ao provedor.
@@ -149,6 +150,27 @@ O registro de proveniência que acompanha o orçamento é este:
 > Cada resposta foi validada contra o acervo antes de qualquer uso: identificadores
 > ausentes da base foram descartados e nenhuma saída do modelo foi incorporada ao
 > manuscrito sem revisão humana.
+
+### Redação sugerida para o artigo
+
+> O apoio de modelo de linguagem foi orçado antes da execução, por instrumentação
+> da camada de comunicação com o provedor, sem nenhuma chamada efetiva à API. O
+> custo estimado por chamada variou de
+> `r format(min(orcamento11$tokens_por_chamada), big.mark = ".", decimal.mark = ",")`
+> a `r format(max(orcamento11$tokens_por_chamada), big.mark = ".", decimal.mark = ",")`
+> tokens, conforme a operação enviasse apenas um resumo numérico do acervo ou o
+> texto integral das obras. Como o pacote trunca o texto enviado em
+> `r nchar(biblioIntegrator:::.llm_format_works(x_analise))` caracteres, as
+> operações que enviam o acervo completo foram executadas em
+> `r n_lotes_111` lotes de `r obras_por_lote_111` obras para o cenário de 2.800
+> obras, o que eleva o total estimado a
+> `r format(max(orcamento11$tokens_totais), big.mark = ".", decimal.mark = ",")`
+> tokens por operação. A configuração utilizada — provedor
+> `r config_111$provider`, modelo `r config_111$model`,
+> `temperature = `r config_111$temperature`` — foi registrada por
+> `llm_get_config()` e é reportada aqui para permitir a reanálise. Nenhum resultado
+> gerado pelo modelo foi incorporado ao manuscrito sem validação contra o acervo
+> e revisão humana.
 
 ### Erros comuns a evitar
 

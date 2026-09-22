@@ -1,0 +1,21 @@
+---
+title: "Ensaio de render dos Módulos 6 e 7"
+format: html
+execute:
+  warning: false
+  message: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      fig.width = 7.2, fig.height = 4.6, dpi = 200, fig.align = "center")
+source("../_setup_corpora.R")
+```
+
+{{< include ../_fragmentos/m06-corpo.qmd >}}
+
+{{< include ../_fragmentos/m06-gabaritos.qmd >}}
+
+{{< include ../_fragmentos/m07-corpo.qmd >}}
+
+{{< include ../_fragmentos/m07-gabaritos.qmd >}}

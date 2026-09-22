@@ -70,7 +70,7 @@ as mesmas seis posicoes, depois do reembaralhamento:
 [4,]    0    0
 [5,]    1    1
 [6,]    1    1
-m06-corpo.qmd          inline OK (65)
+m06-corpo.qmd          inline OK (69)
 
                      Agronomy Journal                  Field Crops Research 
                                    23                                    32 
@@ -117,6 +117,9 @@ autores com intermediação zero: 9 de 16
 autor de maior grau, força e intermediação: Silva AP 
 autores cuja posicao difere entre grau e intermediação: 15 de 16 
 maior diferenca de posto entre os dois criterios: 7 posicoes
+rede sem os internacionais: 37 arestas, 19 dentro do mesmo laboratorio e 18 entre laboratorios
+pares internos possiveis nos tres laboratorios: 19 
+arestas da rede completa que envolvem um internacional: 54 de 91 
 rede completa: 16 vertices, 91 arestas, modularidade 0.2262 
 rede sem os internacionais: 12 vertices, 37 arestas, modularidade 0.4486 
 componentes conexos sem os internacionais: 1 
@@ -159,7 +162,7 @@ A0000110a	A00000b2d	11
 tipo de rede inexistente:       'arg' should be one of "coauthor", "keyword", "citation" 
 metodo de comunidade invalido:  'arg' should be one of "louvain", "walktrap", "label_prop" 
 redes sem arestas de citacao:   arguments imply differing number of rows: 0, 1 
-m07-corpo.qmd          inline OK (91)
+m07-corpo.qmd          inline OK (94)
 desvio-padrao do grau no motor nativo: 3.2042 | amplitude: 10 a 20 
 desvio-padrao do grau no motor biblionetwork: 2.7049 | amplitude: 8 a 15 
 forca identica nos dois motores? TRUE 
@@ -269,7 +272,7 @@ funcao restaurada: TRUE
 erro real do provedor ainda ocorre: Can't find locally running ollama. 
 retorno simulado com 1326 caracteres e 10 registros
 m11-corpo.qmd          inline OK (24)
-m11-gabaritos.qmd      inline OK (59)
+m11-gabaritos.qmd      inline OK (68)
 
 
 |situacao                                                   |resultado                                                                             |consequencia                                               |
@@ -293,17 +296,17 @@ m11-gabaritos.qmd      inline OK (59)
 
 |formato  |arquivo        |gerado | segundos|uso_tipico                                      |
 |:--------|:--------------|:------|--------:|:-----------------------------------------------|
-|markdown |relatorio.md   |TRUE   |     0.05|controle de versão e leitura no editor de texto |
-|html     |relatorio.html |TRUE   |     0.64|envio direto como suplemento navegável          |
-|docx     |relatorio.docx |TRUE   |     0.26|coorientador que revisa com comentários no Word |
-|pdf      |relatorio.pdf  |TRUE   |     1.53|anexo impresso e versão final do suplemento     |
+|markdown |relatorio.md   |TRUE   |     0.03|controle de versão e leitura no editor de texto |
+|html     |relatorio.html |TRUE   |     0.59|envio direto como suplemento navegável          |
+|docx     |relatorio.docx |TRUE   |     0.14|coorientador que revisa com comentários no Word |
+|pdf      |relatorio.pdf  |TRUE   |     1.25|anexo impresso e versão final do suplemento     |
 
 
 | linha|texto                                       |
 |-----:|:-------------------------------------------|
 |     1|# Silício e salinidade: relatório do acervo |
 |     2|                                            |
-|     3|Generated: 2026-09-22 00:21:43.685984       |
+|     3|Generated: 2026-09-22 00:42:57.395435       |
 |     4|                                            |
 |     5|## Corpus summary                           |
 |     6|Documents: **280**                          |
@@ -359,7 +362,7 @@ m12-corpo.qmd          inline OK (27)
 [1] "Unknown analyses: redes"
   formato arquivos  bytes   kB
 1     csv        6 100481 98.1
-2 parquet        6  24769 24.2
+2 parquet        6  24771 24.2
 [1] TRUE TRUE
                    arquivo existe
 1               works.json   TRUE

@@ -3,6 +3,7 @@
 ### Código completo e executável
 
 ```{r gab-m10-1}
+#| tbl-cap: "Grade completa da tarefa 10.1: chi-quadrado pelos dois motores, diferenca relativa, p-valores, dimensoes das tabelas e coincidencia dos rotulos de coluna."
 # ---------------------------------------------------------------------------
 # Tarefa 10.1: validacao cruzada em quatro combinacoes
 #   dois agrupamentos (periodo e tema) x duas entidades (keyword e author)

@@ -3,6 +3,7 @@
 ### Código completo e executável
 
 ```{r gab-m10-2}
+#| tbl-cap: "Diagnostico dos tres corpora: identificadores repetidos, palavras-chave sob eles, chi-quadrado dos dois motores e excedente de pares."
 # ---------------------------------------------------------------------------
 # Tarefa 10.2: diagnostico de identificadores repetidos nos tres corpora
 # ---------------------------------------------------------------------------

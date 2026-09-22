@@ -3,6 +3,7 @@
 ### Código completo e executável
 
 ```{r gab-m11-2}
+#| tbl-cap: "Validacao do retorno simulado da tarefa 11.2: registros devolvidos, identificadores ausentes, rotulos vazios, duplicatas e aproveitaveis."
 # ---------------------------------------------------------------------------
 # Tarefa 11.2: validar um retorno simulado de llm_classify() antes de usa-lo.
 # Autossuficiência: o gabarito também é entregue como arquivo isolado, então o
@@ -130,7 +131,7 @@ ggplot(comparacao_longa_112, aes(x = categoria, y = n, fill = etapa)) +
                                "validado contra o acervo" = pal_agri[1]),
                     name = NULL) +
   scale_y_continuous(expand = expansion(mult = c(0, .18)),
-                     breaks = pretty(c(0, max(comparacao_112$bruto)))) +
+                     breaks = seq(0, max(comparacao_112$bruto))) +
   labs(x = NULL, y = "Numero de registros",
        title = "O que sobrevive a validacao",
        subtitle = "Quatro categorias, dez registros devolvidos pelo modelo")

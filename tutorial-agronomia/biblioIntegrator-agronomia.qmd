@@ -2540,7 +2540,7 @@ os grupos, a rodar o teste, a interpretar os resíduos célula por célula e a
 medir o tamanho do efeito — porque p-valor pequeno não é sinônimo de achado
 importante.
 
-## Grupos sobrepostos: a matriz de pertencimento
+## Do rótulo de grupo à matriz de pertencimento
 
 A função `form_groups()` não devolve uma lista: ela devolve uma **matriz de
 pertencimento** com uma linha por obra e uma coluna por grupo, valendo `1` quando
@@ -2949,7 +2949,7 @@ Os três limiares testados deixam `r paste(unique(sens$entities), collapse = " e
 termos — ou seja, todos os `r ncol(cmp_per$observed)` sobrevivem a um corte de três
 obras —, o V é exatamente `r round(unique(sens$cramers_v), 4)` nos três, e o
 p-valor também não se move: `r min(sens$p_value)` em toda a grade. Como esse é
-justamente o menor p-valor alcançável com `r sens$permutations[1]` permutações, a
+justamente o menor p-valor alcançável com 199 permutações, a
 leitura correta é que o acaso não produziu, em nenhum dos três testes, associação
 tão forte quanto a observada. A **estabilidade** desses números é a informação que
 se procura: quando o resultado não se move ao longo de uma grade razoável de
@@ -3128,9 +3128,15 @@ existência da interseção: `r sum(fonte_bonus & silicio)` obras aparecem nas d
 barras, e é isso que o campo `$overlap` sinaliza. A segunda é a magnitude, e aqui
 o resultado desmente a expectativa. A razão entre a interseção observada e a
 esperada sob independência é de `r round(sum(fonte_bonus & silicio) / esperado_cruz, 2)`
-— ou seja, **exatamente o que o azar produziria**. As duas revistas
-publicam silício na mesma proporção que as outras sete, e nada no cruzamento desses
-dois rótulos indica preferência temática.
+— ou seja, **exatamente o que o azar produziria**. A conta fica evidente quando
+escrita como proporção: `r round(100 * mean(fonte_bonus), 1)`% do acervo está nas
+duas revistas com bônus e `r round(100 * mean(silicio), 1)`% é de silício; se os
+dois rótulos fossem independentes, a interseção esperada seria o produto dessas duas
+proporções, `r round(100 * mean(fonte_bonus) * mean(silicio), 2)`% do acervo,
+ou `r round(esperado_cruz, 1)` obras. A interseção observada é de
+`r round(100 * mean(fonte_bonus & silicio), 1)`% do acervo. A figura mostra as duas
+barras de cada grupo lado a lado, e o valor de referência no alto do gráfico é o que
+a independência previria.
 
 O que isso ensina é a separar três perguntas que se confundem com facilidade.
 A primeira, "os dois rótulos se cruzam?", se responde com
@@ -3734,6 +3740,24 @@ mod_com <- igraph::modularity(igraph::as_undirected(g_coauto, mode = "collapse")
 set.seed(SEED)   # a particao de comparacao tambem precisa de semente fixa
 mod_sem <- igraph::modularity(igraph::as_undirected(g_sem_int, mode = "collapse"),
                               network_communities(g_sem_int, method = "louvain")$community)
+# quantas arestas da rede sem internacionais ficam dentro de cada laboratorio
+mapa_lab <- c("Silva AP" = "silicio", "Costa JR" = "silicio", "Pereira WE" = "silicio",
+              "Martins LC" = "silicio", "Souza RM" = "carbono", "Oliveira TN" = "carbono",
+              "Almeida FB" = "carbono", "Rocha MV" = "remoto", "Lima DH" = "remoto",
+              "Barbosa KS" = "remoto", "Nunes PR" = "remoto", "Castro ES" = "remoto")
+nome_do_id <- function(id) autores$display_name[match(id, autores$author_id)]
+ea <- igraph::as_data_frame(g_sem_int, "edges")
+lab_ini <- mapa_lab[nome_do_id(ea$from)]
+lab_fim <- mapa_lab[nome_do_id(ea$to)]
+cat("rede sem os internacionais:", nrow(ea), "arestas,", sum(lab_ini == lab_fim),
+    "dentro do mesmo laboratorio e", sum(lab_ini != lab_fim), "entre laboratorios\n")
+cat("pares internos possiveis nos tres laboratorios:",
+    choose(4, 2) + choose(3, 2) + choose(5, 2), "\n")
+# quantas arestas da rede completa envolvem um coautor internacional
+ec <- igraph::as_data_frame(g_coauto, "edges")
+cat("arestas da rede completa que envolvem um internacional:",
+    sum(nome_do_id(ec$from) %in% internacionais | nome_do_id(ec$to) %in% internacionais),
+    "de", nrow(ec), "\n")
 cat("rede completa:", igraph::vcount(g_coauto), "vertices,", igraph::ecount(g_coauto), "arestas,",
     "modularidade", round(mod_com, 4), "\n")
 cat("rede sem os internacionais:", igraph::vcount(g_sem_int), "vertices,", igraph::ecount(g_sem_int), "arestas,",
@@ -3747,19 +3771,26 @@ coautores internacionais têm grau médio
 autores de laboratório, e força média
 `r resumo_grupo$internacional[2]` contra `r resumo_grupo$laboratorio[2]`: eles
 **não** são periféricos, são os vértices mais conectados da rede, e essa é uma
-consequência direta do desenho do acervo, em que metade das obras recebe um ou
-dois nomes internacionais. Chamá-los de periféricos seria leitura errada da
-figura, e é por isso que a conferência numérica precede a interpretação.
+consequência direta do desenho do acervo, em que metade das obras recebe um ou dois
+nomes internacionais. Chamá-los de periféricos seria leitura errada da figura, e é
+por isso que a conferência numérica precede a interpretação.
 
-O que os caracteriza é a função de **ponte**. A intermediação média dos
-internacionais é `r resumo_grupo$internacional[3]` contra
-`r resumo_grupo$laboratorio[3]` dos demais, e a remoção deles encolhe a rede de
-`r igraph::ecount(g_coauto)` para `r igraph::ecount(g_sem_int)` arestas, com a
-modularidade passando de `r round(mod_com, 4)` para `r round(mod_sem, 4)`. A
-modularidade **sobe** quando eles saem: sem as pontes, os três laboratórios ficam
-mais isolados uns dos outros e a partição em comunidades fica mais nítida. Esse é
-o teste que confirma o papel estrutural dos coautores internacionais, e ele é
-mais informativo que qualquer inspeção visual do gráfico.
+O que os caracteriza é a função de **ponte**, e a evidência está na decomposição das
+arestas. A rede completa tem `r nrow(ec)` arestas, das quais
+`r sum(nome_do_id(ec$from) %in% internacionais | nome_do_id(ec$to) %in% internacionais)`
+envolvem um coautor internacional — mais da metade. Retirando os quatro, a rede fica
+com `r nrow(ea)` arestas: `r sum(lab_ini == lab_fim)` dentro dos laboratórios, que
+esgota os pares possíveis entre os autores de cada grupo
+(`r choose(4, 2) + choose(3, 2) + choose(5, 2)` ao todo), e
+`r sum(lab_ini != lab_fim)` entre laboratórios, bem abaixo dos
+`r 12 * 11 / 2 - (choose(4, 2) + choose(3, 2) + choose(5, 2))` pares
+interlaboratoriais possíveis. Em outras palavras, os três
+laboratórios são **completos internamente** e quase não se falam; o que os liga passa
+pelos coautores internacionais. A modularidade confirma em outra escala: sobe de
+`r round(mod_com, 4)` para `r round(mod_sem, 4)` quando eles saem, porque sem as
+pontes os três blocos ficam mais isolados e a partição em comunidades fica mais
+nítida. Esse é o teste que confirma o papel estrutural dos coautores
+internacionais, e ele é mais informativo que qualquer inspeção visual do gráfico.
 
 ## Estabilidade: quanto confiar no ranking
 
@@ -5784,6 +5815,7 @@ obras aparecem duas vezes, com títulos e DOIs diferentes, porque a deduplicaç�
 por DOI não pôde atuar sobre registros sem DOI.
 
 ```{r m10-work-ids-duplicados}
+#| tbl-cap: "Diagnostico do acervo antes da validacao: identificadores repetidos e o total de pares obra-palavra-chave que cada motor coloca na tabela de contingencia."
 # Diagnostico: o acervo tem identificadores repetidos?
 ids10 <- x_analise$works$work_id
 dup10 <- names(which(table(ids10) > 1))
@@ -6856,7 +6888,7 @@ ggplot(tab_grav11, aes(x = classe_curta, y = Freq, fill = gravidade)) +
   scale_fill_manual(values = c(alto = "#C0392B", medio = pal_agri[2],
                                baixo = pal_agri[1]), name = "Gravidade") +
   scale_y_continuous(expand = expansion(mult = c(0, .2)),
-                     breaks = pretty(c(0, max(tab_grav11$Freq)))) +
+                     breaks = seq(0, max(tab_grav11$Freq))) +
   labs(x = NULL, y = "Numero de tipos de resposta testados",
        title = "Onde mora o risco do retorno de LLM",
        subtitle = paste0("Sete tipos de resposta testados em semantic_search(); ",
@@ -9837,6 +9869,7 @@ máximo ou de um quantil superior.
 ### Código completo e executável
 
 ```{r gab-m10-1}
+#| tbl-cap: "Grade completa da tarefa 10.1: chi-quadrado pelos dois motores, diferenca relativa, p-valores, dimensoes das tabelas e coincidencia dos rotulos de coluna."
 # ---------------------------------------------------------------------------
 # Tarefa 10.1: validacao cruzada em quatro combinacoes
 #   dois agrupamentos (periodo e tema) x duas entidades (keyword e author)
@@ -10026,6 +10059,7 @@ e conclusão qualitativa preservada (p abaixo de 0,05 nos dois motores:
 ### Código completo e executável
 
 ```{r gab-m10-2}
+#| tbl-cap: "Diagnostico dos tres corpora: identificadores repetidos, palavras-chave sob eles, chi-quadrado dos dois motores e excedente de pares."
 # ---------------------------------------------------------------------------
 # Tarefa 10.2: diagnostico de identificadores repetidos nos tres corpora
 # ---------------------------------------------------------------------------
@@ -10217,6 +10251,7 @@ interpretação única — cada motor constrói uma tabela diferente.
 ### Código completo e executável
 
 ```{r gab-m11-1}
+#| tbl-cap: "Orcamento de tokens da tarefa 11.1: tokens por chamada e tokens totais para 2.800 obras em lotes de 100, por operacao."
 # ---------------------------------------------------------------------------
 # Tarefa 11.1: orcamento e proveniencia de uma analise assistida por LLM,
 # SEM executar nenhuma chamada ao provedor.
@@ -10364,6 +10399,27 @@ O registro de proveniência que acompanha o orçamento é este:
 > ausentes da base foram descartados e nenhuma saída do modelo foi incorporada ao
 > manuscrito sem revisão humana.
 
+### Redação sugerida para o artigo
+
+> O apoio de modelo de linguagem foi orçado antes da execução, por instrumentação
+> da camada de comunicação com o provedor, sem nenhuma chamada efetiva à API. O
+> custo estimado por chamada variou de
+> `r format(min(orcamento11$tokens_por_chamada), big.mark = ".", decimal.mark = ",")`
+> a `r format(max(orcamento11$tokens_por_chamada), big.mark = ".", decimal.mark = ",")`
+> tokens, conforme a operação enviasse apenas um resumo numérico do acervo ou o
+> texto integral das obras. Como o pacote trunca o texto enviado em
+> `r nchar(biblioIntegrator:::.llm_format_works(x_analise))` caracteres, as
+> operações que enviam o acervo completo foram executadas em
+> `r n_lotes_111` lotes de `r obras_por_lote_111` obras para o cenário de 2.800
+> obras, o que eleva o total estimado a
+> `r format(max(orcamento11$tokens_totais), big.mark = ".", decimal.mark = ",")`
+> tokens por operação. A configuração utilizada — provedor
+> `r config_111$provider`, modelo `r config_111$model`,
+> `temperature = `r config_111$temperature`` — foi registrada por
+> `llm_get_config()` e é reportada aqui para permitir a reanálise. Nenhum resultado
+> gerado pelo modelo foi incorporado ao manuscrito sem validação contra o acervo
+> e revisão humana.
+
 ### Erros comuns a evitar
 
 1. **Rodar a análise para descobrir o custo.** A medição por instrumentação custa
@@ -10392,6 +10448,7 @@ O registro de proveniência que acompanha o orçamento é este:
 ### Código completo e executável
 
 ```{r gab-m11-2}
+#| tbl-cap: "Validacao do retorno simulado da tarefa 11.2: registros devolvidos, identificadores ausentes, rotulos vazios, duplicatas e aproveitaveis."
 # ---------------------------------------------------------------------------
 # Tarefa 11.2: validar um retorno simulado de llm_classify() antes de usa-lo.
 # Autossuficiência: o gabarito também é entregue como arquivo isolado, então o
@@ -10519,7 +10576,7 @@ ggplot(comparacao_longa_112, aes(x = categoria, y = n, fill = etapa)) +
                                "validado contra o acervo" = pal_agri[1]),
                     name = NULL) +
   scale_y_continuous(expand = expansion(mult = c(0, .18)),
-                     breaks = pretty(c(0, max(comparacao_112$bruto)))) +
+                     breaks = seq(0, max(comparacao_112$bruto))) +
   labs(x = NULL, y = "Numero de registros",
        title = "O que sobrevive a validacao",
        subtitle = "Quatro categorias, dez registros devolvidos pelo modelo")

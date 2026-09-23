@@ -1861,7 +1861,7 @@ cat("\nPlan results:", paste(names(plan_res), collapse = ", "),
 - Shiny tutorial —
   <https://shiny.posit.co/r/articles/>
 - rmarkdown: The Definitive Guide —
-  <https://bookdown.org/yihui/rmarkdown/>
+  <https://pkg.yihui.org/rmarkdown-book/>
 
 ## Session Info
 

@@ -53,14 +53,20 @@ compare_groups <- function(x, groups, entity=c("keyword","author"), permutations
     if(ok) return(biblium_compare_groups(x,groups,entity=entity,permutations=permutations,seed=seed))
   }
   G=form_groups(x,groups); E=.bi_entity_matrix(x,entity); if(ncol(E)<2) stop("At least two entities are required.",call.=FALSE)
+  if (any(colSums(G) == 0L))
+    warning("Ha grupo(s) sem nenhuma obra: a comparacao inclui uma linha vazia. ",
+            "Confira a definicao dos grupos.", call.=FALSE)
   st=.bi_assoc_stat(G,E); overlap=any(rowSums(G)>1)
   sr=.bi_rng_get(); on.exit(.bi_rng_set(sr),add=TRUE); if(!is.null(seed)) set.seed(seed)
-  p=NA_real_
-  if(permutations>0) { sims=replicate(permutations,{Gp=G[sample.int(nrow(G)),,drop=FALSE]; .bi_assoc_stat(Gp,E)$chi}); p=(1+sum(sims>=st$chi))/(permutations+1) }
-  else if(!overlap) p=stats::pchisq(st$chi,df=(nrow(st$O)-1)*(ncol(st$O)-1),lower.tail=FALSE)
+  p=NA_real_; metodo=NA_character_
+  if(permutations>0) { sims=replicate(permutations,{Gp=G[sample.int(nrow(G)),,drop=FALSE]; .bi_assoc_stat(Gp,E)$chi}); p=(1+sum(sims>=st$chi))/(permutations+1); metodo=sprintf("permutation (B = %d)", permutations) }
+  else if(!overlap) { p=stats::pchisq(st$chi,df=(nrow(st$O)-1)*(ncol(st$O)-1),lower.tail=FALSE); metodo="asymptotic (Pearson chi-square)" }
+  # `permutations = 0` com grupos sobrepostos nao tem inferencia: p fica NA e o
+  # campo p_method registra qual caminho foi usado, para o numero nao parecer
+  # resultado de um teste que nao foi feito
   ci=c(NA_real_,NA_real_)
   if(bootstrap>0){ bs=replicate(bootstrap,{i=sample.int(nrow(G),replace=TRUE); .bi_assoc_stat(G[i,,drop=FALSE],E[i,,drop=FALSE])$V}); ci=stats::quantile(bs,c(.025,.975),na.rm=TRUE,names=FALSE) }
-  structure(list(engine="native",entity=entity,groups=G,observed=st$O,expected=st$E,residuals=st$res,chi_square=st$chi,p_value=p,cramers_v=st$V,cramers_v_ci=ci,overlap=overlap,permutations=permutations),class="biblio_group_comparison")
+  structure(list(engine="native",entity=entity,groups=G,observed=st$O,expected=st$E,residuals=st$res,chi_square=st$chi,p_value=p,p_method=metodo,cramers_v=st$V,cramers_v_ci=ci,overlap=overlap,permutations=permutations),class="biblio_group_comparison")
 }
 
 #' Print a group comparison
@@ -135,5 +141,5 @@ group_mca <- function(x,groups,entity=c("keyword","author"),ncp=2) {
 #' subset(sensitivity_analysis(x,g,1:2,permutations=9), entities>1)
 sensitivity_analysis <- function(x,groups,thresholds=c(1,2,3),entity=c("keyword","author"),permutations=99,seed=NULL) {
   entity=match.arg(entity); G=form_groups(x,groups); E0=.bi_entity_matrix(x,entity); sr=.bi_rng_get(); on.exit(.bi_rng_set(sr),add=TRUE); if(!is.null(seed)) set.seed(seed)
-  do.call(rbind,lapply(thresholds,function(t){ E=E0[,colSums(E0)>=t,drop=FALSE]; if(ncol(E)<2)return(data.frame(threshold=t,entities=ncol(E),cramers_v=NA,p_value=NA)); st=.bi_assoc_stat(G,E); sims=replicate(permutations,.bi_assoc_stat(G[sample.int(nrow(G)),,drop=FALSE],E)$chi); data.frame(threshold=t,entities=ncol(E),cramers_v=st$V,p_value=(1+sum(sims>=st$chi))/(permutations+1)) }))
+  do.call(rbind,lapply(thresholds,function(t){ E=E0[,colSums(E0)>=t,drop=FALSE]; if(ncol(E)<2)return(data.frame(threshold=t,entities=ncol(E),cramers_v=NA,p_value=NA,chi_square=NA,permutations=as.integer(permutations))); st=.bi_assoc_stat(G,E); sims=replicate(permutations,.bi_assoc_stat(G[sample.int(nrow(G)),,drop=FALSE],E)$chi); data.frame(threshold=t,entities=ncol(E),cramers_v=st$V,p_value=(1+sum(sims>=st$chi))/(permutations+1),chi_square=st$chi,permutations=as.integer(permutations)) }))
 }

@@ -27,10 +27,82 @@ trend_topics <- function(x,min_total=1) {
   x=tolower(paste(text,collapse=" ")); x=gsub("[^[:alpha:][:digit:]'-]+"," ",x); z=unlist(strsplit(x,"\\s+")); z[nchar(z)>2]
 }
 
+#' N-gram frequency from titles or abstracts
+#'
+#' Native implementation; Biblium `extract_ngrams_tfidf()` can audit the
+#' unigram counts through `term_frequency()`.
+#' @param x A `biblio_project`.
+#' @param n N-gram order (1 = unigrams).
+#' @param field `"title"` or `"abstract"`.
+#' @param stopwords Added to the default list, as in [term_frequency()].
+#' @param min_freq Minimum corpus frequency.
+#' @return Data frame with ngram and n.
+#' @export
+#' @examples
+#' concept_ngrams(as_biblio_project(example_biblio()))
+#' concept_ngrams(as_biblio_project(example_biblio()),n=1)
+concept_ngrams <- function(x,n=2L,field=c("title","abstract"),stopwords=c("and","the","for","with","under","of","in","to"),min_freq=1L) {
+  field=match.arg(field); n=as.integer(n)[1L]; if(n<1L)stop("`n` must be >= 1.",call.=FALSE)
+  sw=tolower(unique(c(.bi_stopwords(),stopwords))); allgr=list()
+  for(t in x$works[[field]]) {
+    z=.bi_tokens(t); z=z[!z%in%sw]; if(length(z)<n)next
+    g=vapply(seq_len(length(z)-n+1L),function(i)paste(z[i:(i+n-1L)],collapse=" "),character(1L))
+    allgr[[length(allgr)+1L]]=g
+  }
+  s=sort(table(unlist(allgr)),decreasing=TRUE); s=s[s>=min_freq]
+  data.frame(ngram=names(s),n=as.integer(s),row.names=NULL)
+}
+
+#' Term co-occurrence matrix
+#'
+#' Native implementation over the top terms; Biblium
+#' `compute_cooccurrence_matrix()` is the external auditor.
+#' @param x A `biblio_project`.
+#' @param top_n Number of top terms (by [term_frequency()]).
+#' @param field Text field.
+#' @return Symmetric co-occurrence matrix (diagonal = document frequency).
+#' @export
+#' @examples
+#' dim(concept_cooccurrence(as_biblio_project(example_biblio())))
+concept_cooccurrence <- function(x,top_n=30L,field=c("title","abstract")) {
+  field=match.arg(field); tf=term_frequency(x,field=field)
+  terms=utils::head(tf$term,min(as.integer(top_n)[1L],nrow(tf)))
+  docs=lapply(x$works[[field]],function(t)unique(.bi_tokens(t)))
+  M=vapply(docs,function(z)as.integer(terms%in%z),integer(length(terms)))
+  C=tcrossprod(M); dimnames(C)=list(terms,terms); C
+}
+
+.bi_diversity_native <- function(counts) {
+  p=as.numeric(counts)/sum(counts); n=length(p)
+  sh=-sum(p*log(p[p>0])); si=1-sum(p^2)
+  gi=if(n<2L)0 else sum(abs(outer(p,p,"-")))/(2*n)
+  c(shannon=sh,simpson=si,gini=gi,rao=si)
+}
+
+#' Reference diversity (native, with Rao-Stirling)
+#'
+#' Shannon/Simpson/Gini over reference sources or years, plus the Rao-Stirling
+#' index (uniform disparity, hence equal to Simpson; Biblium
+#' `compute_rao_stirling()` audits it).
+#' @param x A `biblio_project`.
+#' @param by `"source"` or `"year"`.
+#' @return One-row data frame with the indices.
+#' @export
+#' @examples
+#' reference_diversity(as_biblio_project(example_biblio()))
+reference_diversity <- function(x,by=c("source","year")) {
+  by=match.arg(by); v=x$works[[by]]; v=v[!is.na(v)]; if(!length(v))stop("No values for '",by,"'.",call.=FALSE)
+  s=table(v); d=.bi_diversity_native(as.integer(s))
+  data.frame(entity=by,n_categories=length(s),shannon=d[["shannon"]],simpson=d[["simpson"]],gini=d[["gini"]],rao_stirling=d[["rao"]],row.names=NULL)
+}
+
 #' Term frequency from titles or abstracts
 #' @param x A `biblio_project`.
 #' @param field `"title"` or `"abstract"`.
-#' @param stopwords Optional vector removed before counting.
+#' @param stopwords Termos removidos antes da contagem. Sao ACRESCENTADOS a lista
+#'   padrao (artigos e preposicoes do ingles), e nao a substituem: na versao
+#'   anterior, informar `stopwords` descartava a lista padrao e as palavras
+#'   funcionais voltavam para a contagem.
 #' @return Term-frequency data frame.
 #' @export
 #' @examples
@@ -38,7 +110,11 @@ trend_topics <- function(x,min_total=1) {
 #' head(term_frequency(as_biblio_project(example_biblio()),stopwords=c("and","the")),5)
 #' term_frequency(as_biblio_project(example_biblio()),field="abstract")
 term_frequency <- function(x,field=c("title","abstract"),stopwords=c("and","the","for","with","under","of","in","to")) {
-  field=match.arg(field); z=.bi_tokens(x$works[[field]]); z=z[!z%in%tolower(stopwords)]; s=sort(table(z),decreasing=TRUE); data.frame(term=names(s),n=as.integer(s),row.names=NULL)
+  field=match.arg(field)
+  if (!any(nzchar(trimws(as.character(x$works[[field]])))))
+    warning("O campo '", field, "' esta vazio no acervo: a contagem de termos sera vazia.",
+            call.=FALSE)
+  z=.bi_tokens(x$works[[field]]); z=z[!z%in%tolower(unique(c(.bi_stopwords(), stopwords)))]; s=sort(table(z),decreasing=TRUE); data.frame(term=names(s),n=as.integer(s),row.names=NULL)
 }
 
 #' TF-IDF terms by grouping stratum
@@ -100,5 +176,22 @@ citation_trajectory <- function(x,current_year=as.integer(format(Sys.Date(),"%Y"
 #' disruption_index("f",e,c("r1","r2"))
 #' disruption_index("f",data.frame(citing_id="a",cited_id="f"),character())
 disruption_index <- function(focal_id,citation_edges,focal_references) {
-  a=citation_edges; if(!all(c("citing_id","cited_id")%in%names(a))) stop("citation_edges must have columns 'citing_id' and 'cited_id'.",call.=FALSE); cit_f=unique(a$citing_id[a$cited_id==focal_id]); cit_r=unique(a$citing_id[a$cited_id%in%focal_references]); ni=length(setdiff(cit_f,cit_r)); nj=length(intersect(cit_f,cit_r)); nk=length(setdiff(cit_r,cit_f)); den=ni+nj+nk; data.frame(focal_id=focal_id,N_i=ni,N_j=nj,N_k=nk,disruption=if(den) (ni-nj)/den else NA_real_)
+  a=citation_edges; if(!all(c("citing_id","cited_id")%in%names(a))) stop("citation_edges must have columns 'citing_id' and 'cited_id'.",call.=FALSE)
+  cit_f=unique(a$citing_id[a$cited_id==focal_id]); cit_r=unique(a$citing_id[a$cited_id%in%focal_references])
+  # N_k exclui o proprio focal: ele cita as proprias referencias por construcao
+  # e nao e obra subsequente; sem isso, N_k vinha inflado em 1 (cf. Biblium).
+  ni=length(setdiff(cit_f,cit_r)); nj=length(intersect(cit_f,cit_r)); nk=length(setdiff(cit_r,union(cit_f,focal_id))); den=ni+nj+nk
+  # casos-limite devolvem NA, e nao um numero com aparencia de resultado:
+  #   - ninguem cita o focal: o indice nao esta definido (0 ou 1 seriam falsos)
+  #   - focal_references vazio: sem referencias declaradas nao ha consolidacao
+  if (!length(cit_f)) {
+    warning("Nenhum citante do focal '", focal_id,
+            "' na tabela de arestas: o indice de disrupcao nao esta definido.",
+            call.=FALSE)
+    return(data.frame(focal_id=focal_id,N_i=NA_integer_,N_j=NA_integer_,N_k=NA_integer_,disruption=NA_real_))
+  }
+  if (!length(focal_references))
+    warning("'focal_references' esta vazio: sem referencias declaradas, N_j e N_k sao zero por construcao.",
+            call.=FALSE)
+  data.frame(focal_id=focal_id,N_i=ni,N_j=nj,N_k=nk,disruption=if(den) (ni-nj)/den else NA_real_)
 }

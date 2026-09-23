@@ -1640,7 +1640,7 @@ substitute for methodological judgment.
   doi:[10.1007/s11192-026-05636-8](https://doi.org/10.1007/s11192-026-05636-8)
 
 - OpenAlex documentation:
-  [https://docs.openalex.org](https://docs.openalex.org)
+  [https://help.openalex.org/](https://help.openalex.org/)
 
 - OpenCitations:
   [https://opencitations.net](https://opencitations.net)
@@ -2561,7 +2561,7 @@ A: Use the following format:
 > Pereira, W.E. & Martinez, M.H.P. (2026). biblioIntegrator:
 > Harmonized, Comparative and Network-Based Bibliometric Analysis.
 > R package version 0.3.0.
-> https://github.com/user/biblioIntegrator
+> https://github.com/wep69/biblioIntegrator
 
 \newpage
 

@@ -7,7 +7,8 @@
 install_biblium_backend(
   envname = "r-bibliointegrator",
   python = NULL,
-  version = "2.16.0"
+  version = "2.16.0",
+  extras = NULL
 )
 }
 \arguments{
@@ -16,6 +17,11 @@ install_biblium_backend(
 \item{python}{Python executable used to create the environment.}
 
 \item{version}{Biblium version.}
+
+\item{extras}{Optional Biblium extras (\code{"nlp"}, \code{"geo"}, \code{"ml"},
+\code{"interactive"}, \code{"llm"}, \code{"network"}, \code{"extra"}); installed as
+\code{biblium[extra,...]}. NLP topic models via scikit-learn need no extra;
+transformer-based models do.}
 }
 \value{
 Invisible virtual environment path.
@@ -28,5 +34,6 @@ Install an isolated Biblium backend
 install_biblium_backend()
 install_biblium_backend(version="2.16.0")
 install_biblium_backend(envname="r-bibliointegrator")
+install_biblium_backend(extras="geo")
 }
 }

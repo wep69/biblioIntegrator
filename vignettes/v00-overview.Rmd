@@ -1313,7 +1313,7 @@ For experienced users returning after an update:
 
 If you encounter a bug or have a feature request:
 
-1. Check existing issues: [GitHub Issues](https://github.com/walter-pereira/biblioIntegrator/issues)
+1. Check existing issues: [GitHub Issues](https://github.com/wep69/biblioIntegrator/issues)
 2. Provide a minimal reproducible example (reprex).
 3. Include your `sessionInfo()` output.
 4. Attach a small subset of your data (if possible).
@@ -1398,7 +1398,7 @@ sessionInfo()
 ## Database Documentation
 
 - **Elsevier** (2024). Scopus Content Coverage Guide.
-  https://www.elsevier.com/solutions/scopus/content
+  https://www.elsevier.com/products/scopus
 
 - **Clarivate** (2024). Web of Science Core Collection.
   https://clarivate.com/webofsciencegroup/solutions/web-of-science-core-collection/

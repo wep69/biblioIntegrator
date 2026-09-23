@@ -453,7 +453,7 @@ A typical bibliometric workflow on a 500-work corpus:
 
 ### Step 1: Get an API Key
 
-1. Visit https://console.anthropic.com/settings/keys
+1. Visit https://platform.claude.com/settings/keys
 2. Sign in or create an account
 3. Click "Create Key"
 4. Copy the key (starts with `sk-ant-...`)
@@ -2733,14 +2733,14 @@ export, or `saveRDS()` for full R object preservation.
   https://ollama.com
 
 - **Anthropic.** (2024). Anthropic API documentation.
-  https://docs.anthropic.com
+  https://platform.claude.com/docs/
 
 - **Hugging Face.** (2024). Hugging Face Inference API documentation.
   https://huggingface.co/docs/api-inference
 
 ## Related R Packages
 
-- **ellmer** (2025). Call LLMs from R. https://posit-dev.github.io/ellmer/
+- **ellmer** (2025). Call LLMs from R. https://ellmer.tidyverse.org
 
 - **httr2** (2024). HTTP client for R. https://httr2.r-lib.org/
 

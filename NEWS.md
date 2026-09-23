@@ -1,3 +1,39 @@
+# biblioIntegrator 0.4.0 (in development)
+
+* New Biblium engines (optional Python backend, `biblium >= 2.16`):
+  - `biblium_diversity()`: Shannon, Simpson and Gini indices over authors,
+    keywords or sources, overall, per year or per group.
+  - `biblium_representativeness()`: corpus year distribution vs the global
+    OpenAlex benchmark in percentage points, with on-disk reference cache.
+  - `biblium_main_path()`: SPC/SPLC/SPNP main paths over the citation network.
+  - `biblium_compare_means()`: automatic test selection (t/Welch/Mann-Whitney,
+    ANOVA/Welch-ANOVA/Kruskal-Wallis with post-hoc), assumption checks and
+    effect sizes.
+  - All Python calls share `.bi_bridge_call()`, which re-emits Python stderr
+    as R warnings; `to_biblium()` gains the `Source` column.
+* Unified plan: `form_plan()` accepts the `diversity`, `representation`,
+  `mainpath` and `means` blocks plus a `strict` switch (skip unavailable
+  backends with a warning instead of stopping); `biblio_report()` mirrors an
+  executed `biblio_run`; `backend_status()` also reports `biblium` and `llm`.
+* New vignette `v11-biblium-engines.Rmd`.
+* Wave 2: `biblium_crosstab()` (chi-squared/Fisher/effects),
+  `biblium_correlate()` (Pearson/Spearman/Kendall with p-values),
+  `biblium_citation_patterns()` (estimated offline or live OpenAlex histories),
+  native `concept_ngrams()`/`concept_cooccurrence()`/`reference_diversity()`
+  (Rao-Stirling audited against Biblium), `validate_disruption()` (native x
+  Biblium CD agreement), plan blocks `crosstab`/`patterns`/`concepts`.
+* Fixed `disruption_index()` excluding the focal work itself from N_k (B16).
+* Wave 4 (all native R): `biblio_import_pubmed()` (NCBI E-utilities, cached);
+  `deduplicate_biblio(method="fuzzy")` (Jaro-Winkler within year, auditable log);
+  `biblio_plot_annual()/terms()/sources()/citations()` (base graphics);
+  `biblio_config()` registry with master `biblioIntegrator.cache` switch;
+  COBISS documented as wontfix.
+* Wave 3: `install_biblium_backend(extras=)` for Biblium extras;
+  `biblium_sdg()` (Scopus-query SDG flags); `biblium_classify_groups()`
+  (TF-IDF + scikit-learn cross-validation per group); `enrich_countries()` +
+  `biblium_geo()` (OpenAlex country enrichment, cached); `biblium_topics()`
+  (LDA/NMF tier-2, outside the default plan blocks).
+
 # biblioIntegrator 0.3.0
 
 * Fixed issues reported by the audited tutorial (`tutorial/RELATORIO-AO-AUTOR.md`):

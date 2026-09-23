@@ -1,0 +1,145 @@
+---
+title: "Biblium Engines: Diversity, Representativeness, Main Path and Means"
+author: "biblioIntegrator team"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Biblium Engines: Diversity, Representativeness, Main Path and Means}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(biblioIntegrator)
+has_biblium <- isTRUE(tryCatch(biblium_backend_status()$available,
+                               error = function(e) FALSE))
+```
+
+The Python backend is used as a second statistical engine behind four R
+functions. All chunks below run only when Biblium is importable; otherwise
+they print the skip reason. See `backend_status()` for availability.
+
+```{r backend}
+biblium_backend_status()
+```
+
+## Diversity
+
+Shannon, Simpson and Gini indices over authors, keywords or sources, for the
+whole corpus, per year, or per group.
+
+```{r diversity, eval=has_biblium}
+x <- as_biblio_project(example_biblio())
+d <- biblium_diversity(x, entity = "author")
+d$indices
+d$summary
+biblium_diversity(x, entity = "keyword", level = "temporal",
+                  min_items_per_year = 1L)$indices
+g <- ifelse(x$works$year < 2022, "early", "late")
+biblium_diversity(x, level = "group", groups = g)$indices
+```
+
+## Representativeness against OpenAlex
+
+Percentage-point differences between the corpus year distribution and the
+global OpenAlex benchmark. The reference is cached on disk; only a cache
+miss reaches the network.
+
+```{r representativeness, eval=has_biblium}
+r <- biblium_representativeness(x)
+r$table
+```
+
+An offline reference can be injected for testing:
+
+```{r representativeness-mock, eval=has_biblium}
+ref <- data.frame(Year = sort(unique(x$works$year)), Count = 100)
+biblium_representativeness(x, reference = ref)$table
+```
+
+## Main path
+
+SPC/SPLC/SPNP traversal weights over the citation network (edges flow
+cited -> citing). A corpus without references stops with guidance.
+
+```{r mainpath, eval=has_biblium}
+ids <- x$works$work_id[1:5]
+x$references <- data.frame(citing_id = ids[-1], cited_id = ids[-length(ids)])
+p <- biblium_main_path(x)
+p$global_main_path
+p$edge_weights
+```
+
+## Means comparison
+
+Automatic test selection (t/Welch/Mann-Whitney; ANOVA/Welch-ANOVA/
+Kruskal-Wallis with post-hoc), assumption checks and effect sizes.
+
+```{r means, eval=has_biblium}
+m <- biblium_compare_means(x, groups = g)
+m$recommended_test
+m$tests
+```
+
+## Unified plan
+
+The four engines are plan blocks with a strictness switch:
+
+```{r plan, eval=has_biblium}
+plan <- form_plan(analyses = c("health", "diversity", "means"),
+                  group = g, strict = FALSE)
+run <- run_plan(plan, x)
+names(run)
+```
+
+## Wave 2: crosstabs, correlations, patterns, concepts, disruption
+
+```{r crosstab, eval=has_biblium}
+ct <- biblium_crosstab(x, "source", g)
+ct$chi_squared
+ct$effect_size
+mc <- biblium_correlate(x)
+mc$corr_matrix
+```
+
+```{r patterns, eval=has_biblium}
+cp <- biblium_citation_patterns(x, source = "estimated")
+cp$summary
+```
+
+Native concepts and reference diversity (Biblium audits Rao-Stirling):
+
+```{r concepts}
+x <- as_biblio_project(example_biblio())
+head(concept_ngrams(x), 5)
+dim(concept_cooccurrence(x))
+reference_diversity(x)
+```
+
+```{r disruption-check, eval=has_biblium}
+ids <- x$works$work_id[1:5]
+x$references <- data.frame(citing_id = ids[-1], cited_id = ids[-length(ids)])
+vd <- validate_disruption(x, focal_ids = ids[1:4])
+vd$comparison
+```
+
+## Wave 3: SDG, classifier, geo, topics
+
+```{r sdg, eval=has_biblium}
+s <- biblium_sdg(x, text = "title")
+s$flags
+```
+
+```{r classifier, eval=has_biblium}
+cl <- biblium_classify_groups(x, g)
+cl$performance
+```
+
+```{r topics, eval=has_biblium}
+tp <- biblium_topics(x, n_topics = 2L)
+tp$summary
+```
+
+```{r session-info}
+sessionInfo()
+```

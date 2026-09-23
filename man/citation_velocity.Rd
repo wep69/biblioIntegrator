@@ -15,7 +15,10 @@ citation_velocity(x, current_year = as.integer(format(Sys.Date(), "\%Y")))
 Work-level citations per year.
 }
 \description{
-Citation velocity
+A idade usada no denominador e \code{pmax(1, current_year - year + 1)}, isto e,
+conta o ano de publicacao como o primeiro ano de exposicao. A convencao
+(\code{+ 1}) esta declarada aqui porque muda a velocidade das obras recentes em
+relacao a formula \code{current_year - year}.
 }
 \examples{
 citation_velocity(as_biblio_project(example_biblio()))

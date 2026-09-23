@@ -1,0 +1,43 @@
+test_that("crosstab guards input length", {
+  x <- as_biblio_project(example_biblio())
+  expect_error(biblium_crosstab(x, c("a", "b"), rep(c("x", "y"), 6)), "one entry per work")
+})
+
+test_that("crosstab matches R chisq on a 3x2 table", {
+  skip_if_no_biblium()
+  x <- as_biblio_project(example_biblio())
+  r <- rep(c("a", "b", "c"), 4)
+  c2 <- rep(c("x", "y"), 6)
+  b <- biblium_crosstab(x, r, c2)
+  expect_s3_class(b, "biblio_crosstab")
+  expect_equal(c(b$n_rows, b$n_cols), c(3L, 2L))
+  expect_equal(sum(b$observed), 12L)
+  tt <- suppressWarnings(chisq.test(table(r, c2), correct = FALSE))
+  expect_equal(as.numeric(b$chi_squared$statistic), as.numeric(tt$statistic), tolerance = 1e-6)
+  expect_equal(b$chi_squared$p_value, tt$p.value, tolerance = 1e-6)
+  expect_true(b$effect_size$cramers_v >= 0 && b$effect_size$cramers_v <= 1)
+  expect_true(nzchar(b$interpretation))
+})
+
+test_that("crosstab 2x2 adds Fisher", {
+  skip_if_no_biblium()
+  x <- as_biblio_project(example_biblio())
+  b <- biblium_crosstab(x, rep(c("a", "b"), 6), rep(c("x", "y"), 6))
+  expect_true(b$is_2x2)
+  expect_true(!is.null(b$fisher) && b$fisher$p_value >= 0 && b$fisher$p_value <= 1)
+})
+
+test_that("correlate matches R cor and is symmetric", {
+  skip_if_no_biblium()
+  x <- as_biblio_project(example_biblio())
+  m <- biblium_correlate(x)
+  expect_s3_class(m, "biblio_correlation")
+  expect_equal(dim(m$corr_matrix), c(3L, 3L))
+  expect_equal(unname(diag(as.matrix(m$corr_matrix))), rep(1, 3), tolerance = 1e-8)
+  expect_equal(as.matrix(m$corr_matrix), t(as.matrix(m$corr_matrix)), tolerance = 1e-8)
+  cv <- citation_velocity(x)
+  r0 <- suppressWarnings(cor(x$works$cited_by_count, cv$velocity[match(x$works$work_id, cv$work_id)]))
+  expect_equal(as.numeric(m$corr_matrix["citations", "velocity"]), as.numeric(r0), tolerance = 1e-6)
+  s <- biblium_correlate(x, method = "spearman")
+  expect_true(grepl("Spearman", s$method, ignore.case = TRUE))
+})

@@ -4,21 +4,30 @@
 \alias{deduplicate_biblio}
 \title{Deduplicate bibliographic records}
 \usage{
-deduplicate_biblio(x, method = c("doi_title_year"))
+deduplicate_biblio(x, method = c("doi_title_year", "fuzzy"), threshold = 0.1)
 }
 \arguments{
 \item{x}{A \code{biblio_project}.}
 
-\item{method}{Matching hierarchy: DOI then normalized title-year.}
+\item{method}{\code{"doi_title_year"} (exact DOI or normalized title-year key) or
+\code{"fuzzy"} (exact pass plus Jaro-Winkler title match within year).}
+
+\item{threshold}{Maximum Jaro-Winkler distance for fuzzy pairs.}
 }
 \value{
 A deduplicated \code{biblio_project} with a log attribute.
 }
 \description{
-Deduplicate bibliographic records
+A chave de comparacao e o DOI quando ele existe e o par titulo-ano
+normalizado quando ele falta. Como consequencia, um registro SEM DOI nao e
+reconhecido como duplicata do seu gemeo que TEM DOI; esse caso residual precisa
+de decisao manual (recuperar o DOI na base de origem, excluir o registro ou
+registrar a decisao na proveniencia).
 }
 \examples{
 x <- as_biblio_project(rbind(example_biblio(),example_biblio()[1,])); deduplicate_biblio(x)
 nrow(deduplicate_biblio(x)$works)
 attr(deduplicate_biblio(x),"dedup_log")
+d <- example_biblio(); d$title[2] <- gsub("Soil","Soill",d$title[2])
+d$doi[2] <- "10/x/fake"; nrow(deduplicate_biblio(as_biblio_project(d),"fuzzy")$works)
 }

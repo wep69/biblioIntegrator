@@ -10,7 +10,16 @@ form_plan(
   network = "coauthor",
   group = NULL,
   report = c("markdown", "html", "docx", "pdf"),
-  seed = 123
+  seed = 123,
+  engine = c("auto", "native", "biblium"),
+  strict = TRUE,
+  diversity = list(entity = "keyword", level = "overall"),
+  representation = list(threshold = 1),
+  mainpath = list(method = "SPC"),
+  means = list(metric = "citations"),
+  crosstab = list(row = "source", col = NULL),
+  patterns = list(source = "estimated", max_papers = 500L, min_age = 3L),
+  concepts = list(n = 2L, top_n = 30L)
 )
 }
 \arguments{
@@ -25,6 +34,28 @@ form_plan(
 \item{report}{Output report format.}
 
 \item{seed}{Reproducibility seed.}
+
+\item{engine}{Reserved for future native engines; Biblium blocks always use
+the Python backend when present.}
+
+\item{strict}{If \code{TRUE} (default), a block whose backend is unavailable stops
+with an error; if \code{FALSE} it is skipped with a warning.}
+
+\item{diversity}{List with \code{entity} and \code{level} for the diversity block.}
+
+\item{representation}{List with \code{threshold} for the representativeness block.}
+
+\item{mainpath}{List with \code{method} for the main path block.}
+
+\item{means}{List with \code{metric} for the means comparison block.}
+
+\item{crosstab}{List with \code{row} and optional \code{col} (defaults to the plan
+group labels) for the cross-tabulation block.}
+
+\item{patterns}{List with \code{source}, \code{max_papers} and \code{min_age} for the
+citation patterns block.}
+
+\item{concepts}{List with \code{n} and \code{top_n} for the native concepts block.}
 }
 \value{
 A \code{biblio_plan} list.
@@ -36,4 +67,5 @@ Create an analysis plan
 form_plan()
 form_plan(analyses=c("health","descriptive","network"),network="coauthor")
 form_plan(source="scopus.csv",report="docx",seed=42)
+form_plan(analyses=c("health","diversity","means"),group="g")
 }

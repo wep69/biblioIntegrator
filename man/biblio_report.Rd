@@ -12,7 +12,7 @@ biblio_report(
 )
 }
 \arguments{
-\item{x}{A data frame or \code{biblio_project}.}
+\item{x}{A data frame, \code{biblio_project} or \code{biblio_run}.}
 
 \item{output_file}{Destination file.}
 
@@ -26,6 +26,9 @@ Normalized report path.
 \description{
 Produces an auditable report with corpus health, descriptive metrics, annual
 growth, leading terms, network centrality, backend availability and provenance.
+When \code{x} is a \code{biblio_run} (see \code{\link[=run_plan]{run_plan()}}), only the executed blocks are
+reported, including the Biblium engines (diversity, representativeness,
+main path, means comparison).
 }
 \examples{
 f<-tempfile(fileext=".md"); biblio_report(example_biblio(),f); file.exists(f)

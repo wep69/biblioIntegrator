@@ -15,7 +15,10 @@ term_frequency(
 
 \item{field}{\code{"title"} or \code{"abstract"}.}
 
-\item{stopwords}{Optional vector removed before counting.}
+\item{stopwords}{Termos removidos antes da contagem. Sao ACRESCENTADOS a lista
+padrao (artigos e preposicoes do ingles), e nao a substituem: na versao
+anterior, informar \code{stopwords} descartava a lista padrao e as palavras
+funcionais voltavam para a contagem.}
 }
 \value{
 Term-frequency data frame.

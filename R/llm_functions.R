@@ -64,6 +64,30 @@
   }
 }
 
+#' Valida o quadro montado a partir do retorno do modelo
+#'
+#' Um JSON com as chaves erradas (por exemplo `[{"foo":"bar"}]`) produzia um
+#' data.frame com todas as celulas `NA` e NENHUM aviso, o que e o pior caso:
+#' o resultado tem a forma esperada e nao tem conteudo. Esta verificacao cobra as
+#' colunas obrigatorias e avisa quando a maior parte das celulas fica vazia.
+#' @param df Data frame montado a partir do retorno.
+#' @param obrigatorias Vetor de colunas que precisam existir.
+#' @return O proprio `df`, invisivel.
+#' @noRd
+.llm_check_return <- function(df, obrigatorias) {
+  if (!nrow(df)) return(invisible(df))
+  faltando <- setdiff(obrigatorias, names(df))
+  if (length(faltando))
+    stop("O retorno do modelo nao tem as colunas esperadas: ",
+         paste(faltando, collapse = ", "), call. = FALSE)
+  vazias <- mean(is.na(unlist(df[obrigatorias])))
+  if (vazias > 0.5)
+    warning(sprintf(paste("O retorno do modelo tem %.0f%% de celulas vazias nas",
+                          "colunas obrigatorias; verifique provedor, modelo e prompt."),
+                    100 * vazias), call. = FALSE)
+  invisible(df)
+}
+
 # --- 1. Semantic Search ---
 
 #' Semantic search in bibliographic corpus
@@ -133,6 +157,7 @@ semantic_search <- function(x, query, n = 10, provider = NULL,
     )
   }))
 
+  .llm_check_return(result, c("work_id", "score"))
   result[order(-result$score), ]
 }
 
@@ -270,17 +295,22 @@ llm_gap_analysis <- function(x, focus = "thematic", provider = NULL,
   focus <- match.arg(focus, c("thematic", "methodological",
                                "geographic", "temporal"))
 
-  # Build corpus summary
+  # o resumo precisa dos NOMES: paste() sobre um objeto table descarta os rotulos,
+  # e o prompt chegava ao modelo como uma lista de contagens anonimas
   w <- x$works
+  resumo_tab <- function(tab, n = 5L) {
+    if (!length(tab)) return("(sem dados)")
+    t5 <- utils::head(tab, n)
+    paste(sprintf("%s (%d)", names(t5), as.integer(t5)), collapse = ", ")
+  }
   corpus_summary <- sprintf(
     "Corpus: %d works, %d-%d, %d unique sources, %d keywords.\nTop sources: %s\nTop keywords: %s",
     nrow(w),
     min(w$year, na.rm = TRUE), max(w$year, na.rm = TRUE),
     length(unique(w$source)),
     length(unique(x$keywords$keyword)),
-    paste(head(sort(table(w$source), decreasing = TRUE), 5), collapse = ", "),
-    paste(head(sort(table(x$keywords$keyword), decreasing = TRUE), 10),
-          collapse = ", ")
+    resumo_tab(sort(table(w$source), decreasing = TRUE), 5L),
+    resumo_tab(sort(table(x$keywords$keyword), decreasing = TRUE), 10L)
   )
 
   prompt <- .prompt_gap_analysis(corpus_summary, focus)
@@ -301,7 +331,7 @@ llm_gap_analysis <- function(x, focus = "thematic", provider = NULL,
                       stringsAsFactors = FALSE))
   }
 
-  do.call(rbind, lapply(parsed$gaps, function(g) {
+  gaps_df <- do.call(rbind, lapply(parsed$gaps, function(g) {
     data.frame(
       gap       = as.character(g$gap %||% NA),
       evidence  = as.character(g$evidence %||% NA),
@@ -310,6 +340,8 @@ llm_gap_analysis <- function(x, focus = "thematic", provider = NULL,
       stringsAsFactors = FALSE
     )
   }))
+  .llm_check_return(gaps_df, c("gap", "evidence", "suggestion"))
+  gaps_df
 }
 
 # --- 5. Query Expansion ---

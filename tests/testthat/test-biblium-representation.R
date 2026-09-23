@@ -1,0 +1,33 @@
+test_that("representativeness rejects unsupported categories", {
+  x <- as_biblio_project(example_biblio())
+  expect_error(biblium_representativeness(x, category = "country"), "Only category")
+})
+
+test_that("pp differences and labels follow the supplied reference", {
+  skip_if_no_biblium()
+  x <- as_biblio_project(example_biblio())
+  yrs <- sort(unique(x$works$year))
+  ref <- data.frame(Year = yrs, Count = rep(100, length(yrs)))
+  r <- biblium_representativeness(x, reference = ref, threshold = 0)
+  expect_s3_class(r, "biblio_representation")
+  expect_true(all(c("Year", "Difference (pp)", "Representation") %in% names(r$table)))
+  expect_true(all(r$table$Representation %in% c("Over-represented", "Under-represented", "As expected")))
+  expect_equal(r$table$`Difference (pp)`, r$table$`Observed %` - r$table$`Reference %`)
+  tb <- table(x$works$year)
+  peak <- as.integer(names(tb)[which.max(tb)])
+  expect_equal(r$table$Representation[r$table$Year == peak], "Over-represented")
+  r2 <- biblium_representativeness(x, reference = ref, threshold = 1e6)
+  expect_true(all(r2$table$Representation == "As expected"))
+})
+
+test_that("live OpenAlex benchmark runs and caches", {
+  skip_if_no_biblium()
+  testthat::skip_on_cran()
+  x <- as_biblio_project(example_biblio())
+  r <- biblium_representativeness(x, use_cache = FALSE)
+  expect_true(nrow(r$table) >= 1)
+  expect_false(r$cached)
+  r2 <- biblium_representativeness(x, use_cache = TRUE)
+  expect_true(r2$cached)
+  expect_equal(r2$table, r$table)
+})

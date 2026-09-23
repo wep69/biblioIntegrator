@@ -13,7 +13,9 @@ A data frame indicating installed scalable backends.
 Optional backend status
 }
 \examples{
+\donttest{
 backend_status()
 subset(backend_status(), available)
 backend_status()$backend
+}
 }

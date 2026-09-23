@@ -3,22 +3,35 @@
 #' @return A data frame indicating installed scalable backends.
 #' @export
 #' @examples
+#' \donttest{
 #' backend_status()
 #' subset(backend_status(), available)
 #' backend_status()$backend
+#' }
 backend_status <- function() {
   pk <- c("biblionetwork","arrow","duckdb","DBI","bibliometrix","openalexR")
-  data.frame(backend=pk,available=vapply(pk,requireNamespace,logical(1),quietly=TRUE),stringsAsFactors=FALSE)
+  base=data.frame(backend=pk,available=vapply(pk,requireNamespace,logical(1),quietly=TRUE),stringsAsFactors=FALSE)
+  extra=data.frame(backend=c("biblium","llm"),
+    available=c(isTRUE(tryCatch(biblium_backend_status()$available,error=function(e)FALSE)),
+                isTRUE(tryCatch(suppressMessages(llm_status(verbose=FALSE)),error=function(e)FALSE))),
+    stringsAsFactors=FALSE)
+  rbind(base,extra)
 }
 
 .bi_edges_native <- function(x,type) {
   if(type=="coauthor") {
     a=x$authorships; if(!nrow(a)) return(data.frame(from=character(),to=character(),weight=numeric()))
-    z=split(a$author_id,a$work_id); out=lapply(z,function(v){v=unique(v); if(length(v)<2)return(NULL); c=utils::combn(v,2); data.frame(from=c[1,],to=c[2,],weight=1)})
+    # o par e ordenado de forma canonica (pmin/pmax): sem isso o mesmo par de
+    # autores aparecia duas vezes, uma em cada sentido, e o grau maximo podia
+    # exceder o numero de vertices menos um
+    z=split(a$author_id,a$work_id); out=lapply(z,function(v){v=unique(v); if(length(v)<2)return(NULL); c=utils::combn(v,2); data.frame(from=pmin(c[1,],c[2,]),to=pmax(c[1,],c[2,]),weight=1)})
   } else if(type=="keyword") {
-    a=x$keywords; z=split(a$keyword,a$work_id); out=lapply(z,function(v){v=unique(v); if(length(v)<2)return(NULL); c=utils::combn(v,2); data.frame(from=c[1,],to=c[2,],weight=1)})
+    a=x$keywords; z=split(a$keyword,a$work_id); out=lapply(z,function(v){v=unique(v); if(length(v)<2)return(NULL); c=utils::combn(v,2); data.frame(from=pmin(c[1,],c[2,]),to=pmax(c[1,],c[2,]),weight=1)})
   } else if(type=="citation") {
-    r=x$references; if(!all(c("citing_id","cited_id")%in%names(r))) return(data.frame(from=character(),to=character(),weight=numeric())); out=list(data.frame(from=r$citing_id,to=r$cited_id,weight=1))
+    # rede de citacao e direcionada: a ordem citante -> citado e preservada.
+    # Acervo sem referencias devolve tabela vazia (antes, weight=1 com zero linhas
+    # em from/to gerava "arguments imply differing number of rows: 0, 1").
+    r=x$references; if(!nrow(r) || !all(c("citing_id","cited_id")%in%names(r))) return(data.frame(from=character(),to=character(),weight=numeric())); out=list(data.frame(from=r$citing_id,to=r$cited_id,weight=rep(1,nrow(r))))
   } else stop("Unsupported network type.",call.=FALSE)
   out=Filter(Negate(is.null),out); if(!length(out))return(data.frame(from=character(),to=character(),weight=numeric()))
   d=do.call(rbind,out); stats::aggregate(weight~from+to,d,sum)
@@ -49,7 +62,10 @@ bibliographic_network <- function(x,type=c("coauthor","keyword","citation"),engi
     e=as.data.frame(biblionetwork::coauth_network(dt,authors="author",articles="article",method=counting))[,c("from","to","weight"),drop=FALSE]; eng="biblionetwork"
   } else { e=.bi_edges_native(x,type); eng="native" }
   e=e[is.finite(e$weight)&e$weight>=min_weight,,drop=FALSE]
-  g=igraph::graph_from_data_frame(e,directed=(type=="citation")); attr(g,"engine")=eng; g
+  # grafo vazio e um resultado legitimo (acervo sem referencias, ou min_weight
+  # acima do peso maximo): devolve grafo vazio em vez de erro
+  g=if(nrow(e)) igraph::graph_from_data_frame(e,directed=(type=="citation")) else igraph::make_empty_graph(n=0,directed=(type=="citation"))
+  attr(g,"engine")=eng; g
 }
 
 #' Network centrality table
@@ -86,16 +102,27 @@ network_communities <- function(graph,method=c("louvain","walktrap","label_prop"
 #' @param B Number of subsamples.
 #' @param fraction Fraction of works retained per subsample.
 #' @param seed Random seed.
-#' @return Node-wise mean and SD of degree ranks.
+#' @param engine Engine used to rebuild each replicate: `"auto"` (default, o
+#'   mesmo da rede publicada), `"native"` ou `"biblionetwork"`.
+#' @param measure Medida de centralidade ranqueada: `"degree"` (default),
+#'   `"strength"`, `"betweenness"` ou `"pagerank"`.
+#' @return Node-wise mean and SD of the centrality ranks.
 #' @export
 #' @examples
 #' x <- as_biblio_project(example_biblio()); network_stability(x,B=10,seed=1)
 #' network_stability(x,type="keyword",B=8,fraction=.8,seed=2)
+#' network_stability(x,B=6,seed=3,measure="strength")
 #' head(network_stability(x,B=6,seed=3),3)
-network_stability <- function(x,type=c("coauthor","keyword"),B=100,fraction=.8,seed=NULL) {
-  type=match.arg(type); sr=.bi_rng_get(); on.exit(.bi_rng_set(sr),add=TRUE); if(!is.null(seed))set.seed(seed); ids=x$works$work_id; keepn=max(2,floor(length(ids)*fraction)); ranks=list()
-  for(b in seq_len(B)){ k=sample(ids,keepn); y=x; y$works=x$works[x$works$work_id%in%k,,drop=FALSE]; y$authorships=x$authorships[x$authorships$work_id%in%k,,drop=FALSE]; y$keywords=x$keywords[x$keywords$work_id%in%k,,drop=FALSE]; g=bibliographic_network(y,type,engine="native"); if(igraph::vcount(g)){ d=igraph::degree(g); ranks[[b]]=data.frame(node=names(d),rank=rank(-d,ties.method="average")) }}
-  a=do.call(rbind,ranks); if(is.null(a))return(data.frame()); m=stats::aggregate(rank~node,a,function(z)c(mean=mean(z),sd=stats::sd(z),n=length(z))); data.frame(node=m$node,mean_rank=m$rank[,"mean"],sd_rank=m$rank[,"sd"],replicates=m$rank[,"n"],row.names=NULL)
+network_stability <- function(x,type=c("coauthor","keyword"),B=100,fraction=.8,seed=NULL,
+                              engine=c("auto","native","biblionetwork"),
+                              measure=c("degree","strength","betweenness","pagerank")) {
+  type=match.arg(type); engine=match.arg(engine); measure=match.arg(measure)
+  sr=.bi_rng_get(); on.exit(.bi_rng_set(sr),add=TRUE); if(!is.null(seed))set.seed(seed); ids=x$works$work_id; keepn=max(2,floor(length(ids)*fraction)); ranks=list()
+  # o motor e a medida precisam ser os MESMOS da rede publicada: antes as replicas
+  # eram reconstruidas com engine="native" e ranqueadas por grau, o que media a
+  # estabilidade de outra rede (Spearman -0,99 contra o grau do motor nativo)
+  for(b in seq_len(B)){ k=sample(ids,keepn); y=x; y$works=x$works[x$works$work_id%in%k,,drop=FALSE]; y$authorships=x$authorships[x$authorships$work_id%in%k,,drop=FALSE]; y$keywords=x$keywords[x$keywords$work_id%in%k,,drop=FALSE]; g=bibliographic_network(y,type,engine=engine); if(igraph::vcount(g)){ cen=network_centrality(g); v=cen[[measure]]; ranks[[b]]=data.frame(node=cen$node,rank=rank(-v,ties.method="average")) }}
+  a=do.call(rbind,ranks); if(is.null(a))return(data.frame()); m=stats::aggregate(rank~node,a,function(z)c(mean=mean(z),sd=stats::sd(z),n=length(z))); data.frame(node=m$node,mean_rank=m$rank[,"mean"],sd_rank=m$rank[,"sd"],replicates=m$rank[,"n"],engine=engine,measure=measure,row.names=NULL)
 }
 
 #' Store a bibliometric project using Arrow or DuckDB
@@ -193,4 +220,15 @@ biblio_load <- function(path,engine=c("arrow","duckdb")) {
 #'   nrow(biblio_query(p, "SELECT * FROM keywords"))
 #' }
 #' }
-biblio_query <- function(path,sql) { if(!requireNamespace("duckdb",quietly=TRUE)||!requireNamespace("DBI",quietly=TRUE))stop("Install 'duckdb' and 'DBI'.",call.=FALSE); con=DBI::dbConnect(duckdb::duckdb(),dbdir=path,read_only=TRUE); on.exit(DBI::dbDisconnect(con,shutdown=TRUE),add=TRUE); DBI::dbGetQuery(con,sql) }
+biblio_query <- function(path,sql) {
+  if(!requireNamespace("duckdb",quietly=TRUE)||!requireNamespace("DBI",quietly=TRUE))stop("Install 'duckdb' and 'DBI'.",call.=FALSE)
+  # `path` precisa ser o arquivo DuckDB gravado por biblio_store(engine="duckdb").
+  # Um diretorio Arrow entregue aqui vazava um erro de baixo nivel do DuckDB
+  # ({"exception_type":"IO", ... "Acesso negado"}); a mensagem abaixo orienta.
+  if (dir.exists(path))
+    stop("`path` is a directory (Arrow storage?). biblio_query() reads a DuckDB file; ",
+         "use biblio_load(path, \"arrow\") or biblio_store(x, <file>, \"duckdb\").", call.=FALSE)
+  if (!file.exists(path))
+    stop("`path` does not exist: ", path, call.=FALSE)
+  con=DBI::dbConnect(duckdb::duckdb(),dbdir=path,read_only=TRUE); on.exit(DBI::dbDisconnect(con,shutdown=TRUE),add=TRUE); DBI::dbGetQuery(con,sql)
+}

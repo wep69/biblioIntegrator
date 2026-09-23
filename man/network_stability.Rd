@@ -9,7 +9,9 @@ network_stability(
   type = c("coauthor", "keyword"),
   B = 100,
   fraction = 0.8,
-  seed = NULL
+  seed = NULL,
+  engine = c("auto", "native", "biblionetwork"),
+  measure = c("degree", "strength", "betweenness", "pagerank")
 )
 }
 \arguments{
@@ -22,9 +24,15 @@ network_stability(
 \item{fraction}{Fraction of works retained per subsample.}
 
 \item{seed}{Random seed.}
+
+\item{engine}{Engine used to rebuild each replicate: \code{"auto"} (default, o
+mesmo da rede publicada), \code{"native"} ou \code{"biblionetwork"}.}
+
+\item{measure}{Medida de centralidade ranqueada: \code{"degree"} (default),
+\code{"strength"}, \code{"betweenness"} ou \code{"pagerank"}.}
 }
 \value{
-Node-wise mean and SD of degree ranks.
+Node-wise mean and SD of the centrality ranks.
 }
 \description{
 Bootstrap/subsampling stability of node centrality
@@ -32,5 +40,6 @@ Bootstrap/subsampling stability of node centrality
 \examples{
 x <- as_biblio_project(example_biblio()); network_stability(x,B=10,seed=1)
 network_stability(x,type="keyword",B=8,fraction=.8,seed=2)
+network_stability(x,B=6,seed=3,measure="strength")
 head(network_stability(x,B=6,seed=3),3)
 }

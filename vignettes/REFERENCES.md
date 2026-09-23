@@ -44,12 +44,12 @@ Todas as referências abaixo foram verificadas em pelo menos duas fontes indepen
 ## APIs e Serviços
 
 ### OpenAlex
-- **URL:** https://docs.openalex.org
+- **URL:** https://help.openalex.org/
 - **Tipo:** API aberta de dados bibliográficos
 - **Cobertura:** 250M+ obras acadêmicas
 - **Licença:** CC0
 - **Mantido por:** OurResearch
-- **Verificado em:** docs.openalex.org + dev.to + OpenAlex Web
+- **Verificado em:** help.openalex.org + dev.to + OpenAlex Web
 
 ### OpenCitations
 - **API:** https://api.opencitations.net/index/v2

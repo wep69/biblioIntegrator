@@ -183,7 +183,7 @@ llm_status <- function(provider = NULL, verbose = TRUE) {
 #' @param json_mode Logical. Request JSON output. Default: FALSE.
 #'
 #' @return Character. LLM response text.
-#' @keywords internal
+#' @noRd
 .llm_chat <- function(messages, provider = NULL, model = NULL,
                       temperature = NULL, max_tokens = NULL,
                       json_mode = FALSE) {
